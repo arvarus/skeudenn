@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here. This file is maintained by [release-please](https://github.com/googleapis/release-please) from the [Conventional Commits](https://www.conventionalcommits.org/) merged into `master`: don't edit released entries by hand. New versions are inserted above the previous ones.
 
+## [0.22.1](https://github.com/arvarus/skeudenn/compare/v0.22.0...v0.22.1) (2026-11-01)
+
+
+### Bug Fixes
+
+* **docs:** point the Pages base and repository links to the skeudenn repository ([#282](https://github.com/arvarus/skeudenn/issues/282)) ([31dc9f1](https://github.com/arvarus/skeudenn/commit/31dc9f17127084b4d4a5c49a7e36799afacaae43))
+
 ## [0.22.0](https://github.com/arvarus/tankobon/compare/v0.21.0...v0.22.0) (2026-11-01)
 
 
