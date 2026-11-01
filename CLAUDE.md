@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Architecture in brief
 
-Tankōbon is an Electron app (Vite + Electron Forge, React 19, TypeScript) that manages and reads digital comics (CBZ, CBR, PDF).
+Skeudenn is an Electron app (Vite + Electron Forge, React 19, TypeScript) that manages and reads digital comics (CBZ, CBR, PDF).
 
 - **Main process** (`src/main.ts`, `src/main/`): the window, the SQLite database (`node:sqlite`, `src/main/db/`) and IPC handlers (`src/main/ipc/`). It never parses a comic file.
 - **Decoder process** (`src/main/decoder/`, `src/main/services/`): a `utilityProcess` that does the archive decoding and thumbnails; the main process reaches it only through `DecoderClient`.

@@ -123,7 +123,7 @@ jobs:
           url="$(gh release view "$TAG" --json url --jq .url)"
           # An embed description holds 4096 characters at most.
           notes="$(gh release view "$TAG" --json body --jq .body | head -c 3500)"
-          payload="$(jq -n --arg title "Tankōbon $TAG" --arg url "$url" --arg notes "$notes" \
+          payload="$(jq -n --arg title "Skeudenn $TAG" --arg url "$url" --arg notes "$notes" \
             '{embeds: [{title: $title, url: $url, description: $notes, color: 5814783}]}')"
           for webhook in $DISCORD_WEBHOOK_URLS; do
             curl -fsS -H 'Content-Type: application/json' -d "$payload" "$webhook"

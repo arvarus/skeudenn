@@ -11,7 +11,7 @@ const typedocSidebar: DefaultTheme.SidebarItem[] = existsSync(typedocSidebarPath
 
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
-  title: 'Tankōbon',
+  title: 'Skeudenn',
   description: 'Digital comics, BD and manga library manager and reader.',
   lang: 'en-US',
   // Published on GitHub Pages at https://arvarus.github.io/tankobon/.

@@ -2,8 +2,8 @@
 layout: home
 
 hero:
-  name: Tankōbon
-  text: Digital comics, BD and manga library manager and reader
+  name: Skeudenn
+  text: Skeudenn, lecteur de BD, mangas et comics — digital comics, BD and manga library manager and reader
   tagline: CBZ, CBR and PDF. Local-first, offline, desktop (Electron).
   actions:
     - theme: brand

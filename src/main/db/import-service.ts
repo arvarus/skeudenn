@@ -152,7 +152,7 @@ function toSettings(value: unknown): AppSettings {
 
 /**
  * Validates the JSON text of a file the user picked. Throws a user-facing message (in the interface language) when
- * it isn't a Tankōbon export; individual library entries that are too broken to use are dropped
+ * it isn't a Skeudenn export; individual library entries that are too broken to use are dropped
  * rather than failing the whole import.
  */
 export function parseExport(raw: string): ExportedData {

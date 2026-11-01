@@ -55,8 +55,8 @@ const errors: Translation<typeof en> = {
   },
   import: {
     notJson: "Fichier illisible : ce n'est pas du JSON valide.",
-    notExport: "Fichier non reconnu : ce n'est pas un export Tankōbon (version 1).",
-    tooLarge: 'Ce fichier est trop volumineux pour être un export de Tankōbon.',
+    notExport: "Fichier non reconnu : ce n'est pas un export Skeudenn (version 1).",
+    tooLarge: 'Ce fichier est trop volumineux pour être un export de Skeudenn.',
   },
   readingLists: {
     notFound: 'Liste de lecture introuvable.',

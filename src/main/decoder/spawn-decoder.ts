@@ -11,7 +11,7 @@ import type { DecoderResponse } from './protocol';
 /** Forks `decoder-worker.cjs` (next to the main bundle) and returns the main side of its port. */
 export function spawnDecoderProcess(): DecoderChannel {
   const child = utilityProcess.fork(path.join(__dirname, 'decoder-worker.cjs'), [], {
-    serviceName: 'Tankobon decoder',
+    serviceName: 'Skeudenn decoder',
   });
   const { port1, port2 } = new MessageChannelMain();
   child.postMessage(null, [port2]);

@@ -5,7 +5,7 @@
 
 ## Context
 
-Tankōbon was a single-user app: one library, one set of ratings, reading lists, progress and settings. People sharing a computer (a family, a flatmate) share the comics too, but not their place in a book, their stars or their reading lists. The request is deliberately light: a nickname, no password, an optional picture, a menu in the sidebar to switch users, and a profile page; the library and its organization stay common.
+Skeudenn was a single-user app: one library, one set of ratings, reading lists, progress and settings. People sharing a computer (a family, a flatmate) share the comics too, but not their place in a book, their stars or their reading lists. The request is deliberately light: a nickname, no password, an optional picture, a menu in the sidebar to switch users, and a profile page; the library and its organization stay common.
 
 ## Decision
 

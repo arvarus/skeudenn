@@ -29,7 +29,7 @@ function savedPage(page: Page, title: string): Promise<number | undefined> {
 
 test('starts and exposes the preload bridge', async () => {
   const page = await start({ books: [{ title: 'Alpha', pageCount: 3 }] });
-  await expect(page).toHaveTitle('Tankōbon');
+  await expect(page).toHaveTitle('Skeudenn');
   expect(await page.evaluate(() => typeof window.tankobon)).toBe('object');
   await expect(page.getByRole('button', { name: 'Open Alpha' })).toBeVisible();
 });

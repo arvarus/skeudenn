@@ -1,8 +1,8 @@
 // Copies the packaged app (`npm run package`) to a directory with a plain ASCII name, and points
 // `TANKOBON_E2E_APP` at it for the tests (see app.ts).
 //
-// The package is named after the product ("Tankōbon-linux-x64"). On Linux the packaged app
-// exits at once, silently, when it runs from a path holding that decomposed "ō": the same files
+// The package is named after the product ("Skeudenn-linux-x64"). On Linux the packaged app
+// exits at once, silently, when it runs from a path holding that decomposed "ō" (the former product name, Tankōbon; the copy is kept as a precaution): the same files
 // start fine from an ASCII path (the deb installs to /usr/lib/tankobon).
 import { cpSync, mkdtempSync, readdirSync, rmSync } from 'node:fs';
 import os from 'node:os';

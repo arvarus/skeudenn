@@ -28,8 +28,8 @@ describe('parseExport', () => {
   });
 
   it('rejects JSON that is not a Tankobon export', () => {
-    expect(() => parseExport('{"hello":"world"}')).toThrow(/export Tankōbon/);
-    expect(() => parseExport('{"version":2,"library":[]}')).toThrow(/export Tankōbon/);
+    expect(() => parseExport('{"hello":"world"}')).toThrow(/export Skeudenn/);
+    expect(() => parseExport('{"version":2,"library":[]}')).toThrow(/export Skeudenn/);
   });
 
   it('accepts what buildExport produces', () => {

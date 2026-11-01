@@ -32,7 +32,7 @@ function httpOptions(): HttpOptions {
   return {
     // Chromium's network stack rather than Node's: it honours the system proxy settings.
     fetch: net.fetch as typeof fetch,
-    userAgent: `Tankobon/${app.getVersion()}`,
+    userAgent: `Skeudenn/${app.getVersion()}`,
     timeoutMs: 15_000,
   };
 }

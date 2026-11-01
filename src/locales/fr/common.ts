@@ -2,7 +2,7 @@ import type en from '../en/common';
 import type { Translation } from '../types';
 
 const common: Translation<typeof en> = {
-  appName: 'Tankōbon',
+  appName: 'Skeudenn',
   cancel: 'Annuler',
   close: 'Fermer',
   open: 'Ouvrir',

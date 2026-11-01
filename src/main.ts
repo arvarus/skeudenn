@@ -48,6 +48,10 @@ if (started) {
   app.quit();
 }
 
+// Electron derives `userData` from the product name, which changed with the rename to Skeudenn:
+// keep the folder the database, the roots file and the thumbnails already live in.
+app.setPath('userData', path.join(app.getPath('appData'), 'Tankōbon'));
+
 // One instance at a time: a second one would open the same database file and its decoder process on
 // the same library. Launching the app again brings the running window forward instead.
 const isFirstInstance = app.requestSingleInstanceLock();
@@ -80,7 +84,7 @@ const createWindow = () => {
     height: 800,
     minWidth: 800,
     minHeight: 600,
-    title: 'Tankōbon',
+    title: 'Skeudenn',
     icon: windowIcon,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),

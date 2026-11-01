@@ -60,7 +60,7 @@ export function registerAppIpc(launchFiles: LaunchFiles): void {
       checkForUpdate(app.getVersion(), {
         // Chromium's network stack: it honours the system proxy settings.
         fetch: net.fetch as typeof fetch,
-        userAgent: `Tankobon/${app.getVersion()}`,
+        userAgent: `Skeudenn/${app.getVersion()}`,
         timeoutMs: 15_000,
       }),
   );

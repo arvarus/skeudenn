@@ -1,8 +1,8 @@
 {
   "name": "tankobon",
-  "productName": "Tankōbon",
+  "productName": "Skeudenn",
   "version": "0.21.0",
-  "description": "Digital comics, BD and manga library manager and reader.",
+  "description": "Skeudenn, lecteur de BD, mangas et comics (digital comics, BD and manga library manager and reader).",
   "main": ".vite/build/main.cjs",
   "private": true,
   "scripts": {

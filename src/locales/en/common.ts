@@ -1,6 +1,6 @@
 // Words and formats shared across the app: generic actions, units.
 export default {
-  appName: 'Tankōbon',
+  appName: 'Skeudenn',
   cancel: 'Cancel',
   close: 'Close',
   open: 'Open',
