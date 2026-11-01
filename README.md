@@ -6,7 +6,7 @@ Built with Electron, React 19 and TypeScript.
 
 ## Install
 
-Installers for Windows, macOS (Apple silicon) and Linux (`.deb`, `.rpm`) are attached to each [GitHub release](https://github.com/arvarus/tankobon/releases).
+Installers for Windows, macOS (Apple silicon) and Linux (`.deb`, `.rpm`) are attached to each [GitHub release](https://github.com/arvarus/skeudenn/releases).
 
 From source: requires Node.js 24 (see `.nvmrc`).
 
@@ -25,7 +25,7 @@ npm run make       # installers for the current platform
 
 ## Documentation
 
-**https://arvarus.github.io/tankobon/**, built from `docs/`:
+**https://arvarus.github.io/skeudenn/**, built from `docs/`:
 
 - [Features](docs/guide/features.md)
 - [Development](docs/development.md): all commands, CI, releases

@@ -14,8 +14,8 @@ export default defineConfig({
   title: 'Skeudenn',
   description: 'Digital comics, BD and manga library manager and reader.',
   lang: 'en-US',
-  // Published on GitHub Pages at https://arvarus.github.io/tankobon/.
-  base: '/tankobon/',
+  // Published on GitHub Pages at https://arvarus.github.io/skeudenn/.
+  base: '/skeudenn/',
   cleanUrls: true,
   lastUpdated: true,
   themeConfig: {
@@ -44,9 +44,9 @@ export default defineConfig({
       },
     ],
     search: { provider: 'local' },
-    socialLinks: [{ icon: 'github', link: 'https://github.com/arvarus/tankobon' }],
+    socialLinks: [{ icon: 'github', link: 'https://github.com/arvarus/skeudenn' }],
     editLink: {
-      pattern: 'https://github.com/arvarus/tankobon/edit/master/docs/:path',
+      pattern: 'https://github.com/arvarus/skeudenn/edit/master/docs/:path',
       text: 'Edit this page on GitHub',
     },
   },

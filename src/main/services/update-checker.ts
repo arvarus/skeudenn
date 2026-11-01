@@ -6,7 +6,7 @@ import { isNewerVersion, type UpdateCheckResult } from '../../shared/app';
 import { getJson, type HttpOptions } from './http-json';
 
 /** GitHub's API endpoint for the repository's latest release (never a draft or a pre-release). */
-export const LATEST_RELEASE_URL = 'https://api.github.com/repos/arvarus/tankobon/releases/latest';
+export const LATEST_RELEASE_URL = 'https://api.github.com/repos/arvarus/skeudenn/releases/latest';
 
 /**
  * Compares `currentVersion` with the tag of the latest GitHub release. Network failures come back
