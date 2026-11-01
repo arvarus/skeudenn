@@ -648,6 +648,29 @@ describe('searchBedetheque', () => {
     expect(found.length).toBeGreaterThan(0);
   });
 
+  it("never sends a parenthesis to the search box, and finds a series by the site's qualifier", async () => {
+    const terms: string[] = [];
+    const fetch = vi.fn(async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      if (url.hostname === 'www.bdgest.com') {
+        const term = url.searchParams.get('term') ?? '';
+        terms.push(term);
+        return term === 'Ajax'
+          ? Response.json([
+              { id: 'S1', label: 'Ajax', category: 'Série' },
+              { id: 'S569', label: 'Ajax (5e Série)', category: 'Série' },
+            ])
+          : new Response('', { status: 200 });
+      }
+      expect(url.pathname).toContain('/serie/index/s/569');
+      return new Response(SERIES_PAGE, { status: 200 });
+    });
+    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Tankobon/test', timeoutMs: 1000 };
+    const found = await searchBedetheque({ text: 'Ajax (5e Série)', volume: null }, http);
+    expect(terms).toEqual(['Ajax']);
+    expect(found.length).toBeGreaterThan(0);
+  });
+
   it('reads a series page once for several volumes', async () => {
     const { calls, http } = site();
     await searchBedetheque({ text: 'Blacksad', volume: '1' }, http);

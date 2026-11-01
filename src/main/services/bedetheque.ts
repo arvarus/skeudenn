@@ -526,10 +526,16 @@ function foldText(text: string): string {
 function searchTerms(text: string): string[] {
   const folded = foldText(text);
   const undotted = folded.replace(/\./g, '').replace(/\s+/g, ' ').trim();
+  // The box answers an unreadable page to a term holding a parenthesis (`Ajax (5e Série)`, the site's own qualifier):
+  // such a term is never sent, its name without the qualifier and without the parentheses are tried instead.
+  const bare = text.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+  const spaced = text.replace(/[()]/g, ' ').replace(/\s+/g, ' ').trim();
   const longestOf = (words: string[]) => words.reduce((best, word) => (word.length > best.length ? word : best), '');
-  const token = longestOf(undotted.split(' '));
+  const token = longestOf(undotted.replace(/[()]/g, ' ').split(/\s+/));
   const word = longestOf(normalizeName(text).split(' '));
-  const terms = [text, folded, undotted, token, word].filter((term) => term.length >= MIN_SEARCH_LENGTH);
+  const terms = [text, folded, undotted, bare, spaced, token, word].filter(
+    (term) => term.length >= MIN_SEARCH_LENGTH && !/[()]/.test(term),
+  );
   // Another spelling of the same text isn't worth a request, nor is a case-only difference.
   return terms.filter((term, index) => terms.findIndex((other) => other.toLowerCase() === term.toLowerCase()) === index);
 }
