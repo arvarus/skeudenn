@@ -30,17 +30,17 @@ export interface AppInfo {
  */
 export const APP_LINKS = {
   /** Source code repository. */
-  repository: 'https://github.com/arvarus/tankobon',
+  repository: 'https://github.com/arvarus/skeudenn',
   /** Documentation site (GitHub Pages, built from `docs/`). */
-  documentation: 'https://arvarus.github.io/tankobon/',
+  documentation: 'https://arvarus.github.io/skeudenn/',
   /** Releases, with the installers and the changelog of each version. */
-  releases: 'https://github.com/arvarus/tankobon/releases',
+  releases: 'https://github.com/arvarus/skeudenn/releases',
   /** Bug reports and feature requests. */
-  issues: 'https://github.com/arvarus/tankobon/issues',
+  issues: 'https://github.com/arvarus/skeudenn/issues',
   /** Invitation to the Arvarus Discord server. */
   discord: 'https://discord.gg/zYCnEK2J8',
   /** Full text of the MIT license the app is distributed under. */
-  license: 'https://github.com/arvarus/tankobon/blob/master/LICENSE',
+  license: 'https://github.com/arvarus/skeudenn/blob/master/LICENSE',
 } as const;
 
 /** Key of one of the {@link APP_LINKS}. */
