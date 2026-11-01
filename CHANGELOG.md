@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented here. This file is maintained by [release-please](https://github.com/googleapis/release-please) from the [Conventional Commits](https://www.conventionalcommits.org/) merged into `master`: don't edit released entries by hand. New versions are inserted above the previous ones.
 
+## [0.22.0](https://github.com/arvarus/tankobon/compare/v0.21.0...v0.22.0) (2026-11-01)
+
+
+### Features
+
+* **app:** rename the app to Skeudenn ([#280](https://github.com/arvarus/tankobon/issues/280)) ([66161ae](https://github.com/arvarus/tankobon/commit/66161ae137f8ee15715f65645f9d313eef03a1b2))
+
+
+### Bug Fixes
+
+* **metadata:** find Bédéthèque series named with a parenthesized qualifier ([#279](https://github.com/arvarus/tankobon/issues/279)) ([5b5d728](https://github.com/arvarus/tankobon/commit/5b5d728d8b071843ba138c6e662f0e8518a9fdff))
+
 ## [0.21.0](https://github.com/arvarus/tankobon/compare/v0.20.0...v0.21.0) (2026-10-29)
 
 
