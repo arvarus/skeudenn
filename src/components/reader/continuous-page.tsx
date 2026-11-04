@@ -19,13 +19,15 @@ interface ContinuousPageProps {
   onActive: (index: number) => void;
   /** Asks for the book to be opened again, when this page could not be read. */
   onRetry: () => void;
+  /** Shows the image at its own size instead of stretching it to the column. */
+  actualSize: boolean;
   /** The scroll container holding the pages, whose position follows the height changes above the viewport. */
   scrollRef: RefObject<HTMLDivElement | null>;
   /** True while the resumed page is pinned, which already corrects the scroll position itself. */
   pinnedRef: RefObject<boolean>;
 }
 
-export function ContinuousPage({ comicId, index, onActive, onRetry, scrollRef, pinnedRef }: ContinuousPageProps) {
+export function ContinuousPage({ comicId, index, onActive, onRetry, actualSize, scrollRef, pinnedRef }: ContinuousPageProps) {
   const { t } = useTranslation('reader');
   const ref = useRef<HTMLDivElement>(null);
   const [shouldLoad, setShouldLoad] = useState(false);
@@ -121,7 +123,7 @@ export function ContinuousPage({ comicId, index, onActive, onRetry, scrollRef, p
   }, [shouldLoad, comicId, index]);
 
   return (
-    <div ref={ref} className="w-full max-w-full">
+    <div ref={ref} className={actualSize ? 'flex w-max min-w-full justify-center' : 'w-full max-w-full'}>
       {url && (
         <img
           src={url}
@@ -131,7 +133,7 @@ export function ContinuousPage({ comicId, index, onActive, onRetry, scrollRef, p
             setReleasedHeight(null);
             setLoaded(true);
           }}
-          className={loaded ? 'block w-full' : 'hidden'}
+          className={loaded ? (actualSize ? 'block max-w-none shrink-0' : 'block w-full') : 'hidden'}
         />
       )}
       {url && loaded ? null : (
