@@ -2,7 +2,7 @@ import { Navigate, createFileRoute } from '@tanstack/react-router';
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { BarChart } from '@/components/stats/bar-chart';
+import { BarChart, type BarChartDatum, type BarChartSeries } from '@/components/stats/bar-chart';
 import { Button } from '@/components/ui/button';
 import { useLibrary } from '@/hooks/use-library';
 import { useSettings } from '@/hooks/use-settings';
@@ -55,6 +55,25 @@ function StatsPage() {
   const growth = useMemo(() => buildLibraryGrowth(library ?? [], period), [library, period]);
   const periodName = t(`charts.period${period === 'week' ? 'Week' : period === 'month' ? 'Month' : 'Year'}`);
 
+  const series: BarChartSeries[] = [
+    { key: 'booksRead', label: t('charts.booksRead'), fillClass: 'fill-primary' },
+    { key: 'libraryGrowth', label: t('charts.libraryGrowth'), fillClass: 'fill-emerald-500' },
+    { key: 'time', label: t('charts.time'), fillClass: 'fill-amber-500' },
+  ];
+  // The three series share the same periods (`periodKeys()`), so they line up by index.
+  const chartData: BarChartDatum[] = growth.map((point, index) => {
+    const bucket = buckets[index];
+    return {
+      key: point.key,
+      label: periodLabel(point.key),
+      values: {
+        booksRead: { value: bucket?.booksRead ?? 0, valueLabel: t('barBooks', { count: bucket?.booksRead ?? 0 }) },
+        libraryGrowth: { value: point.books, valueLabel: t('barBooks', { count: point.books }) },
+        time: { value: bucket?.seconds ?? 0, valueLabel: formatDuration(bucket?.seconds ?? 0) },
+      },
+    };
+  });
+
   if (!settings.statsEnabled) return <Navigate to="/library" replace />;
 
   return (
@@ -88,43 +107,14 @@ function StatsPage() {
       </div>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-lg font-medium">{t('charts.booksRead')}</h2>
+        <h2 className="text-lg font-medium">{t('charts.title')}</h2>
         <BarChart
-          ariaLabel={t('charts.booksReadAria', { period: periodName })}
-          data={buckets.map((bucket) => ({
-            key: bucket.key,
-            label: periodLabel(bucket.key),
-            value: bucket.booksRead,
-            valueLabel: t('barBooks', { count: bucket.booksRead }),
-          }))}
+          ariaLabel={t('charts.aria', { period: periodName })}
+          series={series}
+          data={chartData}
         />
-      </section>
-
-      <section className="flex flex-col gap-2">
-        <h2 className="text-lg font-medium">{t('charts.libraryGrowth')}</h2>
-        <BarChart
-          ariaLabel={t('charts.libraryGrowthAria', { period: periodName })}
-          data={growth.map((point) => ({
-            key: point.key,
-            label: periodLabel(point.key),
-            value: point.books,
-            valueLabel: t('barBooks', { count: point.books }),
-          }))}
-        />
+        <p className="text-xs text-muted-foreground">{t('charts.scaleNote')}</p>
         <p className="text-xs text-muted-foreground">{t('charts.libraryGrowthNote')}</p>
-      </section>
-
-      <section className="flex flex-col gap-2">
-        <h2 className="text-lg font-medium">{t('charts.time')}</h2>
-        <BarChart
-          ariaLabel={t('charts.timeAria', { period: periodName })}
-          data={buckets.map((bucket) => ({
-            key: bucket.key,
-            label: periodLabel(bucket.key),
-            value: bucket.seconds,
-            valueLabel: formatDuration(bucket.seconds),
-          }))}
-        />
       </section>
     </div>
   );
