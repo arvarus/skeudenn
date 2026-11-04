@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here. This file is maintained by [release-please](https://github.com/googleapis/release-please) from the [Conventional Commits](https://www.conventionalcommits.org/) merged into `master`: don't edit released entries by hand. New versions are inserted above the previous ones.
 
+## [0.23.0](https://github.com/arvarus/skeudenn/compare/v0.22.1...v0.23.0) (2026-11-04)
+
+
+### Features
+
+* **reader:** add actual size to the continuous reader's width choices ([#284](https://github.com/arvarus/skeudenn/issues/284)) ([6abce4d](https://github.com/arvarus/skeudenn/commit/6abce4d3b7afd2466e9848a608286804a93b9828))
+* **stats:** merge the three charts into one grouped bar chart ([#285](https://github.com/arvarus/skeudenn/issues/285)) ([a43a5e4](https://github.com/arvarus/skeudenn/commit/a43a5e4c2d772ffc97aab451af4b917842cb8d0f))
+
+
+### Bug Fixes
+
+* **library:** park removed books in .deletedByTankobon ([#286](https://github.com/arvarus/skeudenn/issues/286)) ([78e3a4e](https://github.com/arvarus/skeudenn/commit/78e3a4e7502e39fcc567646168fb28f8ddafda9a))
+
 ## [0.22.1](https://github.com/arvarus/skeudenn/compare/v0.22.0...v0.22.1) (2026-11-01)
 
 
