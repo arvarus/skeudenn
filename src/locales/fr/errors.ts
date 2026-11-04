@@ -51,6 +51,7 @@ const errors: Translation<typeof en> = {
     convertRunning: 'Une conversion des CBR, ou le vidage du dossier des CBR convertis, est déjà en cours.',
     foldersRunning: 'Un nettoyage des dossiers orphelins est déjà en cours.',
     organizeRunning: 'Une autre opération sur les fichiers de la bibliothèque (ajout, resynchronisation ou organisation) est déjà en cours.',
+    parkFailed: "Le livre a été retiré de la bibliothèque, mais son fichier n'a pas pu être déplacé dans le dossier .deletedByTankobon : {{message}}",
     trashFailed: "Le livre a été retiré de la bibliothèque, mais son fichier n'a pas pu être mis à la corbeille : {{message}}",
   },
   import: {
