@@ -42,6 +42,7 @@ function renderPage(readPage: () => Promise<unknown>, onRetry = vi.fn()) {
         index={4}
         onActive={vi.fn()}
         onRetry={onRetry}
+        actualSize={false}
         scrollRef={createRef<HTMLDivElement>()}
         pinnedRef={createRef<boolean>() as RefObject<boolean>}
       />

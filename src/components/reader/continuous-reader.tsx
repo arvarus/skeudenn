@@ -16,7 +16,10 @@ import { createTrailingDebounce, type TrailingDebounce } from '@/lib/trailing-de
 import type { ComicInfo } from '@/shared/comic';
 
 /** Width of the page column as a fraction of the reading area; 1 fits the pages to its width. */
-const WIDTH_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+const WIDTH_OPTIONS: Width[] = [0.5, 0.75, 1, 1.25, 1.5, 2, 'actual'];
+
+/** A width option: a fraction of the reading area, or `actual` for the pages' own size (1 image pixel = 1 screen pixel). */
+type Width = number | 'actual';
 
 interface ContinuousReaderProps {
   comic: ComicInfo;
@@ -63,12 +66,12 @@ export function ContinuousReader({
   }, []);
   const scrollRef = useRef<HTMLDivElement>(null);
   const columnRef = useRef<HTMLDivElement>(null);
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState<Width>(1);
   const scrollRatio = useRef<{ top: number; left: number } | null>(null);
 
   // Resizing the column changes every page's height: keep the same relative position, so
   // the reader stays on the page being read instead of landing somewhere else in the book.
-  const changeZoom = (value: number) => {
+  const changeZoom = (value: Width) => {
     const el = scrollRef.current;
     if (el) {
       scrollRatio.current = {
@@ -115,12 +118,16 @@ export function ContinuousReader({
           <span className="sr-only">{t('zoom')}</span>
           <select
             value={String(zoom)}
-            onChange={(event) => changeZoom(Number(event.target.value))}
+            onChange={(event) => changeZoom(event.target.value === 'actual' ? 'actual' : Number(event.target.value))}
             className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white [color-scheme:dark]"
           >
             {WIDTH_OPTIONS.map((option) => (
               <option key={option} value={option} className="bg-neutral-900 text-white">
-                {option === 1 ? t('zoomFitWidth') : t('zoomPercent', { percent: Math.round(option * 100) })}
+                {option === 'actual'
+                  ? t('zoomActual')
+                  : option === 1
+                    ? t('zoomFitWidth')
+                    : t('zoomPercent', { percent: Math.round(option * 100) })}
               </option>
             ))}
           </select>
@@ -135,9 +142,9 @@ export function ContinuousReader({
       </ReaderHeader>
 
       <div ref={scrollRef} role="region" aria-label={t('pages')} className="min-h-0 flex-1 overflow-auto [overflow-anchor:none]">
-        <div ref={columnRef} className="mx-auto flex flex-col items-center" style={{ rowGap: spacing, width: `${zoom * 100}%` }}>
+        <div ref={columnRef} className="mx-auto flex flex-col items-center" style={{ rowGap: spacing, width: zoom === 'actual' ? 'max-content' : `${zoom * 100}%` }}>
           {Array.from({ length: comic.pageCount }, (_, index) => (
-            <ContinuousPage key={index} comicId={comic.id} index={index} onActive={handleActive} onRetry={() => onRetry(visiblePage)} scrollRef={scrollRef} pinnedRef={pinnedRef} />
+            <ContinuousPage key={index} comicId={comic.id} index={index} onActive={handleActive} onRetry={() => onRetry(visiblePage)} actualSize={zoom === 'actual'} scrollRef={scrollRef} pinnedRef={pinnedRef} />
           ))}
         </div>
       </div>
