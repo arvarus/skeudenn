@@ -50,6 +50,7 @@ export default {
     convertRunning: 'A conversion of the CBR files, or the emptying of the folder of the converted ones, is already running.',
     foldersRunning: 'A cleaning of the orphan folders is already running.',
     organizeRunning: 'Another operation on the library files (adding, resynchronization or organization) is already running.',
+    parkFailed: 'The book was removed from the library, but its file could not be moved to the .deletedByTankobon folder: {{message}}',
     trashFailed: 'The book was removed from the library, but its file could not be moved to the trash: {{message}}',
   },
   import: {

@@ -130,7 +130,7 @@ export interface LibraryApi {
   imageScanStatus(): Promise<ImageScanProgress>;
   /** Subscribes to the progress of that background measure; returns the unsubscribe function. */
   onImageScanProgress(listener: (progress: ImageScanProgress) => void): () => void;
-  /** Removes an entry from the library. The file on disk is left untouched, unless `deleteFile` is true: it (and its cover and `.nfo` sidecars) then goes to the trash. An `error` result means the entry is gone from the library but the file could not be trashed. */
+  /** Removes an entry from the library. The file on disk is moved, with its cover and `.nfo` sidecars, to a `.deletedByTankobon` folder (the organized folder's when it lives there, else beside it) so that a resynchronization doesn't add it back, unless `deleteFile` is true: it then goes to the OS trash. An `error` result means the entry is gone from the library but the file could not be moved or trashed. */
   remove(id: string, deleteFile?: boolean): Promise<RemoveEntryResult>;
   /** Removes several entries from the library; with `deleteFiles`, their files (and the covers beside them) are also moved to the system trash. A file that can't be trashed is counted as failed, its entry is removed anyway. */
   removeMany(ids: string[], deleteFiles: boolean): Promise<RemoveEntriesResult>;

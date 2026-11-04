@@ -29,6 +29,7 @@ import { NOTHING_ORGANIZED, type LibraryOrganizer, type Resynchronizer } from '.
 import { openErrorMessage } from '../services/open-error';
 import { scanIntoLibrary } from '../services/library-scanner';
 import { readNfoFor } from '../services/nfo';
+import { parkComic } from '../services/park-comic';
 import { trashSidecars } from '../services/sidecars';
 import { lastOpenedDirectory } from './comic';
 import type { NotifyDataChange } from './data-changes';
@@ -354,7 +355,19 @@ export function registerLibraryIpc({
     if (entry) {
       await decoder.removeThumbnail(entry.path).catch(() => undefined);
     }
-    if (!entry || !deleteFile) return { status: 'ok' };
+    if (!entry) return { status: 'ok' };
+    if (!deleteFile) {
+      // Left in place, the file would be added back by the next resynchronization: it is parked instead.
+      try {
+        await parkComic(entry.path, settingsRepo.getAll().libraryOrganizationFolder);
+      } catch (error) {
+        return {
+          status: 'error',
+          message: t('errors:library.parkFailed', { message: error instanceof Error ? error.message : String(error) }),
+        };
+      }
+      return { status: 'ok' };
+    }
     // To the trash, not deleted for good; the sidecars (cover, .nfo) follow when they exist.
     try {
       await shell.trashItem(entry.path);
@@ -384,7 +397,15 @@ export function registerLibraryIpc({
         removed.push(id);
         result.removed++;
         await decoder.removeThumbnail(entry.path).catch(() => undefined);
-        if (!deleteFiles) continue;
+        if (!deleteFiles) {
+          // Parked, not left in place, so that the next resynchronization doesn't add it back.
+          try {
+            await parkComic(entry.path, settingsRepo.getAll().libraryOrganizationFolder);
+          } catch {
+            result.filesFailed++;
+          }
+          continue;
+        }
         // To the trash, so a wrong choice can still be undone; the cover and the .nfo beside the comic go along.
         try {
           await shell.trashItem(entry.path);
