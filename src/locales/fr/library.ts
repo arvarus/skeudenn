@@ -135,6 +135,7 @@ const library: Translation<typeof en> = {
   cleanupDone: '{{books}} livres nettoyés : {{files}} fichiers supprimés, {{size}} libérés.',
   cleanupRewriteFailed_one: '{{count}} livre n’a pas pu être réécrit ; il est resté tel quel.',
   cleanupRewriteFailed_other: '{{count}} livres n’ont pas pu être réécrits ; ils sont restés tels quels.',
+  scanShowFailures: 'Afficher les fichiers non importés',
   scanFailuresTitle: 'Fichiers illisibles',
   scanFailuresIntro_one: '{{count}} fichier n’a pas pu être ouvert et n’a pas été ajouté à la bibliothèque.',
   scanFailuresIntro_other: '{{count}} fichiers n’ont pas pu être ouverts et n’ont pas été ajoutés à la bibliothèque.',
