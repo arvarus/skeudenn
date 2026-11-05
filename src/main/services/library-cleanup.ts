@@ -10,7 +10,15 @@ import { stat } from 'node:fs/promises';
 import path from 'node:path';
 
 import { t } from '../../shared/i18n';
-import type { CleanupAnalysisResult, CleanupGroup, CleanupResult, ScanProgress } from '../../shared/library';
+import {
+  MAX_REPORTED_FAILURES,
+  type CleanupAnalysisResult,
+  type CleanupGroup,
+  type CleanupGroupBook,
+  type CleanupResult,
+  type ScanFailure,
+  type ScanProgress,
+} from '../../shared/library';
 import type { LibraryRepository } from '../db/library-repository';
 import type { CleanedArchive, JunkEntry } from './cbz-cleaner';
 import { isOnlineOnly } from './cloud-files';
@@ -42,6 +50,8 @@ export interface LibraryCleaner {
 const MAX_ANALYSES = 5;
 /** File names quoted per group in the summary. */
 const MAX_EXAMPLES = 3;
+/** Books listed per group in the unfolded detail; the group's `books` still counts them all. */
+export const MAX_DETAIL_BOOKS = 100;
 
 /** A book of an analysis: what the cleanup would remove from it. */
 export interface PlannedBook {
@@ -62,25 +72,36 @@ export function junkExtension(entryName: string): string {
 export function groupJunk(books: readonly PlannedBook[]): CleanupGroup[] {
   const groups = new Map<string, CleanupGroup>();
   for (const book of books) {
-    const seen = new Set<string>();
+    // The detail line of this book in each group it appears in (undefined once the group's list is full).
+    const lines = new Map<string, CleanupGroupBook | undefined>();
     for (const file of book.junk) {
       const extension = junkExtension(file.name);
       let group = groups.get(extension);
       if (!group) {
-        group = { extension, files: 0, books: 0, size: 0, examples: [] };
+        group = { extension, files: 0, books: 0, size: 0, examples: [], details: [] };
         groups.set(extension, group);
       }
       group.files++;
       group.size += file.size;
-      if (!seen.has(extension)) {
-        seen.add(extension);
+      if (!lines.has(extension)) {
         group.books++;
+        const line = group.details.length < MAX_DETAIL_BOOKS ? { name: path.basename(book.path), files: [] } : undefined;
+        if (line) group.details.push(line);
+        lines.set(extension, line);
       }
+      lines.get(extension)?.files.push(file.name);
       const base = path.posix.basename(file.name);
       if (group.examples.length < MAX_EXAMPLES && !group.examples.includes(base)) group.examples.push(base);
     }
   }
   return [...groups.values()].sort((a, b) => b.size - a.size || a.extension.localeCompare(b.extension));
+}
+
+/** Notes why the book at `filePath` failed, up to `MAX_REPORTED_FAILURES` books. */
+function reportFailure(failures: ScanFailure[], filePath: string, error: unknown): void {
+  if (failures.length < MAX_REPORTED_FAILURES) {
+    failures.push({ path: filePath, reason: error instanceof Error ? error.message : String(error) });
+  }
 }
 
 /** Builds the cleaner around the library and the decoder; `notify` announces the rewritten entries. */
@@ -107,6 +128,7 @@ export function createLibraryCleaner(
         const books: PlannedBook[] = [];
         let skipped = 0;
         let failed = 0;
+        const failures: ScanFailure[] = [];
         for (const [index, entry] of entries.entries()) {
           progress(onProgress, 'importing', index, entries.length, entry.path);
           // Reading a cloud placeholder would download it.
@@ -118,8 +140,9 @@ export function createLibraryCleaner(
             const junk = await decoder.listJunk(entry.path);
             if (junk === null) skipped++;
             else if (junk.length > 0) books.push({ id: entry.id, path: entry.path, junk });
-          } catch {
+          } catch (error) {
             failed++;
+            reportFailure(failures, entry.path, error);
           }
         }
         progress(onProgress, 'done', entries.length, entries.length, '');
@@ -135,6 +158,7 @@ export function createLibraryCleaner(
           booksWithJunk: books.length,
           skipped,
           failed,
+          failures,
         };
       } finally {
         running = false;
@@ -151,6 +175,7 @@ export function createLibraryCleaner(
       try {
         const kept = new Set(keptExtensions);
         const result = { cleaned: 0, filesRemoved: 0, bytesFreed: 0, failed: 0 };
+        const failures: ScanFailure[] = [];
         const upserted = [];
         for (const [index, book] of books.entries()) {
           const names = book.junk.filter((file) => !kept.has(junkExtension(file.name))).map((file) => file.name);
@@ -165,13 +190,14 @@ export function createLibraryCleaner(
             result.cleaned++;
             result.filesRemoved += names.length;
             result.bytesFreed += Math.max(0, before - after);
-          } catch {
+          } catch (error) {
             result.failed++;
+            reportFailure(failures, book.path, error);
           }
         }
         progress(onProgress, 'done', books.length, books.length, '');
         if (upserted.length > 0) notify({ scope: 'library', upserted });
-        return { status: 'ok', ...result };
+        return { status: 'ok', ...result, failures };
       } finally {
         running = false;
         lock?.end();

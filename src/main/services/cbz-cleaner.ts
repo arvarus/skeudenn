@@ -5,6 +5,7 @@
  */
 import { createWriteStream } from 'node:fs';
 import { rename, rm } from 'node:fs/promises';
+import type { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { ZipFile } from 'yazl';
 
@@ -67,6 +68,9 @@ export async function removeEntries(filePath: string, names: readonly string[]):
 
     const out = new ZipFile();
     const written = pipeline(out.outputStream, createWriteStream(temporary));
+    // yazl reports a failed entry on the ZipFile only, and then stops: its output would stay open
+    // and `written` would never settle. Destroying the output fails `written` and closes the file.
+    out.on('error', (error: Error) => (out.outputStream as Readable).destroy(error));
     for (const entry of kept) {
       // yazl refuses a backslash in a name; Windows tools write them as separators.
       out.addReadStreamLazy(
@@ -74,7 +78,11 @@ export async function removeEntries(filePath: string, names: readonly string[]):
         { mtime: new Date(entry.time), compress: !isPageEntry(entry.name) },
         (callback) => {
           zip.stream(entry.name).then(
-            (stream) => callback(null, stream as unknown as NodeJS.ReadableStream),
+            (stream) => {
+              // yazl doesn't listen to the streams it is given: a corrupted entry fails here.
+              stream.on('error', (error) => out.emit('error', error));
+              callback(null, stream as unknown as NodeJS.ReadableStream);
+            },
             (error: unknown) => callback(error, undefined as never),
           );
         },

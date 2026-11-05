@@ -159,7 +159,7 @@ export type ScanResult =
       organization: OrganizationOutcome;
     };
 
-/** A file a scan or resynchronization couldn't open, and why. */
+/** A file a scan, a resynchronization or a cleanup couldn't handle, and why. */
 export interface ScanFailure {
   /** Absolute path of the file. */
   path: string;
@@ -167,7 +167,7 @@ export interface ScanFailure {
   reason: string;
 }
 
-/** The most failures a scan or resynchronization reports (the count in `failed` stays exact). */
+/** The most failures a scan, a resynchronization or a cleanup reports (the count in `failed` stays exact). */
 export const MAX_REPORTED_FAILURES = 200;
 
 /** Outcome of `library.resync()`. */
@@ -265,6 +265,14 @@ export interface RemoveEntriesResult {
   filesFailed: number;
 }
 
+/** A book holding files of one {@link CleanupGroup}, for the unfolded detail of the cleanup dialog. */
+export interface CleanupGroupBook {
+  /** The book's file name (no folders). */
+  name: string;
+  /** The entries of that kind in its archive, with their path inside it. */
+  files: string[];
+}
+
 /** One kind of non-image file found in the archives while cleaning the books, grouped by extension. */
 export interface CleanupGroup {
   /** Lower-cased extension with its dot (`.xml`), empty for a name without extension. */
@@ -277,6 +285,8 @@ export interface CleanupGroup {
   size: number;
   /** A few of the file names, to recognize the kind. */
   examples: string[];
+  /** The books holding that kind, in analysis order, cut to the first 100 (`books` is the real count). */
+  details: CleanupGroupBook[];
 }
 
 /**
@@ -299,6 +309,8 @@ export type CleanupAnalysisResult =
       skipped: number;
       /** Books that could not be read. */
       failed: number;
+      /** The first `MAX_REPORTED_FAILURES` of those books, with the reason. */
+      failures: ScanFailure[];
     };
 
 /** Outcome of `library.applyCleanup()`. */
@@ -314,6 +326,8 @@ export type CleanupResult =
       bytesFreed: number;
       /** Books that could not be rewritten (left as they were). */
       failed: number;
+      /** The first `MAX_REPORTED_FAILURES` of those books, with the reason. */
+      failures: ScanFailure[];
     };
 
 /** Largest image `library:set-cover` accepts, in bytes (the renderer sends the cropped picture, a few hundred kilobytes at most). */

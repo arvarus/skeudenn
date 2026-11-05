@@ -19,7 +19,7 @@ describe('CleanupDialog', () => {
     const analyzeCleanup = vi.fn(async () => {
       calls += 1;
       if (calls > 1) return { status: 'error' as const, message: 'Un nettoyage est déjà en cours.' };
-      return { status: 'ok' as const, token: 't', groups: [], scanned: 3, booksWithJunk: 0, skipped: 0, failed: 0 };
+      return { status: 'ok' as const, token: 't', groups: [], scanned: 3, booksWithJunk: 0, skipped: 0, failed: 0, failures: [] };
     });
     Object.assign(window, { tankobon: { library: { analyzeCleanup } } });
 
@@ -42,11 +42,12 @@ describe('CleanupDialog failures', () => {
   const analysis = {
     status: 'ok' as const,
     token: 't',
-    groups: [{ extension: '.txt', files: 2, books: 1, size: 20, examples: ['a.txt'] }],
+    groups: [{ extension: '.txt', files: 2, books: 1, size: 20, examples: ['a.txt'], details: [{ name: 'book.cbz', files: ['a.txt', 'b.txt'] }] }],
     scanned: 3,
     booksWithJunk: 1,
     skipped: 0,
     failed: 0,
+    failures: [],
   };
 
   it('says so when the analysis call fails', async () => {
@@ -75,14 +76,39 @@ describe('CleanupDialog failures', () => {
     expect((screen.getByRole('button', { name: /Supprimer 2 fichiers/ }) as HTMLButtonElement).disabled).toBe(false);
   });
 
-  it('reports the books that could not be rewritten', async () => {
+  it('reports the books that could not be rewritten and unfolds them with the reason', async () => {
+    const failures = [{ path: '/lib/bad.cbz', reason: 'Unknown compression method: 9' }];
     renderWithTankobon(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
       library: {
         analyzeCleanup: vi.fn(async () => analysis),
-        applyCleanup: vi.fn(async () => ({ status: 'ok' as const, cleaned: 0, filesRemoved: 0, bytesFreed: 0, failed: 1 })),
+        applyCleanup: vi.fn(async () => ({ status: 'ok' as const, cleaned: 0, filesRemoved: 0, bytesFreed: 0, failed: 1, failures })),
       },
     });
     fireEvent.click(await screen.findByRole('button', { name: /Supprimer 2 fichiers/ }));
     expect(await screen.findByText(/n’a pas pu être réécrit/)).toBeTruthy();
+    expect(screen.queryByText('/lib/bad.cbz')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Afficher le détail/ }));
+    expect(screen.getByText('/lib/bad.cbz')).toBeTruthy();
+    expect(screen.getByText('Unknown compression method: 9')).toBeTruthy();
+  });
+
+  it('lists the books the analysis could not read', async () => {
+    const failures = [{ path: '/lib/broken.cbz', reason: 'Bad archive' }];
+    renderWithTankobon(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
+      library: { analyzeCleanup: vi.fn(async () => ({ ...analysis, groups: [], booksWithJunk: 0, failed: 1, failures })) },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /Afficher le détail/ }));
+    expect(screen.getByText('/lib/broken.cbz')).toBeTruthy();
+    expect(screen.getByText('Bad archive')).toBeTruthy();
+  });
+
+  it('unfolds the books and files of a kind', async () => {
+    renderWithTankobon(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
+      library: { analyzeCleanup: vi.fn(async () => analysis) },
+    });
+    expect(screen.queryByText('book.cbz')).toBeNull();
+    fireEvent.click(await screen.findByRole('button', { name: /Afficher le détail/ }));
+    expect(screen.getByText('book.cbz')).toBeTruthy();
+    expect(screen.getByText('a.txt, b.txt')).toBeTruthy();
   });
 });
