@@ -14,6 +14,7 @@ import { LibraryToolbar } from '@/components/library/library-toolbar';
 import { ScanProgressBar } from '@/components/library/scan-progress-bar';
 import { SelectionBar } from '@/components/library/selection-bar';
 import { SeriesHeader } from '@/components/library/series-header';
+import { ScanFailuresDialog } from '@/components/scan-failures-dialog';
 import { MetadataDialog } from '@/components/metadata-dialog';
 import { Button } from '@/components/ui/button';
 import { useLibrary } from '@/hooks/use-library';
@@ -30,7 +31,7 @@ import { draggedEntries } from '@/lib/library-selection';
 import { encodeDraggedEntries, LIBRARY_ENTRY_DRAG_TYPE } from '@/lib/reading-list';
 import { cn } from '@/lib/utils';
 import { comicFormat } from '@/shared/comic';
-import type { LibraryEntry, ScanProgress } from '@/shared/library';
+import type { LibraryEntry, ScanFailure, ScanProgress } from '@/shared/library';
 import type { BookRowView } from '@/shared/settings';
 
 /** Narrowest a book card of the grid view is allowed to get, and the space between cards (px). */
@@ -73,6 +74,9 @@ function LibraryPage() {
   };
   const [scan, setScan] = useState<ScanProgress | null>(null);
   const [scanStatus, setScanStatus] = useState<string | null>(null);
+  // The files the last folder addition couldn't open; the dialog listing them opens on request.
+  const [failures, setFailures] = useState<{ list: ScanFailure[]; total: number } | null>(null);
+  const [failuresOpen, setFailuresOpen] = useState(false);
   const [lookupEntry, setLookupEntry] = useState<LibraryEntry | null>(null);
   // Looking up a selection: the books in screen order and the one being looked up.
   const [lookupSeries, setLookupSeries] = useState<{ entries: LibraryEntry[]; index: number } | null>(null);
@@ -95,6 +99,7 @@ function LibraryPage() {
 
   const addFolder = async () => {
     setScanStatus(null);
+    setFailures(null);
     const result = await window.tankobon.library.addFolder();
     if (result.status === 'cancelled') {
       setScan(null);
@@ -107,7 +112,10 @@ function LibraryPage() {
     }
     const parts = [t('scanAdded', { count: result.added, directory: result.directory })];
     if (result.skipped > 0) parts.push(t('scanSkipped', { count: result.skipped }));
-    if (result.failed > 0) parts.push(t('scanFailed', { count: result.failed }));
+    if (result.failed > 0) {
+      parts.push(t('scanFailed', { count: result.failed }));
+      setFailures({ list: result.failures, total: result.failed });
+    }
     if (result.total === 0) {
       setScanStatus(t('scanNoneFound', { directory: result.directory }));
       return;
@@ -237,6 +245,13 @@ function LibraryPage() {
 
       {scan && <ScanProgressBar progress={scan} onClose={() => setScan(null)} />}
       {scanStatus && <p className="text-sm text-muted-foreground">{scanStatus}</p>}
+      {failures && (
+        <div>
+          <Button variant="outline" size="sm" onClick={() => setFailuresOpen(true)}>
+            {t('scanShowFailures')}
+          </Button>
+        </div>
+      )}
 
       {entries.length > 0 && (
         <LibraryToolbar
@@ -479,6 +494,9 @@ function LibraryPage() {
             if (listFromSelection) clearSelection();
           }}
         />
+      )}
+      {failures && failuresOpen && (
+        <ScanFailuresDialog failures={failures.list} total={failures.total} onClose={() => setFailuresOpen(false)} />
       )}
       {confirmDialog}
     </div>

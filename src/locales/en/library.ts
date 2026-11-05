@@ -133,6 +133,7 @@ export default {
   cleanupDone: '{{books}} books cleaned: {{files}} files removed, {{size}} freed.',
   cleanupRewriteFailed_one: '{{count}} book could not be rewritten; it was left as it was.',
   cleanupRewriteFailed_other: '{{count}} books could not be rewritten; they were left as they were.',
+  scanShowFailures: 'Show the files not imported',
   scanFailuresTitle: 'Files that could not be opened',
   scanFailuresIntro_one: '{{count}} file could not be opened and was not added to the library.',
   scanFailuresIntro_other: '{{count}} files could not be opened and were not added to the library.',

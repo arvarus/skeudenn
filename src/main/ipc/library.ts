@@ -233,8 +233,8 @@ export function registerLibraryIpc({
       const organization = activeUser() === startedBy ? await organizer.afterAdd(summary.addedEntries) : NOTHING_ORGANIZED;
       // The files are in: their pages are measured in the background, after the import.
       void imageScanner.kick();
-      const { added, skipped, failed, total } = summary;
-      return { status: 'ok', directory, added, skipped, failed, total, organization };
+      const { added, skipped, failed, failures, total } = summary;
+      return { status: 'ok', directory, added, skipped, failed, failures, total, organization };
     } finally {
       organizer.lock.end();
     }

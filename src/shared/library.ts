@@ -151,6 +151,8 @@ export type ScanResult =
       skipped: number;
       /** Files that couldn't be opened (corrupt, unsupported variant…). */
       failed: number;
+      /** The first `MAX_REPORTED_FAILURES` of those files, with the reason each one failed. */
+      failures: ScanFailure[];
       /** Supported files found in the tree, i.e. `added + skipped + failed`. */
       total: number;
       /** What the library organization did with the comics added. */
@@ -165,7 +167,7 @@ export interface ScanFailure {
   reason: string;
 }
 
-/** The most failures a resynchronization reports (the count in `failed` stays exact). */
+/** The most failures a scan or resynchronization reports (the count in `failed` stays exact). */
 export const MAX_REPORTED_FAILURES = 200;
 
 /** Outcome of `library.resync()`. */
