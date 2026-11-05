@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented here. This file is maintained by [release-please](https://github.com/googleapis/release-please) from the [Conventional Commits](https://www.conventionalcommits.org/) merged into `master`: don't edit released entries by hand. New versions are inserted above the previous ones.
 
+## [0.24.0](https://github.com/arvarus/skeudenn/compare/v0.23.0...v0.24.0) (2026-11-05)
+
+
+### Features
+
+* **cleanup:** unfold each kind of file to see the books and files behind it ([#289](https://github.com/arvarus/skeudenn/issues/289)) ([649e602](https://github.com/arvarus/skeudenn/commit/649e602e7c336ee0c9dbe51932d427d5899855b2))
+* **library:** list the files not imported after adding a folder ([#288](https://github.com/arvarus/skeudenn/issues/288)) ([dbc76b4](https://github.com/arvarus/skeudenn/commit/dbc76b42214ff332ce7193e2caeed7bae7d4b7f0))
+
+
+### Bug Fixes
+
+* **app:** honour --user-data-dir so the e2e tests use their own data ([#290](https://github.com/arvarus/skeudenn/issues/290)) ([34d070c](https://github.com/arvarus/skeudenn/commit/34d070c6f8e46a533fecbccb30109c6290a2806d))
+
 ## [0.23.0](https://github.com/arvarus/skeudenn/compare/v0.22.1...v0.23.0) (2026-11-04)
 
 
