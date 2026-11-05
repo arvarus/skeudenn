@@ -10,7 +10,7 @@ import { stat } from 'node:fs/promises';
 import path from 'node:path';
 
 import { t } from '../../shared/i18n';
-import type { CleanupAnalysisResult, CleanupGroup, CleanupResult, ScanProgress } from '../../shared/library';
+import type { CleanupAnalysisResult, CleanupGroup, CleanupGroupBook, CleanupResult, ScanProgress } from '../../shared/library';
 import type { LibraryRepository } from '../db/library-repository';
 import type { CleanedArchive, JunkEntry } from './cbz-cleaner';
 import { isOnlineOnly } from './cloud-files';
@@ -42,6 +42,8 @@ export interface LibraryCleaner {
 const MAX_ANALYSES = 5;
 /** File names quoted per group in the summary. */
 const MAX_EXAMPLES = 3;
+/** Books listed per group in the unfolded detail; the group's `books` still counts them all. */
+export const MAX_DETAIL_BOOKS = 100;
 
 /** A book of an analysis: what the cleanup would remove from it. */
 export interface PlannedBook {
@@ -62,20 +64,24 @@ export function junkExtension(entryName: string): string {
 export function groupJunk(books: readonly PlannedBook[]): CleanupGroup[] {
   const groups = new Map<string, CleanupGroup>();
   for (const book of books) {
-    const seen = new Set<string>();
+    // The detail line of this book in each group it appears in (undefined once the group's list is full).
+    const lines = new Map<string, CleanupGroupBook | undefined>();
     for (const file of book.junk) {
       const extension = junkExtension(file.name);
       let group = groups.get(extension);
       if (!group) {
-        group = { extension, files: 0, books: 0, size: 0, examples: [] };
+        group = { extension, files: 0, books: 0, size: 0, examples: [], details: [] };
         groups.set(extension, group);
       }
       group.files++;
       group.size += file.size;
-      if (!seen.has(extension)) {
-        seen.add(extension);
+      if (!lines.has(extension)) {
         group.books++;
+        const line = group.details.length < MAX_DETAIL_BOOKS ? { name: path.basename(book.path), files: [] } : undefined;
+        if (line) group.details.push(line);
+        lines.set(extension, line);
       }
+      lines.get(extension)?.files.push(file.name);
       const base = path.posix.basename(file.name);
       if (group.examples.length < MAX_EXAMPLES && !group.examples.includes(base)) group.examples.push(base);
     }

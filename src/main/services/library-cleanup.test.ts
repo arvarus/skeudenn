@@ -41,8 +41,13 @@ describe('groupJunk', () => {
       { id: '2', path: '/b.cbz', junk: [{ name: 'ComicInfo.xml', size: 20 }, { name: 'other.xml', size: 1 }] },
     ]);
     expect(groups).toEqual([
-      { extension: '.db', files: 1, books: 1, size: 500, examples: ['Thumbs.db'] },
-      { extension: '.xml', files: 3, books: 2, size: 31, examples: ['ComicInfo.xml', 'other.xml'] },
+      { extension: '.db', files: 1, books: 1, size: 500, examples: ['Thumbs.db'], details: [{ name: 'a.cbz', files: ['x/Thumbs.db'] }] },
+      { extension: '.xml', files: 3, books: 2, size: 31, examples: ['ComicInfo.xml', 'other.xml'],
+        details: [
+          { name: 'a.cbz', files: ['ComicInfo.xml'] },
+          { name: 'b.cbz', files: ['ComicInfo.xml', 'other.xml'] },
+        ],
+      },
     ]);
   });
 });

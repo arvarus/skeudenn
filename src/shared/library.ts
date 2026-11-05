@@ -263,6 +263,14 @@ export interface RemoveEntriesResult {
   filesFailed: number;
 }
 
+/** A book holding files of one {@link CleanupGroup}, for the unfolded detail of the cleanup dialog. */
+export interface CleanupGroupBook {
+  /** The book's file name (no folders). */
+  name: string;
+  /** The entries of that kind in its archive, with their path inside it. */
+  files: string[];
+}
+
 /** One kind of non-image file found in the archives while cleaning the books, grouped by extension. */
 export interface CleanupGroup {
   /** Lower-cased extension with its dot (`.xml`), empty for a name without extension. */
@@ -275,6 +283,8 @@ export interface CleanupGroup {
   size: number;
   /** A few of the file names, to recognize the kind. */
   examples: string[];
+  /** The books holding that kind, in analysis order, cut to the first 100 (`books` is the real count). */
+  details: CleanupGroupBook[];
 }
 
 /**

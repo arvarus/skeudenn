@@ -1,3 +1,4 @@
+import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -19,6 +20,8 @@ export function CleanupDialog({ ids, onClose }: { ids: string[]; onClose: () => 
   const [result, setResult] = useState<Extract<CleanupResult, { status: 'ok' }> | null>(null);
   // The kinds of files (extensions) the user wants to keep.
   const [kept, setKept] = useState<ReadonlySet<string>>(new Set());
+  // The kinds whose list of books is unfolded.
+  const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(new Set());
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,6 +62,13 @@ export function CleanupDialog({ ids, onClose }: { ids: string[]; onClose: () => 
       return next;
     });
 
+  const unfold = (extension: string) =>
+    setUnfolded((current) => {
+      const next = new Set(current);
+      if (!next.delete(extension)) next.add(extension);
+      return next;
+    });
+
   const apply = async () => {
     if (!analysis) return;
     setBusy(true);
@@ -94,16 +104,17 @@ export function CleanupDialog({ ids, onClose }: { ids: string[]; onClose: () => 
             </p>
             <ul className="flex flex-col gap-1.5">
               {analysis.groups.map((group) => (
-                <li key={group.extension}>
-                  <label className="flex items-start gap-2 rounded-md border p-2 text-sm">
+                <li key={group.extension} className="rounded-md border">
+                  <div className="flex items-start gap-2 p-2 text-sm">
                     <input
+                      id={`cleanup-${group.extension}`}
                       type="checkbox"
                       className="mt-1"
                       checked={!kept.has(group.extension)}
                       disabled={busy}
                       onChange={() => toggle(group.extension)}
                     />
-                    <span className="flex min-w-0 flex-col">
+                    <label htmlFor={`cleanup-${group.extension}`} className="flex min-w-0 flex-1 flex-col">
                       <span className="font-medium">
                         {group.extension === '' ? t('library:cleanupNoExtension') : group.extension}
                         <span className="font-normal text-muted-foreground">
@@ -118,8 +129,33 @@ export function CleanupDialog({ ids, onClose }: { ids: string[]; onClose: () => 
                       <span className="truncate text-xs text-muted-foreground" title={group.examples.join(', ')}>
                         {group.examples.join(', ')}
                       </span>
-                    </span>
-                  </label>
+                    </label>
+                    <button
+                      type="button"
+                      className="rounded p-1 text-muted-foreground hover:bg-muted"
+                      aria-expanded={unfolded.has(group.extension)}
+                      aria-label={unfolded.has(group.extension) ? t('library:cleanupHideDetail') : t('library:cleanupShowDetail')}
+                      title={unfolded.has(group.extension) ? t('library:cleanupHideDetail') : t('library:cleanupShowDetail')}
+                      onClick={() => unfold(group.extension)}
+                    >
+                      {unfolded.has(group.extension) ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+                    </button>
+                  </div>
+                  {unfolded.has(group.extension) && (
+                    <ul className="max-h-60 overflow-auto border-t px-3 py-2 text-xs">
+                      {group.details.map((book, index) => (
+                        <li key={`${book.name}-${index}`} className="py-0.5">
+                          <span className="font-medium">{book.name}</span>
+                          <span className="block break-all text-muted-foreground">{book.files.join(', ')}</span>
+                        </li>
+                      ))}
+                      {group.books > group.details.length && (
+                        <li className="pt-1 text-muted-foreground">
+                          {t('library:cleanupDetailMore', { count: group.books - group.details.length })}
+                        </li>
+                      )}
+                    </ul>
+                  )}
                 </li>
               ))}
             </ul>

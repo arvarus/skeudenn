@@ -42,7 +42,7 @@ describe('CleanupDialog failures', () => {
   const analysis = {
     status: 'ok' as const,
     token: 't',
-    groups: [{ extension: '.txt', files: 2, books: 1, size: 20, examples: ['a.txt'] }],
+    groups: [{ extension: '.txt', files: 2, books: 1, size: 20, examples: ['a.txt'], details: [{ name: 'book.cbz', files: ['a.txt', 'b.txt'] }] }],
     scanned: 3,
     booksWithJunk: 1,
     skipped: 0,
@@ -84,5 +84,15 @@ describe('CleanupDialog failures', () => {
     });
     fireEvent.click(await screen.findByRole('button', { name: /Supprimer 2 fichiers/ }));
     expect(await screen.findByText(/n’a pas pu être réécrit/)).toBeTruthy();
+  });
+
+  it('unfolds the books and files of a kind', async () => {
+    renderWithTankobon(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
+      library: { analyzeCleanup: vi.fn(async () => analysis) },
+    });
+    expect(screen.queryByText('book.cbz')).toBeNull();
+    fireEvent.click(await screen.findByRole('button', { name: /Afficher le détail/ }));
+    expect(screen.getByText('book.cbz')).toBeTruthy();
+    expect(screen.getByText('a.txt, b.txt')).toBeTruthy();
   });
 });
