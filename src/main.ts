@@ -49,8 +49,11 @@ if (started) {
 }
 
 // Electron derives `userData` from the product name, which changed with the rename to Skeudenn:
-// keep the folder the database, the roots file and the thumbnails already live in.
-app.setPath('userData', path.join(app.getPath('appData'), 'Tankōbon'));
+// keep the folder the database, the roots file and the thumbnails already live in. An explicit
+// `--user-data-dir` wins (the e2e tests start the app on a throw-away directory).
+if (!app.commandLine.hasSwitch('user-data-dir')) {
+  app.setPath('userData', path.join(app.getPath('appData'), 'Tankōbon'));
+}
 
 // One instance at a time: a second one would open the same database file and its decoder process on
 // the same library. Launching the app again brings the running window forward instead.

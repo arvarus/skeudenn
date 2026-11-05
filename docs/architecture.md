@@ -4,7 +4,7 @@ Skeudenn is an Electron app (Vite + Electron Forge) for managing and reading dig
 
 ## Processes and boundaries
 
-**Name**: the app is called Skeudenn (formerly Tankōbon). Only what the user sees was renamed; the technical identifiers keep their historical spelling so that existing installations and libraries keep working: the `tankobon` package name and `window.tankobon`, the `tankobon.db` database and its `.tankobon` backup folder, the `.deletedByTankobon` folder and the repository URLs. `main.ts` pins `userData` to the `Tankōbon` folder (`app.setPath()`, before anything reads it), since Electron derives that folder from the product name.
+**Name**: the app is called Skeudenn (formerly Tankōbon). Only what the user sees was renamed; the technical identifiers keep their historical spelling so that existing installations and libraries keep working: the `tankobon` package name and `window.tankobon`, the `tankobon.db` database and its `.tankobon` backup folder, the `.deletedByTankobon` folder and the repository URLs. `main.ts` pins `userData` to the `Tankōbon` folder (`app.setPath()`, before anything reads it), since Electron derives that folder from the product name, unless the command line carries `--user-data-dir` (the e2e tests start the packaged app on a throw-away directory this way; pinning over it made every test open the real library and fight over the single-instance lock).
 
 The app follows the standard Electron three-process split, with a strict boundary: `src/main.ts` creates the window with `contextIsolation: true`, `nodeIntegration: false` and `sandbox: true` (see [ADR 0001](./decisions/0001-electron-process-isolation.md)).
 
