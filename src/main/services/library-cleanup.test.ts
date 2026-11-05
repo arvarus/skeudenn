@@ -8,12 +8,15 @@ import { ZipFile } from 'yazl';
 import { describe, expect, it, vi } from 'vitest';
 
 import { applyLanguage } from '../../shared/i18n';
-import type { ScanProgress } from '../../shared/library';
+import { MAX_REPORTED_FAILURES, type ScanProgress } from '../../shared/library';
 import { LibraryRepository } from '../db/library-repository';
 import { migrate } from '../db/schema';
 import { listJunkEntries, removeEntries } from './cbz-cleaner';
 import { createLibraryCleaner, groupJunk, junkExtension, type CleanupDecoder } from './library-cleanup';
 import { createLibraryRunLock } from './library-organization';
+
+// `attrib` would run for each book, and answers about a file that doesn't exist with an error line.
+vi.mock('./cloud-files', () => ({ isOnlineOnly: async () => false }));
 
 applyLanguage('fr');
 
@@ -87,7 +90,68 @@ describe('createLibraryCleaner', () => {
       if (file === '/lib/a.cbz') throw new Error('broken');
       return listJunk(file);
     });
-    expect(await cleaner.analyze([], noProgress)).toMatchObject({ status: 'ok', failed: 1, booksWithJunk: 0 });
+    expect(await cleaner.analyze([], noProgress)).toMatchObject({
+      status: 'ok',
+      failed: 1,
+      booksWithJunk: 0,
+      failures: [{ path: '/lib/a.cbz', reason: 'broken' }],
+    });
+  });
+
+  it('names the books that could not be rewritten, with the reason', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tankobon-cleanup-failed-'));
+    try {
+      const good = join(dir, 'good.cbz');
+      const bad = join(dir, 'bad.cbz');
+      await writeFile(good, 'x');
+      await writeFile(bad, 'x');
+      const repo = repository();
+      repo.register(good, 'good', 10, 5, 100);
+      repo.register(bad, 'bad', 10, 5, 100);
+      const decoder: CleanupDecoder = {
+        listJunk: vi.fn(async () => [{ name: 'Thumbs.db', size: 10 }]),
+        cleanArchive: vi.fn(async (file: string) => {
+          if (file === bad) throw new Error('Unknown compression method: 9');
+          return { fileCount: 1 };
+        }),
+      };
+      const cleaner = createLibraryCleaner(repo, decoder, vi.fn());
+      const analysis = await cleaner.analyze([], noProgress);
+      if (analysis.status !== 'ok') throw new Error('analysis failed');
+
+      expect(await cleaner.apply(analysis.token, [], noProgress)).toMatchObject({
+        status: 'ok',
+        cleaned: 1,
+        failed: 1,
+        failures: [{ path: bad, reason: 'Unknown compression method: 9' }],
+      });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps the exact count but cuts the list of failures', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tankobon-cleanup-many-'));
+    try {
+      const repo = repository();
+      for (let i = 0; i <= MAX_REPORTED_FAILURES; i++) {
+        const file = join(dir, `${i}.cbz`);
+        await writeFile(file, 'x');
+        repo.register(file, String(i), 10, 5, 100);
+      }
+      const decoder: CleanupDecoder = {
+        listJunk: vi.fn(async () => {
+          throw new Error('broken');
+        }),
+        cleanArchive: vi.fn(async () => ({ fileCount: 1 })),
+      };
+      const result = await createLibraryCleaner(repo, decoder, vi.fn()).analyze([], noProgress);
+      if (result.status !== 'ok') throw new Error('analysis failed');
+      expect(result.failed).toBe(MAX_REPORTED_FAILURES + 1);
+      expect(result.failures).toHaveLength(MAX_REPORTED_FAILURES);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
   it('only analyzes the books asked for', async () => {
@@ -158,7 +222,7 @@ describe('createLibraryCleaner', () => {
       expect(analysis.groups.map((group) => group.extension).sort()).toEqual(['.bin', '.xml']);
 
       const result = await cleaner.apply(analysis.token, ['.xml'], noProgress);
-      expect(result).toEqual({ status: 'ok', cleaned: 1, filesRemoved: 1, bytesFreed: expect.any(Number), failed: 0 });
+      expect(result).toEqual({ status: 'ok', cleaned: 1, filesRemoved: 1, bytesFreed: expect.any(Number), failed: 0, failures: [] });
       expect((await listJunkEntries(file)).map((entry) => entry.name)).toEqual(['ComicInfo.xml']);
       expect(repo.list()[0]).toMatchObject({ fileCount: 2 });
       expect(notify).toHaveBeenCalledWith(expect.objectContaining({ scope: 'library' }));

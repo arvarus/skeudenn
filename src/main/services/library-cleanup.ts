@@ -10,7 +10,15 @@ import { stat } from 'node:fs/promises';
 import path from 'node:path';
 
 import { t } from '../../shared/i18n';
-import type { CleanupAnalysisResult, CleanupGroup, CleanupGroupBook, CleanupResult, ScanProgress } from '../../shared/library';
+import {
+  MAX_REPORTED_FAILURES,
+  type CleanupAnalysisResult,
+  type CleanupGroup,
+  type CleanupGroupBook,
+  type CleanupResult,
+  type ScanFailure,
+  type ScanProgress,
+} from '../../shared/library';
 import type { LibraryRepository } from '../db/library-repository';
 import type { CleanedArchive, JunkEntry } from './cbz-cleaner';
 import { isOnlineOnly } from './cloud-files';
@@ -89,6 +97,13 @@ export function groupJunk(books: readonly PlannedBook[]): CleanupGroup[] {
   return [...groups.values()].sort((a, b) => b.size - a.size || a.extension.localeCompare(b.extension));
 }
 
+/** Notes why the book at `filePath` failed, up to `MAX_REPORTED_FAILURES` books. */
+function reportFailure(failures: ScanFailure[], filePath: string, error: unknown): void {
+  if (failures.length < MAX_REPORTED_FAILURES) {
+    failures.push({ path: filePath, reason: error instanceof Error ? error.message : String(error) });
+  }
+}
+
 /** Builds the cleaner around the library and the decoder; `notify` announces the rewritten entries. */
 export function createLibraryCleaner(
   repo: LibraryRepository,
@@ -113,6 +128,7 @@ export function createLibraryCleaner(
         const books: PlannedBook[] = [];
         let skipped = 0;
         let failed = 0;
+        const failures: ScanFailure[] = [];
         for (const [index, entry] of entries.entries()) {
           progress(onProgress, 'importing', index, entries.length, entry.path);
           // Reading a cloud placeholder would download it.
@@ -124,8 +140,9 @@ export function createLibraryCleaner(
             const junk = await decoder.listJunk(entry.path);
             if (junk === null) skipped++;
             else if (junk.length > 0) books.push({ id: entry.id, path: entry.path, junk });
-          } catch {
+          } catch (error) {
             failed++;
+            reportFailure(failures, entry.path, error);
           }
         }
         progress(onProgress, 'done', entries.length, entries.length, '');
@@ -141,6 +158,7 @@ export function createLibraryCleaner(
           booksWithJunk: books.length,
           skipped,
           failed,
+          failures,
         };
       } finally {
         running = false;
@@ -157,6 +175,7 @@ export function createLibraryCleaner(
       try {
         const kept = new Set(keptExtensions);
         const result = { cleaned: 0, filesRemoved: 0, bytesFreed: 0, failed: 0 };
+        const failures: ScanFailure[] = [];
         const upserted = [];
         for (const [index, book] of books.entries()) {
           const names = book.junk.filter((file) => !kept.has(junkExtension(file.name))).map((file) => file.name);
@@ -171,13 +190,14 @@ export function createLibraryCleaner(
             result.cleaned++;
             result.filesRemoved += names.length;
             result.bytesFreed += Math.max(0, before - after);
-          } catch {
+          } catch (error) {
             result.failed++;
+            reportFailure(failures, book.path, error);
           }
         }
         progress(onProgress, 'done', books.length, books.length, '');
         if (upserted.length > 0) notify({ scope: 'library', upserted });
-        return { status: 'ok', ...result };
+        return { status: 'ok', ...result, failures };
       } finally {
         running = false;
         lock?.end();

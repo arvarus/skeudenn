@@ -157,7 +157,7 @@ export type ScanResult =
       organization: OrganizationOutcome;
     };
 
-/** A file a scan or resynchronization couldn't open, and why. */
+/** A file a scan, a resynchronization or a cleanup couldn't handle, and why. */
 export interface ScanFailure {
   /** Absolute path of the file. */
   path: string;
@@ -165,7 +165,7 @@ export interface ScanFailure {
   reason: string;
 }
 
-/** The most failures a resynchronization reports (the count in `failed` stays exact). */
+/** The most failures a resynchronization or a cleanup reports (the count in `failed` stays exact). */
 export const MAX_REPORTED_FAILURES = 200;
 
 /** Outcome of `library.resync()`. */
@@ -307,6 +307,8 @@ export type CleanupAnalysisResult =
       skipped: number;
       /** Books that could not be read. */
       failed: number;
+      /** The first `MAX_REPORTED_FAILURES` of those books, with the reason. */
+      failures: ScanFailure[];
     };
 
 /** Outcome of `library.applyCleanup()`. */
@@ -322,6 +324,8 @@ export type CleanupResult =
       bytesFreed: number;
       /** Books that could not be rewritten (left as they were). */
       failed: number;
+      /** The first `MAX_REPORTED_FAILURES` of those books, with the reason. */
+      failures: ScanFailure[];
     };
 
 /** Largest image `library:set-cover` accepts, in bytes (the renderer sends the cropped picture, a few hundred kilobytes at most). */
