@@ -240,7 +240,7 @@ export class LibraryRepository {
    * machine: the paths of a database from before the roots, or of books added on their own, become
    * relative; a book stored under another folder at the same place, or under a parent of a newer folder,
    * moves to the right one. Nothing moves on disk. Two entries that turn out to be the same file are merged
-   * into the older one (see {@link mergeEntries}). Returns how many entries changed.
+   * into the older one (see `mergeEntries()`). Returns how many entries changed.
    */
   adoptRoots(): number {
     return withTransaction(this.db, () => {
