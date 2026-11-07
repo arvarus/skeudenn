@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here. This file is maintained by [release-please](https://github.com/googleapis/release-please) from the [Conventional Commits](https://www.conventionalcommits.org/) merged into `master`: don't edit released entries by hand. New versions are inserted above the previous ones.
 
+## [0.24.1](https://github.com/arvarus/skeudenn/compare/v0.24.0...v0.24.1) (2026-11-07)
+
+
+### Bug Fixes
+
+* **library:** keep one entry per file when two folder ids share a path ([#292](https://github.com/arvarus/skeudenn/issues/292)) ([0038da4](https://github.com/arvarus/skeudenn/commit/0038da433eae7f86eb4fb3b72fee065a25f903de))
+
 ## [0.24.0](https://github.com/arvarus/skeudenn/compare/v0.23.0...v0.24.0) (2026-11-05)
 
 
