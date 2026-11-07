@@ -32,6 +32,35 @@ describe('PathRoots', () => {
     expect(roots.decode(roots.encode(nested))).toBe(nested);
   });
 
+  it('stores paths only under the folders it was limited to, and still reads the others', () => {
+    const roots = new PathRoots();
+    roots.set('stale', lib);
+    roots.set('own', lib);
+    roots.limitTo(['own']);
+    const file = path.join(lib, 'one.cbz');
+    expect(roots.encode(file)).toBe('root:own/one.cbz');
+    expect(roots.decode('root:stale/one.cbz')).toBe(file);
+  });
+
+  it('keeps a file outside the limited folders absolute', () => {
+    const roots = new PathRoots();
+    roots.set('stale', lib);
+    roots.limitTo([]);
+    const file = path.join(lib, 'one.cbz');
+    expect(roots.encode(file)).toBe(file);
+  });
+
+  it('picks the first folder listed when two are at the same place, and counts a folder set later', () => {
+    const roots = new PathRoots();
+    roots.set('second', lib);
+    roots.set('first', lib);
+    roots.limitTo(['first', 'second']);
+    expect(roots.encode(path.join(lib, 'one.cbz'))).toBe('root:first/one.cbz');
+    const added = path.resolve('/data/added');
+    roots.set('new', added);
+    expect(roots.encode(path.join(added, 'one.cbz'))).toBe('root:new/one.cbz');
+  });
+
   it('does not decode a stored path out of its folder', () => {
     const roots = new PathRoots();
     roots.set('r1', lib);

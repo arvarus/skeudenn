@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
 
@@ -21,6 +22,18 @@ describe('LibraryFolderRepository', () => {
     repo.add('/comics');
     repo.add('/comics');
     expect(repo.list()).toEqual(['/comics']);
+  });
+
+  it('stores books under its own folder, not under one this machine remembers from another database', () => {
+    const db = new DatabaseSync(':memory:');
+    migrate(db);
+    const folder = path.resolve('/comics');
+    const roots = new PathRoots();
+    roots.set('from-another-database', folder);
+    db.prepare("INSERT INTO library_folders (id, path, added_at) VALUES ('own', ?, 'x')").run(folder);
+    roots.set('own', folder);
+    new LibraryFolderRepository(db, roots).syncRoots();
+    expect(roots.encode(path.join(folder, 'a.cbz'))).toBe('root:own/a.cbz');
   });
 
   it('forgets a folder', () => {

@@ -43,12 +43,14 @@ export class LibraryFolderRepository {
 
   /**
    * Finds, at start-up, the folders this machine has no path for yet but whose recorded path exists
-   * here (the first run after the roots appeared, or a second machine with the same layout).
+   * here (the first run after the roots appeared, or a second machine with the same layout), and
+   * limits the paths stored from now on to this database's folders (see `PathRoots.limitTo`).
    * Returns true when one was found.
    */
   syncRoots(): boolean {
     let found = false;
-    for (const row of this.rows()) {
+    const rows = this.rows();
+    for (const row of rows) {
       if (this.roots.get(row.id) !== undefined) continue;
       try {
         if (fs.statSync(row.path).isDirectory()) {
@@ -59,6 +61,7 @@ export class LibraryFolderRepository {
         // Not on this machine: it stays unlinked.
       }
     }
+    this.roots.limitTo(rows.map((row) => row.id));
     return found;
   }
 
