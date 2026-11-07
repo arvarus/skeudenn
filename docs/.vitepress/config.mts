@@ -14,8 +14,8 @@ export default defineConfig({
   title: 'Skeudenn',
   description: 'Digital comics, BD and manga library manager and reader.',
   lang: 'en-US',
-  // Published on GitHub Pages at https://arvarus.github.io/skeudenn/.
-  base: '/skeudenn/',
+  // Published on GitHub Pages at https://skeudenn.arvarus.com/.
+  base: '/',
   cleanUrls: true,
   lastUpdated: true,
   themeConfig: {
