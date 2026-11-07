@@ -25,7 +25,7 @@ npm run make       # installers for the current platform
 
 ## Documentation
 
-**https://arvarus.github.io/skeudenn/**, built from `docs/`:
+**https://skeudenn.arvarus.com/**, built from `docs/`:
 
 - [Features](docs/guide/features.md)
 - [Development](docs/development.md): all commands, CI, releases

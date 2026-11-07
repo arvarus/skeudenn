@@ -32,7 +32,7 @@ export const APP_LINKS = {
   /** Source code repository. */
   repository: 'https://github.com/arvarus/skeudenn',
   /** Documentation site (GitHub Pages, built from `docs/`). */
-  documentation: 'https://arvarus.github.io/skeudenn/',
+  documentation: 'https://skeudenn.arvarus.com/',
   /** Releases, with the installers and the changelog of each version. */
   releases: 'https://github.com/arvarus/skeudenn/releases',
   /** Bug reports and feature requests. */
