@@ -4,6 +4,7 @@
  */
 import type { ArchiveInfo, ComicPage } from '../../shared/comic';
 import type { ConvertedArchive } from '../services/cbr-converter';
+import type { Deflate64Converted } from '../services/cbz-deflate64';
 import type { CleanedArchive, JunkEntry } from '../services/cbz-cleaner';
 import { currentLanguage, t, type Language } from '../../shared/i18n';
 import type {
@@ -97,6 +98,16 @@ export class DecoderClient {
   /** Writes a CBR as a CBZ; see `DecoderMethods.convertCbr`. Not timed: a large archive may take long. */
   convertCbr(cbrPath: string, cbzPath: string): Promise<ConvertedArchive> {
     return this.call('convertCbr', cbrPath, cbzPath);
+  }
+
+  /** Whether a CBZ uses Deflate64; see `DecoderMethods.hasDeflate64`. */
+  hasDeflate64(filePath: string): Promise<boolean> {
+    return this.call('hasDeflate64', filePath);
+  }
+
+  /** Rewrites a CBZ with standard compression; see `DecoderMethods.convertDeflate64`. Not timed: a large archive may take long. */
+  convertDeflate64(filePath: string): Promise<Deflate64Converted> {
+    return this.call('convertDeflate64', filePath);
   }
 
   /** Rewrites a CBZ without the entries `names`; see `DecoderMethods.cleanArchive`. */

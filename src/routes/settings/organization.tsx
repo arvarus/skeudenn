@@ -157,6 +157,37 @@ function OrganizationSettingsPage() {
     setConvertStatus({ message: parts.join(' · '), error: result.converted === 0 && result.failed > 0 });
   };
 
+  const convertDeflate64 = async () => {
+    setConvertStatus(null);
+    const count = await window.tankobon.library.countDeflate64();
+    if (count.status === 'error') {
+      setConvertStatus({ message: count.message, error: true });
+      return;
+    }
+    if (count.count === 0) {
+      setConvertStatus({ message: t('convertDeflate64None') });
+      return;
+    }
+    const accepted = await confirm({
+      title: t('convertDeflate64ConfirmTitle'),
+      message: t('convertDeflate64Confirm', { count: count.count }),
+      action: t('convertDeflate64Action'),
+    });
+    if (!accepted) return;
+    setRunning(true);
+    setProgress({ phase: 'importing', processed: 0, total: count.count, currentFile: '' });
+    const result = await window.tankobon.library.convertDeflate64();
+    setProgress(null);
+    setRunning(false);
+    if (result.status === 'error') {
+      setConvertStatus({ message: result.message, error: true });
+      return;
+    }
+    const parts = [t('convertDeflate64Done', { count: result.converted })];
+    if (result.failed > 0) parts.push(t('convertDeflate64Failed', { count: result.failed }));
+    setConvertStatus({ message: parts.join(' · '), error: result.converted === 0 && result.failed > 0 });
+  };
+
   const emptyDeleted = async () => {
     setConvertStatus(null);
     const count = await window.tankobon.library.countConvertible();
@@ -329,6 +360,13 @@ function OrganizationSettingsPage() {
           {organizationReady && convertibleCount !== null && convertibleCount > 0 && (
             <span className="text-sm text-muted-foreground">{t('convertCbrCount', { count: convertibleCount })}</span>
           )}
+        </div>
+        <p className="text-sm text-muted-foreground">{t('convertDeflate64Hint')}</p>
+        <div>
+          <Button variant="outline" onClick={() => void convertDeflate64()} disabled={busy}>
+            <FileArchive />
+            {running ? t('convertDeflate64Running') : t('convertDeflate64')}
+          </Button>
         </div>
         <p className="text-sm text-muted-foreground">{t('emptyDeletedHint')}</p>
         <div>

@@ -23,6 +23,7 @@ import { isOnlineOnly } from '../services/cloud-files';
 import type { DecoderClient } from '../decoder/decoder-client';
 import type { ImageStatsScanner } from '../services/image-stats-scanner';
 import type { CbrConverter } from '../services/cbr-conversion';
+import type { Deflate64Converter } from '../services/deflate64-conversion';
 import type { FolderCleaner } from '../services/folder-cleanup';
 import type { LibraryCleaner } from '../services/library-cleanup';
 import { NOTHING_ORGANIZED, type LibraryOrganizer, type Resynchronizer } from '../services/library-organization';
@@ -81,6 +82,8 @@ export const LIBRARY_CHANNELS = {
   applyCleanup: 'library:apply-cleanup',
   countConvertible: 'library:count-convertible',
   convertCbr: 'library:convert-cbr',
+  countDeflate64: 'library:count-deflate64',
+  convertDeflate64: 'library:convert-deflate64',
   emptyDeleted: 'library:empty-deleted',
   countOrphanFolders: 'library:count-orphan-folders',
   cleanFolders: 'library:clean-folders',
@@ -117,6 +120,8 @@ export interface LibraryIpcDependencies {
   cleaner: LibraryCleaner;
   /** The conversion of the CBR to CBZ. */
   converter: CbrConverter;
+  /** Rewrites the Deflate64 CBZ. */
+  deflate64: Deflate64Converter;
   /** The cleaning of the orphan folders. */
   folderCleaner: FolderCleaner;
   /** The user a long run is for is the one who started it, even if the app is switched to another meanwhile. */
@@ -146,6 +151,7 @@ export function registerLibraryIpc({
   organizer,
   cleaner,
   converter,
+  deflate64,
   folderCleaner,
   activeUser,
 }: LibraryIpcDependencies): void {
@@ -296,6 +302,10 @@ export function registerLibraryIpc({
   handle(LIBRARY_CHANNELS.convertCbr, args(), (event) =>
     converter.convert(scanProgressTo(event)),
   );
+
+  handle(LIBRARY_CHANNELS.countDeflate64, args(), () => deflate64.count());
+
+  handle(LIBRARY_CHANNELS.convertDeflate64, args(), (event) => deflate64.convert(scanProgressTo(event)));
 
   handle(LIBRARY_CHANNELS.emptyDeleted, args(), () => converter.emptyDeleted());
 

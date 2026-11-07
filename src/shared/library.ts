@@ -228,6 +228,12 @@ export type ConvertCountResult =
 /** Result of `library.convertCbr()`: books converted, and books left as they were because the conversion failed. */
 export type ConvertCbrResult = { status: 'ok'; converted: number; failed: number } | { status: 'error'; message: string };
 
+/** Result of `library.countDeflate64()`: how many CBZ of the library use the Deflate64 compression, which only `library.convertDeflate64()` can make readable. */
+export type Deflate64CountResult = { status: 'ok'; count: number } | { status: 'error'; message: string };
+
+/** Result of `library.convertDeflate64()`: CBZ rewritten with standard compression, and CBZ left as they were because the rewrite failed. */
+export type ConvertDeflate64Result = { status: 'ok'; converted: number; failed: number } | { status: 'error'; message: string };
+
 /** Result of `library.emptyDeleted()`: files removed for good from `.deletedByTankobon`, the space freed and the files that could not be removed. */
 export type EmptyDeletedResult =
   | { status: 'ok'; deleted: number; bytesFreed: number; failed: number }
