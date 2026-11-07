@@ -3,6 +3,7 @@
  * @module
  */
 import { convertCbrToCbz } from '../services/cbr-converter';
+import { convertDeflate64, hasDeflate64 } from '../services/cbz-deflate64';
 import { listJunkEntries, removeEntries } from '../services/cbz-cleaner';
 import { comicFormat } from '../../shared/comic';
 import { ComicService, openArchive } from '../services/comic-service';
@@ -51,6 +52,8 @@ export function createDecoderHandlers(
     listJunk: (filePath) => (comicFormat(filePath) === 'CBZ' ? listJunkEntries(filePath) : Promise.resolve(null)),
     cleanArchive: (filePath, names) => removeEntries(filePath, names),
     convertCbr: (cbrPath, cbzPath) => convertCbrToCbz(cbrPath, cbzPath),
+    hasDeflate64: (filePath) => (comicFormat(filePath) === 'CBZ' ? hasDeflate64(filePath) : Promise.resolve(false)),
+    convertDeflate64: (filePath) => convertDeflate64(filePath),
     thumbnail: (filePath, archiveId, cachedOnly) =>
       cachedOnly
         ? thumbnails.read(filePath)

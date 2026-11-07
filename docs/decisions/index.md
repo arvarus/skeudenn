@@ -29,6 +29,7 @@ An ADR records one structural decision: the context, what was decided, and what 
 | [0023](./0023-clean-books-rewrite-cbz.md) | Cleaning the books by rewriting the CBZ archives | Accepted |
 | [0024](./0024-database-backups.md) | Database backups in a `.tankobon` folder, restored at start-up | Accepted |
 | [0025](./0025-convert-cbr-to-cbz.md) | Converting the CBR of the organized library to CBZ | Accepted |
+| [0029](./0029-rewrite-deflate64-cbz.md) | Rewriting the Deflate64 CBZ with standard compression | Accepted |
 | [0026](./0026-bedetheque-series-search.md) | Bédéthèque: finding the album from the series name | Accepted |
 | [0027](./0027-cheaper-library-reloads.md) | Cheaper library reloads: deltas and projections before SQL search | Proposed |
 | [0028](./0028-separate-background-decoder-process.md) | A second decoder process for background work, the reader keeps its own | Proposed |

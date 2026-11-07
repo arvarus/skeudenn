@@ -5,6 +5,7 @@
 import type { ArchiveInfo, ComicPage } from '../../shared/comic';
 import type { Language } from '../../shared/i18n';
 import type { ConvertedArchive } from '../services/cbr-converter';
+import type { Deflate64Converted } from '../services/cbz-deflate64';
 import type { CleanedArchive, JunkEntry } from '../services/cbz-cleaner';
 
 /** What `inspect` learns about an archive: enough to register it in the library. */
@@ -55,6 +56,13 @@ export interface DecoderMethods {
    * before it appears, and the CBR is left untouched. Rejects when `cbzPath` exists or the CBR can't be read.
    */
   convertCbr(cbrPath: string, cbzPath: string): ConvertedArchive;
+  /** True when a CBZ has entries stored with Deflate64 (see `hasDeflate64()`); false for another format. */
+  hasDeflate64(filePath: string): boolean;
+  /**
+   * Rewrites a CBZ with standard compression (see `convertDeflate64()`): the original is replaced only once
+   * the new archive has been checked.
+   */
+  convertDeflate64(filePath: string): Deflate64Converted;
   /**
    * A book's cover thumbnail, generated first when missing (from the open archive `archiveId`, if any).
    * With `cachedOnly`, the file is never opened: the cached thumbnail or null.

@@ -39,6 +39,7 @@ import { isPermissionAllowed } from './main/permissions';
 import { isOnlineOnly } from './main/services/cloud-files';
 import { createImageStatsScanner } from './main/services/image-stats-scanner';
 import { createCbrConverter } from './main/services/cbr-conversion';
+import { createDeflate64Converter } from './main/services/deflate64-conversion';
 import { createFolderCleaner } from './main/services/folder-cleanup';
 import { createLibraryCleaner } from './main/services/library-cleanup';
 import { createLibraryOrganizer, createResynchronizer } from './main/services/library-organization';
@@ -199,6 +200,7 @@ app.whenReady().then(() => {
     organizer,
     cleaner: createLibraryCleaner(libraryRepo, decoder, broadcastDataChange, organizer.lock),
     converter: cbrConverter,
+    deflate64: createDeflate64Converter(libraryRepo, decoder, broadcastDataChange, organizer.lock),
     folderCleaner: createFolderCleaner(settingsRepo, organizer.lock),
     activeUser,
   });
