@@ -90,6 +90,8 @@ export function fileRootsStore(filePath: string): RootsStore {
  */
 export class PathRoots implements PathCodec {
   private readonly paths: Map<string, string>;
+  /** The folders of the open database, oldest first, once {@link limitTo} has said which they are. */
+  private folders: string[] | null = null;
 
   constructor(private readonly store: RootsStore = memoryRootsStore()) {
     this.paths = new Map(Object.entries(store.load()));
@@ -104,12 +106,26 @@ export class PathRoots implements PathCodec {
   set(id: string, folderPath: string): void {
     this.paths.set(id, path.resolve(folderPath));
     this.store.save(Object.fromEntries(this.paths));
+    if (this.folders !== null && !this.folders.includes(id)) this.folders.push(id);
+  }
+
+  /**
+   * Stores new paths only under `folderIds`, the folders of the open database, oldest first. What this
+   * machine remembers may come from another database (the location changed): such a folder has an id the
+   * open database doesn't know, and a book stored under it would not match the same file stored under
+   * the database's own id. Its path is kept, so what was stored under it still decodes. Of two folders at
+   * the same place, the first one listed wins.
+   */
+  limitTo(folderIds: readonly string[]): void {
+    this.folders = [...folderIds];
   }
 
   encode(filePath: string): string {
     if (filePath.startsWith(ROOT_PREFIX)) return filePath;
     let best: { id: string; relative: string; depth: number } | null = null;
-    for (const [id, folder] of this.paths) {
+    for (const id of this.folders ?? this.paths.keys()) {
+      const folder = this.paths.get(id);
+      if (folder === undefined) continue;
       const relative = path.relative(folder, filePath);
       if (relative === '' || leavesFolder(relative)) continue;
       if (best === null || folder.length > best.depth) {

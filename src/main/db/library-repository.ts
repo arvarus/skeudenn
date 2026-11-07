@@ -15,7 +15,7 @@ import {
 } from '../../shared/library';
 import { DEFAULT_USER_ID } from '../../shared/users';
 import { PeopleRepository } from './people-repository';
-import { IDENTITY_PATHS, ROOT_PREFIX, type PathCodec } from './path-roots';
+import { IDENTITY_PATHS, type PathCodec } from './path-roots';
 import { withTransaction } from './transaction';
 
 interface LibraryRow {
@@ -37,6 +37,15 @@ interface LibraryRow {
   language: string | null;
   avg_page_width: number | null;
   avg_page_height: number | null;
+}
+
+interface UserBookRow {
+  user_id: string;
+  current_page: number;
+  rating: number;
+  tags: string;
+  finished_at: string | null;
+  last_opened_at: string;
 }
 
 interface CreditRow {
@@ -203,26 +212,116 @@ export class LibraryRepository {
     return this.db.prepare('SELECT 1 FROM library WHERE path = ?').get(this.paths.encode(filePath)) !== undefined;
   }
 
+  /** The entries whose stored path isn't the one `encode()` gives for their file. */
+  private misplacedRows(): { id: string; path: string; canonical: string; added_at: string }[] {
+    const rows = this.db.prepare('SELECT id, path, added_at FROM library').all() as unknown as {
+      id: string;
+      path: string;
+      added_at: string;
+    }[];
+    return rows
+      .map((row) => ({ ...row, canonical: this.paths.encode(this.paths.decode(row.path)) }))
+      .filter((row) => row.canonical !== row.path);
+  }
+
+  /** Whether {@link adoptRoots} would merge entries, which is worth a copy of the database first. */
+  hasEntriesToMerge(): boolean {
+    const taken = this.db.prepare('SELECT 1 FROM library WHERE path = ?');
+    const targets = new Set<string>();
+    return this.misplacedRows().some((row) => {
+      if (targets.has(row.canonical) || taken.get(row.canonical) !== undefined) return true;
+      targets.add(row.canonical);
+      return false;
+    });
+  }
+
   /**
-   * Stores the entries whose file is inside a library folder relative to it, after a folder was added or
-   * found again on this machine (the paths of a database from before the roots, or of books added on their
-   * own, are absolute). Nothing moves on disk. Returns how many entries changed.
+   * Gives every entry the stored path of its file, after a folder was added or found again on this
+   * machine: the paths of a database from before the roots, or of books added on their own, become
+   * relative; a book stored under another folder at the same place, or under a parent of a newer folder,
+   * moves to the right one. Nothing moves on disk. Two entries that turn out to be the same file are merged
+   * into the older one (see `mergeEntries()`). Returns how many entries changed.
    */
   adoptRoots(): number {
     return withTransaction(this.db, () => {
-      const rows = this.db
-        .prepare('SELECT id, path FROM library WHERE substr(path, 1, ?) <> ?')
-        .all(ROOT_PREFIX.length, ROOT_PREFIX) as unknown as { id: string; path: string }[];
+      const find = this.db.prepare('SELECT id, added_at FROM library WHERE path = ?');
       const update = this.db.prepare('UPDATE library SET path = ? WHERE id = ?');
-      let changed = 0;
+      const rows = this.misplacedRows();
       for (const row of rows) {
-        const stored = this.paths.encode(row.path);
-        if (stored === row.path) continue;
-        update.run(stored, row.id);
-        changed += 1;
+        const other = find.get(row.canonical) as { id: string; added_at: string } | undefined;
+        if (other === undefined) {
+          update.run(row.canonical, row.id);
+        } else if (row.added_at <= other.added_at) {
+          this.mergeEntries(row.id, other.id);
+          update.run(row.canonical, row.id);
+        } else {
+          this.mergeEntries(other.id, row.id);
+        }
       }
-      return changed;
+      return rows.length;
     });
+  }
+
+  /**
+   * Folds entry `drop` into entry `keep`, both being the same file. `keep`'s values win; what it lacks
+   * comes from `drop` (metadata, credits, a title the user locked), and nothing personal is lost: every
+   * user's progress, rating, tags and dates are combined, the reading sessions and places in the lists move.
+   */
+  private mergeEntries(keep: string, drop: string): void {
+    this.db
+      .prepare(
+        `UPDATE library AS k SET
+           title = CASE WHEN k.title_locked = 0 AND d.title_locked <> 0 THEN d.title ELSE k.title END,
+           title_locked = MAX(k.title_locked, d.title_locked),
+           series = COALESCE(k.series, d.series),
+           volume = COALESCE(k.volume, d.volume),
+           release_date = COALESCE(k.release_date, d.release_date),
+           language = COALESCE(k.language, d.language),
+           avg_page_width = COALESCE(k.avg_page_width, d.avg_page_width),
+           avg_page_height = COALESCE(k.avg_page_height, d.avg_page_height)
+         FROM library AS d WHERE k.id = ? AND d.id = ?`,
+      )
+      .run(keep, drop);
+    if (this.creditsOf(keep).length === 0) {
+      this.db.prepare('UPDATE credits SET library_id = ? WHERE library_id = ?').run(keep, drop);
+    }
+    this.mergeUserBooks(keep, drop);
+    this.db.prepare('UPDATE OR IGNORE reading_list_items SET library_id = ? WHERE library_id = ?').run(keep, drop);
+    this.db.prepare('UPDATE reading_sessions SET library_id = ? WHERE library_id = ?').run(keep, drop);
+    this.remove(drop);
+  }
+
+  /** Combines each user's row of the two entries of {@link mergeEntries} into `keep`'s. */
+  private mergeUserBooks(keep: string, drop: string): void {
+    const read = this.db.prepare(
+      'SELECT user_id, current_page, rating, tags, finished_at, last_opened_at FROM user_books WHERE library_id = ?',
+    );
+    const kept = new Map((read.all(keep) as unknown as UserBookRow[]).map((row) => [row.user_id, row]));
+    for (const dropped of read.all(drop) as unknown as UserBookRow[]) {
+      const own = kept.get(dropped.user_id);
+      if (own === undefined) {
+        this.db
+          .prepare('UPDATE user_books SET library_id = ? WHERE library_id = ? AND user_id = ?')
+          .run(keep, drop, dropped.user_id);
+        continue;
+      }
+      const finished = [own.finished_at, dropped.finished_at].filter((date) => date !== null).sort();
+      const tags = new Set([...(JSON.parse(own.tags) as string[]), ...(JSON.parse(dropped.tags) as string[])]);
+      this.db
+        .prepare(
+          `UPDATE user_books SET current_page = ?, rating = ?, tags = ?, finished_at = ?, last_opened_at = ?
+           WHERE library_id = ? AND user_id = ?`,
+        )
+        .run(
+          Math.max(own.current_page, dropped.current_page),
+          own.rating !== 0 ? own.rating : dropped.rating,
+          JSON.stringify([...tags]),
+          finished[0] ?? null,
+          own.last_opened_at > dropped.last_opened_at ? own.last_opened_at : dropped.last_opened_at,
+          keep,
+          own.user_id,
+        );
+    }
   }
 
   /** Id of the entry whose file is `filePath`, or null when that file isn't in the library. */

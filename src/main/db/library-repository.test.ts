@@ -313,4 +313,158 @@ describe('LibraryRepository: paths relative to a library folder', () => {
     expect(db.prepare('SELECT path FROM library').get()).toEqual({ path: 'root:r1/a.cbz' });
     expect(repo.list()[0].path).toBe(file);
   });
+
+  describe('a file stored under two folders at the same place', () => {
+    const file = path.join(lib, 'a.cbz');
+
+    /** The old entry is stored under `own`, the database's folder, the new one under `stale`, a leftover of another database. */
+    function twins() {
+      const db = new DatabaseSync(':memory:');
+      migrate(db);
+      const roots = new PathRoots();
+      roots.set('stale', lib);
+      roots.set('own', lib);
+      const repo = new LibraryRepository(db, () => 'default', roots);
+      const insert = db.prepare(
+        `INSERT INTO library (id, path, title, page_count, current_page, added_at, last_opened_at)
+         VALUES (?, ?, 'A', 10, 0, ?, ?)`,
+      );
+      insert.run('old', 'root:own/a.cbz', '2026-01-01', '2026-01-01');
+      insert.run('new', 'root:stale/a.cbz', '2026-02-01', '2026-02-01');
+      roots.limitTo(['own']);
+      return { db, repo };
+    }
+
+    it('recognizes the file under the folder of the open database', () => {
+      const { repo } = twins();
+      expect(repo.hasPath(file)).toBe(true);
+      expect(repo.idOfPath(file)).toBe('old');
+    });
+
+    it('merges the two entries into the older one and says a merge is due', () => {
+      const { db, repo } = twins();
+      expect(repo.hasEntriesToMerge()).toBe(true);
+      expect(repo.adoptRoots()).toBe(1);
+      expect(db.prepare('SELECT id, path FROM library').all()).toEqual([{ id: 'old', path: 'root:own/a.cbz' }]);
+      expect(repo.hasEntriesToMerge()).toBe(false);
+      expect(repo.adoptRoots()).toBe(0);
+    });
+
+    it('moves an entry alone under the folder of the open database', () => {
+      const { db, repo } = twins();
+      db.prepare("UPDATE library SET path = 'root:stale/b.cbz' WHERE id = 'new'").run();
+      expect(repo.hasEntriesToMerge()).toBe(false);
+      expect(repo.adoptRoots()).toBe(1);
+      expect(repo.get('new')?.path).toBe(path.join(lib, 'b.cbz'));
+      expect(db.prepare("SELECT path FROM library WHERE id = 'new'").get()).toEqual({ path: 'root:own/b.cbz' });
+    });
+
+    it('keeps the older entry when it is the one stored under the wrong folder', () => {
+      const { db, repo } = twins();
+      db.exec(`
+        UPDATE library SET path = 'swap' WHERE id = 'old';
+        UPDATE library SET path = 'root:own/a.cbz' WHERE id = 'new';
+        UPDATE library SET path = 'root:stale/a.cbz' WHERE id = 'old';
+      `);
+      repo.adoptRoots();
+      expect(db.prepare('SELECT id, path FROM library').all()).toEqual([{ id: 'old', path: 'root:own/a.cbz' }]);
+    });
+
+    it("completes the older entry's metadata without replacing it", () => {
+      const { db, repo } = twins();
+      db.exec(`
+        UPDATE library SET language = 'fr', series = NULL WHERE id = 'old';
+        UPDATE library SET language = 'en', series = 'S', title = 'Typed', title_locked = 1 WHERE id = 'new';
+      `);
+      repo.adoptRoots();
+      expect(repo.get('old')).toMatchObject({ language: 'fr', series: 'S', title: 'Typed', titleLocked: true });
+    });
+
+    it('takes the credits of the newer entry only when the older one has none', () => {
+      const { repo } = twins();
+      repo.updateMetadata('new', { credits: [{ firstName: 'Ann', lastName: 'Lee', role: 'writer' }] });
+      repo.adoptRoots();
+      expect(repo.get('old')?.credits).toMatchObject([{ lastName: 'Lee' }]);
+
+      const other = twins();
+      other.repo.updateMetadata('old', { credits: [{ firstName: 'Bob', lastName: 'Ray', role: 'artist' }] });
+      other.repo.updateMetadata('new', { credits: [{ firstName: 'Ann', lastName: 'Lee', role: 'writer' }] });
+      other.repo.adoptRoots();
+      expect(other.repo.get('old')?.credits).toMatchObject([{ lastName: 'Ray' }]);
+      expect(other.db.prepare('SELECT COUNT(*) AS count FROM credits').get()).toEqual({ count: 1 });
+    });
+
+    it("combines each user's progress, rating, tags and dates", () => {
+      const { db, repo } = twins();
+      const insert = db.prepare(
+        `INSERT INTO user_books (user_id, library_id, current_page, rating, tags, finished_at, last_opened_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      );
+      insert.run('default', 'old', 3, 0, '["Lu"]', '2026-03-01', '2026-03-01');
+      insert.run('default', 'new', 7, 4, '["Lu","x"]', '2026-02-15', '2026-04-01');
+      insert.run('other', 'new', 2, 5, '[]', null, '2026-02-02');
+      repo.adoptRoots();
+      expect(db.prepare('SELECT * FROM user_books ORDER BY user_id').all()).toEqual([
+        {
+          user_id: 'default',
+          library_id: 'old',
+          current_page: 7,
+          rating: 4,
+          tags: '["Lu","x"]',
+          finished_at: '2026-02-15',
+          last_opened_at: '2026-04-01',
+        },
+        {
+          user_id: 'other',
+          library_id: 'old',
+          current_page: 2,
+          rating: 5,
+          tags: '[]',
+          finished_at: null,
+          last_opened_at: '2026-02-02',
+        },
+      ]);
+    });
+
+    it('moves the reading sessions and the places in the lists', () => {
+      const { db, repo } = twins();
+      db.exec(`
+        INSERT INTO reading_lists (id, name, created_at) VALUES ('both', 'B', 'x'), ('one', 'O', 'x');
+        INSERT INTO reading_list_items (list_id, library_id, position)
+          VALUES ('both', 'old', 0), ('both', 'new', 1), ('one', 'new', 0);
+        INSERT INTO reading_sessions (library_id, day, seconds) VALUES ('new', '2026-02-02', 60);
+      `);
+      repo.adoptRoots();
+      expect(db.prepare('SELECT list_id, library_id FROM reading_list_items ORDER BY list_id').all()).toEqual([
+        { list_id: 'both', library_id: 'old' },
+        { list_id: 'one', library_id: 'old' },
+      ]);
+      expect(db.prepare('SELECT library_id FROM reading_sessions').all()).toEqual([{ library_id: 'old' }]);
+    });
+  });
+
+  it('moves a book under a folder added inside its folder instead of adding it again', () => {
+    const db = new DatabaseSync(':memory:');
+    migrate(db);
+    const roots = new PathRoots();
+    roots.set('parent', lib);
+    const repo = new LibraryRepository(db, () => 'default', roots);
+    const file = path.join(lib, 'sub', 'a.cbz');
+    repo.register(file, 'A', 10, 10, 100);
+    roots.set('child', path.join(lib, 'sub'));
+    expect(repo.adoptRoots()).toBe(1);
+    expect(db.prepare('SELECT path FROM library').get()).toEqual({ path: 'root:child/a.cbz' });
+    expect(repo.hasPath(file)).toBe(true);
+  });
+
+  it('leaves alone a book whose folder has no path here', () => {
+    const db = new DatabaseSync(':memory:');
+    migrate(db);
+    const repo = new LibraryRepository(db, () => 'default', new PathRoots());
+    db.exec(`
+      INSERT INTO library (id, path, title, page_count, current_page, added_at, last_opened_at)
+      VALUES ('a', 'root:elsewhere/a.cbz', 'A', 10, 0, 'x', 'x');
+    `);
+    expect(repo.adoptRoots()).toBe(0);
+  });
 });

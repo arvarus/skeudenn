@@ -336,6 +336,8 @@ export function registerLibraryIpc({
       folders.relink(id, filePaths[0]);
       repo.adoptRoots();
       notify({ scope: 'library' });
+      // Relinked onto a folder the library already knows, two entries may have become one.
+      notify({ scope: 'readingLists' });
       // The comics found again may not have been measured yet.
       void imageScanner.kick();
       return { status: 'ok' };

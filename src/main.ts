@@ -8,8 +8,8 @@ import { applyAppMenu } from './main/app-menu';
 import { DecoderClient } from './main/decoder/decoder-client';
 import { spawnDecoderProcess } from './main/decoder/spawn-decoder';
 import { AchievementRepository } from './main/db/achievement-repository';
-import { isBackupDue } from './main/db/backup-service';
-import { openDatabase } from './main/db/database';
+import { createBackup, isBackupDue } from './main/db/backup-service';
+import { databaseLocation, openDatabase } from './main/db/database';
 import { LibraryFolderRepository } from './main/db/library-folder-repository';
 import { PathRoots, fileRootsStore } from './main/db/path-roots';
 import { LibraryRepository } from './main/db/library-repository';
@@ -146,7 +146,13 @@ app.whenReady().then(() => {
   // Folders already on this machine (a database from before the roots, or the same layout elsewhere), then
   // the books under them made relative.
   folderRepo.syncRoots();
-  libraryRepo.adoptRoots();
+  // Merging two entries of one file can't be undone: a copy first, and no merge without one (the next start tries again).
+  try {
+    if (libraryRepo.hasEntriesToMerge()) createBackup(db, databaseLocation().directory);
+    libraryRepo.adoptRoots();
+  } catch (error) {
+    console.error('Could not put the library paths in order:', error);
+  }
   const settingsRepo = new SettingsRepository(db, activeUser);
   const readingListRepo = new ReadingListRepository(db, activeUser);
   const achievementRepo = new AchievementRepository(db, activeUser);
