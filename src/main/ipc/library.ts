@@ -303,7 +303,7 @@ export function registerLibraryIpc({
     converter.convert(scanProgressTo(event)),
   );
 
-  handle(LIBRARY_CHANNELS.countDeflate64, args(), () => deflate64.count());
+  handle(LIBRARY_CHANNELS.countDeflate64, args(), (event) => deflate64.count(scanProgressTo(event)));
 
   handle(LIBRARY_CHANNELS.convertDeflate64, args(), (event) => deflate64.convert(scanProgressTo(event)));
 

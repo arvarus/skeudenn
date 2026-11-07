@@ -162,6 +162,8 @@ export default {
     convertDeflate64: 'Fix Deflate64 CBZ…',
     convertDeflate64Hint: 'Some CBZ (made by Windows Explorer or some archivers) use the Deflate64 compression, which the reader can’t open: their pages are unreadable. Rewrites them with the standard compression, in place and for the whole library. Path, progress, rating, tags and lists are kept; each file is replaced only once the new archive has been checked.',
     convertDeflate64Running: 'Converting…',
+    convertDeflate64Checking: 'Checking the CBZ…',
+    runProgress: '{{processed}} / {{total}}',
     convertDeflate64None: 'No Deflate64 CBZ in the library.',
     convertDeflate64ConfirmTitle: 'Fix the Deflate64 CBZ?',
     convertDeflate64Confirm_one: 'Rewrite {{count}} CBZ with the standard compression? The file is replaced in place.',

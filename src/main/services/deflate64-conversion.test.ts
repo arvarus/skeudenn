@@ -81,4 +81,47 @@ describe('createDeflate64Converter', () => {
     const result = await converter.convert();
     expect(result.status).toBe('error');
   });
+
+  it('reports each CBZ checked while counting, then done', async () => {
+    const a = await addBook('a-d64.cbz');
+    const b = await addBook('b.cbz');
+    await addBook('c.pdf');
+    const { converter } = setup();
+    const onProgress = vi.fn();
+    await converter.count(onProgress);
+    expect(onProgress.mock.calls.map(([p]) => p)).toEqual([
+      expect.objectContaining({ phase: 'importing', processed: 0, total: 2 }),
+      expect.objectContaining({ phase: 'importing', processed: 1, total: 2 }),
+      { phase: 'done', processed: 0, total: 0, currentFile: '' },
+    ]);
+    expect(onProgress.mock.calls.slice(0, 2).map(([p]) => p.currentFile).sort()).toEqual([a, b].sort());
+  });
+
+  it('refuses to count while another run holds the lock, and releases it after', async () => {
+    await addBook('a-d64.cbz');
+    const { converter, lock } = setup();
+    lock.tryStart('resync');
+    expect((await converter.count()).status).toBe('error');
+    lock.end();
+    await converter.count();
+    expect(lock.tryStart('convert')).toBe(true);
+  });
+
+  it('converts what the count found without checking the library again', async () => {
+    await addBook('a-d64.cbz');
+    await addBook('b.cbz');
+    const { converter, decoder } = setup();
+    await converter.count();
+    expect(await converter.convert()).toEqual({ status: 'ok', converted: 1, failed: 0 });
+    expect(decoder.hasDeflate64).toHaveBeenCalledTimes(2);
+  });
+
+  it('leaves out a book removed since the count', async () => {
+    const file = await addBook('a-d64.cbz');
+    const { converter, decoder } = setup();
+    await converter.count();
+    repo.remove(repo.idOfPath(file)!);
+    expect(await converter.convert()).toEqual({ status: 'ok', converted: 0, failed: 0 });
+    expect(decoder.convertDeflate64).not.toHaveBeenCalled();
+  });
 });

@@ -61,8 +61,8 @@ function OrganizationSettingsPage() {
   // Whether the cleanup dialog is open (it always works on the whole library).
   const [cleanupOpen, setCleanupOpen] = useState(false);
   const [progress, setProgress] = useState<ScanProgress | null>(null);
-  // Whether this page started the run, to show its progress here (a run started elsewhere only disables the controls).
-  const [running, setRunning] = useState(false);
+  // The run this page started, to show its progress under its button (a run started elsewhere only disables the controls).
+  const [running, setRunning] = useState<'organize' | 'convertCbr' | 'checkDeflate64' | 'deflate64' | 'cleanFolders' | null>(null);
   // The files the last resynchronization couldn't open (`total` is the exact count), shown in a dialog on request.
   const [failures, setFailures] = useState<{ list: ScanFailure[]; total: number } | null>(null);
   const [failuresOpen, setFailuresOpen] = useState(false);
@@ -112,11 +112,11 @@ function OrganizationSettingsPage() {
       action: t('organizeAllAction'),
     });
     if (!accepted) return;
-    setRunning(true);
+    setRunning('organize');
     setProgress({ phase: 'importing', processed: 0, total: count.count, currentFile: '' });
     const result = await window.tankobon.library.organizeAll();
     setProgress(null);
-    setRunning(false);
+    setRunning(null);
     if (result.status === 'error') {
       setOrganizeStatus({ message: result.message, error: true });
       return;
@@ -143,11 +143,11 @@ function OrganizationSettingsPage() {
       action: t('convertCbrAction'),
     });
     if (!accepted) return;
-    setRunning(true);
+    setRunning('convertCbr');
     setProgress({ phase: 'importing', processed: 0, total: count.count, currentFile: '' });
     const result = await window.tankobon.library.convertCbr();
     setProgress(null);
-    setRunning(false);
+    setRunning(null);
     if (result.status === 'error') {
       setConvertStatus({ message: result.message, error: true });
       return;
@@ -159,7 +159,12 @@ function OrganizationSettingsPage() {
 
   const convertDeflate64 = async () => {
     setConvertStatus(null);
+    // Checking opens every CBZ of the library: its progress shows under the button.
+    setRunning('checkDeflate64');
+    setProgress({ phase: 'importing', processed: 0, total: 0, currentFile: '' });
     const count = await window.tankobon.library.countDeflate64();
+    setProgress(null);
+    setRunning(null);
     if (count.status === 'error') {
       setConvertStatus({ message: count.message, error: true });
       return;
@@ -174,11 +179,11 @@ function OrganizationSettingsPage() {
       action: t('convertDeflate64Action'),
     });
     if (!accepted) return;
-    setRunning(true);
+    setRunning('deflate64');
     setProgress({ phase: 'importing', processed: 0, total: count.count, currentFile: '' });
     const result = await window.tankobon.library.convertDeflate64();
     setProgress(null);
-    setRunning(false);
+    setRunning(null);
     if (result.status === 'error') {
       setConvertStatus({ message: result.message, error: true });
       return;
@@ -232,11 +237,11 @@ function OrganizationSettingsPage() {
       action: t('cleanFoldersAction'),
     });
     if (!accepted) return;
-    setRunning(true);
+    setRunning('cleanFolders');
     setProgress({ phase: 'importing', processed: 0, total: count.count, currentFile: '' });
     const result = await window.tankobon.library.cleanFolders();
     setProgress(null);
-    setRunning(false);
+    setRunning(null);
     if (result.status === 'error') {
       setConvertStatus({ message: result.message, error: true });
       return;
@@ -336,12 +341,10 @@ function OrganizationSettingsPage() {
             disabled={busy || settings.libraryOrganization === 'off' || !settings.libraryOrganizationFolder}
           >
             <FolderTree />
-            {running ? t('organizeAllRunning') : t('organizeAll')}
+            {running === 'organize' ? t('organizeAllRunning') : t('organizeAll')}
           </Button>
         </div>
-        {progress && running && (
-          <Progress value={progress.processed} max={progress.total} label={t('organizeAllRunning')} />
-        )}
+        {progress && running === 'organize' && <RunProgress progress={progress} label={t('organizeAllRunning')} />}
         {organizeStatus && (
           <p className={cn('text-sm', organizeStatus.error ? 'text-destructive' : 'text-muted-foreground')}>
             {organizeStatus.message}
@@ -355,19 +358,30 @@ function OrganizationSettingsPage() {
             disabled={busy || settings.libraryOrganization === 'off' || !settings.libraryOrganizationFolder}
           >
             <FileArchive />
-            {running ? t('convertCbrRunning') : t('convertCbr')}
+            {running === 'convertCbr' ? t('convertCbrRunning') : t('convertCbr')}
           </Button>
           {organizationReady && convertibleCount !== null && convertibleCount > 0 && (
             <span className="text-sm text-muted-foreground">{t('convertCbrCount', { count: convertibleCount })}</span>
           )}
         </div>
+        {progress && running === 'convertCbr' && <RunProgress progress={progress} label={t('convertCbrRunning')} />}
         <p className="text-sm text-muted-foreground">{t('convertDeflate64Hint')}</p>
         <div>
           <Button variant="outline" onClick={() => void convertDeflate64()} disabled={busy}>
             <FileArchive />
-            {running ? t('convertDeflate64Running') : t('convertDeflate64')}
+            {running === 'checkDeflate64'
+              ? t('convertDeflate64Checking')
+              : running === 'deflate64'
+                ? t('convertDeflate64Running')
+                : t('convertDeflate64')}
           </Button>
         </div>
+        {progress && (running === 'checkDeflate64' || running === 'deflate64') && (
+          <RunProgress
+            progress={progress}
+            label={running === 'checkDeflate64' ? t('convertDeflate64Checking') : t('convertDeflate64Running')}
+          />
+        )}
         <p className="text-sm text-muted-foreground">{t('emptyDeletedHint')}</p>
         <div>
           <Button
@@ -420,9 +434,10 @@ function OrganizationSettingsPage() {
             disabled={busy || settings.libraryOrganization === 'off' || !settings.libraryOrganizationFolder}
           >
             <FolderMinus />
-            {running ? t('cleanFoldersRunning') : t('cleanFolders')}
+            {running === 'cleanFolders' ? t('cleanFoldersRunning') : t('cleanFolders')}
           </Button>
         </div>
+        {progress && running === 'cleanFolders' && <RunProgress progress={progress} label={t('cleanFoldersRunning')} />}
         {convertStatus && (
           <p className={cn('text-sm', convertStatus.error ? 'text-destructive' : 'text-muted-foreground')}>
             {convertStatus.message}
@@ -494,6 +509,20 @@ function OrganizationSettingsPage() {
  * The organized folder's tree: up to three levels, each a `<select>`. A tree the setting can't hold
  * yet (a letter grouping without a second level) stays a local draft until it is completed.
  */
+/** A run's progress bar under its button, with the count of books done and the file being handled. */
+function RunProgress({ progress, label }: { progress: ScanProgress; label: string }) {
+  const { t } = useTranslation('settings', { keyPrefix: 'library' });
+  return (
+    <div className="flex flex-col gap-1">
+      <Progress value={progress.processed} max={progress.total} label={label} />
+      <p className="truncate text-xs text-muted-foreground" title={progress.currentFile}>
+        {progress.total > 0 && t('runProgress', { processed: progress.processed, total: progress.total })}
+        {progress.currentFile && ` · ${progress.currentFile}`}
+      </p>
+    </div>
+  );
+}
+
 function StructureEditor({ disabled }: { disabled: boolean }) {
   const { t } = useTranslation('settings', { keyPrefix: 'library' });
   const { settings, update } = useSettings();

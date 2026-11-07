@@ -164,6 +164,8 @@ const settings: Translation<typeof en> = {
     convertDeflate64: 'Réparer les CBZ Deflate64…',
     convertDeflate64Hint: 'Certains CBZ (créés par l’Explorateur Windows ou certains outils) utilisent la compression Deflate64, que le lecteur ne sait pas ouvrir : leurs pages sont illisibles. Les réécrit avec la compression standard, sur place et pour toute la bibliothèque. Chemin, progression, note, étiquettes et listes sont conservés ; chaque fichier n’est remplacé qu’une fois la nouvelle archive vérifiée.',
     convertDeflate64Running: 'Conversion…',
+    convertDeflate64Checking: 'Vérification des CBZ…',
+    runProgress: '{{processed}} / {{total}}',
     convertDeflate64None: 'Aucun CBZ Deflate64 dans la bibliothèque.',
     convertDeflate64ConfirmTitle: 'Réparer les CBZ Deflate64 ?',
     convertDeflate64Confirm_one: 'Réécrire {{count}} CBZ avec la compression standard ? Le fichier est remplacé sur place.',
