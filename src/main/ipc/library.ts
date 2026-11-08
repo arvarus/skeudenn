@@ -27,6 +27,7 @@ import type { Deflate64Converter } from '../services/deflate64-conversion';
 import type { FolderCleaner } from '../services/folder-cleanup';
 import type { LibraryCleaner } from '../services/library-cleanup';
 import { NOTHING_ORGANIZED, type LibraryOrganizer, type Resynchronizer } from '../services/library-organization';
+import type { StartupOrganization } from './startup-organization';
 import { openErrorMessage } from '../services/open-error';
 import { scanIntoLibrary } from '../services/library-scanner';
 import { readNfoFor } from '../services/nfo';
@@ -66,6 +67,9 @@ export const LIBRARY_CHANNELS = {
   resync: 'library:resync',
   cancelResync: 'library:cancel-resync',
   resyncStatus: 'library:resync-status',
+  takeStartupOrganization: 'library:take-startup-organization',
+  /** Main → renderer: what the organization did after the start-up resynchronization is waiting (see `takeStartupOrganization`). */
+  startupOrganization: 'library:startup-organization',
   updateProgress: 'library:update-progress',
   updateRating: 'library:update-rating',
   updateTags: 'library:update-tags',
@@ -112,6 +116,15 @@ export function broadcastScanProgress(progress: ScanProgress): void {
   }
 }
 
+/** Tells every window that the organization's outcome of the start-up resynchronization is waiting; announced without payload, so a window takes it once. */
+export function announceStartupOrganization(): void {
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+      window.webContents.send(LIBRARY_CHANNELS.startupOrganization);
+    }
+  }
+}
+
 /** What {@link registerLibraryIpc} works with, built once in `main.ts`. */
 export interface LibraryIpcDependencies {
   /** The library, as the active user sees it. */
@@ -140,6 +153,8 @@ export interface LibraryIpcDependencies {
   folderCleaner: FolderCleaner;
   /** The user a long run is for is the one who started it, even if the app is switched to another meanwhile. */
   activeUser: () => string;
+  /** What the organization did after the start-up resynchronization, until a window takes it. */
+  startupOrganization: StartupOrganization;
 }
 
 /**
@@ -168,6 +183,7 @@ export function registerLibraryIpc({
   deflate64,
   folderCleaner,
   activeUser,
+  startupOrganization,
 }: LibraryIpcDependencies): void {
   /** Announces the new state of entries a handler just wrote (the ones that still exist). */
   const notifyUpserted = (...ids: string[]) => {
@@ -375,6 +391,7 @@ export function registerLibraryIpc({
   // Whichever window started the run (or the start-up): any window may stop it.
   handle(LIBRARY_CHANNELS.cancelResync, args(), () => resynchronizer.cancel());
   handle(LIBRARY_CHANNELS.resyncStatus, args(), () => resynchronizer.progress());
+  handle(LIBRARY_CHANNELS.takeStartupOrganization, args(), () => startupOrganization.take());
 
   handle(LIBRARY_CHANNELS.remove, args(idArg, booleanArg), async (_event, id, deleteFile): Promise<RemoveEntryResult> => {
     const entry = repo.get(id);

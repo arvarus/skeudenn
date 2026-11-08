@@ -1,5 +1,5 @@
 import { CircleStop, RefreshCw } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useConfirm } from '@/components/confirm-dialog';
@@ -9,12 +9,24 @@ import { useScanProgress } from '@/hooks/use-scan-progress';
 import { useSettings } from '@/hooks/use-settings';
 import { resyncStepLabel } from '@/lib/resync-step';
 import { cn } from '@/lib/utils';
+import type { OrganizationOutcome } from '@/shared/library';
+
+// One request at a time, shared: React mounts a component twice in development, and the outcome is handed
+// out once, so both mounts await the same answer and only the one still mounted follows up on it.
+let taking: Promise<OrganizationOutcome | null> | null = null;
+function takeStartupOrganization(): Promise<OrganizationOutcome | null> {
+  taking ??= window.tankobon.library.takeStartupOrganization().finally(() => {
+    taking = null;
+  });
+  return taking;
+}
 
 /**
  * The state of the library synchronization at the bottom of the sidebar, on every page: the
  * progress of the run in course (resynchronization, folder scan or organization, wherever it was
  * started; a resynchronization says which of its steps it is on), else the date of the last
- * resynchronization. Its icon starts a resynchronization, and a stop button ends the one running.
+ * resynchronization. Its icon starts a resynchronization, and a stop button ends the one running. It
+ * also follows up on the organization after the resynchronization started at launch (the move it offers).
  * The rail keeps only the icon, which stops a running resynchronization.
  */
 export function LibrarySyncStatus({ collapsed }: { collapsed: boolean }) {
@@ -28,6 +40,24 @@ export function LibrarySyncStatus({ collapsed }: { collapsed: boolean }) {
   const [stopping, setStopping] = useState(false);
   // What the last run started here ended with (stopped, an error, what the organization did), until the next one.
   const [outcome, setOutcome] = useState<{ message: string; error?: boolean } | null>(null);
+
+  // The resynchronization started at launch: nobody awaited it, so what the organization did, or offers
+  // to move (`ask` mode), is taken here, when it is announced or when this window starts after it.
+  useEffect(() => {
+    let mounted = true;
+    const follow = async () => {
+      const organization = await takeStartupOrganization();
+      if (!mounted || !organization) return;
+      const parts = await offerOrganization(organization);
+      if (mounted && parts.length > 0) setOutcome({ message: parts.join(' · ') });
+    };
+    void follow();
+    const unsubscribe = window.tankobon.library.onStartupOrganization(() => void follow());
+    return () => {
+      mounted = false;
+      unsubscribe();
+    };
+  }, [offerOrganization]);
 
   const running = progress !== null || starting;
   const resyncing = progress?.step !== undefined || starting;

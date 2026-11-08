@@ -27,7 +27,13 @@ import { PickedFiles } from './main/ipc/picked-files';
 import { createBackupMaker, createBackupRunner } from './main/db/backup-runner';
 import { registerDatabaseIpc, runBackup } from './main/ipc/database';
 import { registerDataIpc } from './main/ipc/data';
-import { broadcastImageScanProgress, broadcastScanProgress, registerLibraryIpc } from './main/ipc/library';
+import {
+  announceStartupOrganization,
+  broadcastImageScanProgress,
+  broadcastScanProgress,
+  registerLibraryIpc,
+} from './main/ipc/library';
+import { StartupOrganization } from './main/ipc/startup-organization';
 import { registerMetadataIpc } from './main/ipc/metadata';
 import { registerReadingListIpc } from './main/ipc/reading-lists';
 import { registerStatsIpc } from './main/ipc/stats';
@@ -189,6 +195,7 @@ app.whenReady().then(() => {
     activeUser,
   );
   const cbrConverter = createCbrConverter(libraryRepo, settingsRepo, decoder, broadcastDataChange, organizer.lock);
+  const startupOrganization = new StartupOrganization(announceStartupOrganization);
   registerLibraryIpc({
     repo: libraryRepo,
     folders: folderRepo,
@@ -203,6 +210,7 @@ app.whenReady().then(() => {
     deflate64: createDeflate64Converter(libraryRepo, decoder, broadcastDataChange, organizer.lock),
     folderCleaner: createFolderCleaner(settingsRepo, organizer.lock),
     activeUser,
+    startupOrganization,
   });
   registerReadingListIpc(readingListRepo, broadcastDataChange);
   registerStatsIpc(statsRepo);
@@ -267,8 +275,11 @@ app.whenReady().then(() => {
 
   // In the background: the library is usable meanwhile, and its views update as the walk goes. Every window
   // shows it (sidebar, Paramètres › Organisation) and may stop it; one still loading asks `library:resync-status`.
+  // No window awaits its result: what the organization did (or offers to move) waits for the sidebar to take it.
   if (settingsRepo.getAll().resyncOnStartup) {
-    void resynchronizer.run(broadcastScanProgress);
+    void resynchronizer.run(broadcastScanProgress).then((result) => {
+      if (result.status === 'ok') startupOrganization.offer(result.organization);
+    });
   }
   // Books left unmeasured by an earlier session (or a database from before the measure existed).
   void imageScanner.kick();

@@ -36,6 +36,7 @@ import type {
   CleanFoldersResult,
   ConvertCountResult,
   EmptyDeletedResult,
+  OrganizationOutcome,
   OrphanFoldersCountResult,
   CleanupResult,
   RemoveEntryResult,
@@ -134,6 +135,10 @@ export interface LibraryApi {
   cancelResync(): Promise<boolean>;
   /** Where the resynchronization in progress is (its last progress, with its `step`), null when none runs; for a window that loads during one, such as the run started at launch. */
   resyncStatus(): Promise<ScanProgress | null>;
+  /** What the library organization did with the comics of the resynchronization started at launch (moved, failed, and the move offered in `ask` mode), handed out once, to a single window; null when nothing is waiting. */
+  takeStartupOrganization(): Promise<OrganizationOutcome | null>;
+  /** Subscribes to the main process's `library:startup-organization` push, sent when that outcome is waiting (call `takeStartupOrganization` then); returns the unsubscribe function. */
+  onStartupOrganization(listener: () => void): () => void;
   /** Subscribes to the progress of `addFolder`, `resync` (also the one started at launch, sent to every window), `organizeAll`, `convertCbr`, `countDeflate64`, `convertDeflate64` and `cleanFolders`; returns the unsubscribe function. */
   onScanProgress(listener: (progress: ScanProgress) => void): () => void;
   /** Where the background measure of the books' page sizes is now (it runs after an import, a resync or the first opening of a book); resolves with the state a window that loads late missed. */
@@ -376,6 +381,14 @@ const api: TankobonApi = {
     resync: () => ipcRenderer.invoke('library:resync'),
     cancelResync: () => ipcRenderer.invoke('library:cancel-resync'),
     resyncStatus: () => ipcRenderer.invoke('library:resync-status'),
+    takeStartupOrganization: () => ipcRenderer.invoke('library:take-startup-organization'),
+    onStartupOrganization: (listener) => {
+      const handler = () => listener();
+      ipcRenderer.on('library:startup-organization', handler);
+      return () => {
+        ipcRenderer.removeListener('library:startup-organization', handler);
+      };
+    },
     remove: (id, deleteFile = false) => ipcRenderer.invoke('library:remove', id, deleteFile),
     removeMany: (ids, deleteFiles) => ipcRenderer.invoke('library:remove-many', ids, deleteFiles),
     updateProgress: (id, currentPage) => ipcRenderer.invoke('library:update-progress', id, currentPage),
