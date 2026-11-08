@@ -9,6 +9,7 @@ import type { CleanedArchive, JunkEntry } from '../services/cbz-cleaner';
 import { currentLanguage, t, type Language } from '../../shared/i18n';
 import type {
   ArchiveSummary,
+  CoverState,
   DecoderInbound,
   DecoderMethod,
   DecoderMethods,
@@ -120,9 +121,9 @@ export class DecoderClient {
     return this.call('thumbnail', filePath, archiveId, cachedOnly);
   }
 
-  /** Whether a book has a thumbnail already, without reading it; see `DecoderMethods.hasThumbnail`. */
-  hasThumbnail(filePath: string): Promise<boolean> {
-    return this.call('hasThumbnail', filePath);
+  /** Where a book's cover stands, without reading it; see `DecoderMethods.coverState`. */
+  coverState(filePath: string): Promise<CoverState> {
+    return this.call('coverState', filePath);
   }
 
   /** Replaces a book's cover with `image`; rejects when it isn't a usable image. */

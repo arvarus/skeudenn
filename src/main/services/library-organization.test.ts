@@ -10,6 +10,7 @@ import { LibraryRepository } from '../db/library-repository';
 import { migrate } from '../db/schema';
 import { SettingsRepository } from '../db/settings-repository';
 import type { DecoderClient } from '../decoder/decoder-client';
+import type { CoverState } from '../decoder/protocol';
 import type { ImageStatsScanner } from './image-stats-scanner';
 import {
   createLibraryOrganizer,
@@ -71,7 +72,7 @@ describe('library organization and resynchronization', () => {
   let folders: LibraryFolderRepository;
   const decoder = {
     thumbnail: vi.fn(async () => new Uint8Array([1])),
-    hasThumbnail: vi.fn<(filePath: string) => Promise<boolean>>(async () => false),
+    coverState: vi.fn<(filePath: string) => Promise<CoverState>>(async () => 'missing'),
     removeThumbnail: vi.fn(async () => undefined),
     inspect: vi.fn(async () => ({ pageCount: 10, fileCount: 10 })),
   };
@@ -361,19 +362,19 @@ describe('library organization and resynchronization', () => {
       organizer.lock.end();
     });
 
-    it('extracts only the covers that are missing, without reading those already there', async () => {
-      const source = await folderWith(['a.cbz', 'b.cbz']);
+    it('extracts only the covers that are missing, leaving alone those there and those that failed before', async () => {
+      const source = await folderWith(['a.cbz', 'b.cbz', 'c.cbz']);
       folders.add(source);
-      const withCover = path.join(source, 'a.cbz');
-      decoder.hasThumbnail.mockImplementation(async (filePath: string) => filePath === withCover);
+      const states: Record<string, CoverState> = { 'a.cbz': 'cover', 'b.cbz': 'failed', 'c.cbz': 'missing' };
+      decoder.coverState.mockImplementation(async (filePath: string) => states[path.basename(filePath)]);
 
       const result = await resynchronizer().run();
 
       expect(result).toMatchObject({ status: 'ok', coversExtracted: 1 });
-      expect(decoder.hasThumbnail).toHaveBeenCalledWith(withCover);
+      expect(decoder.coverState).toHaveBeenCalledTimes(3);
       expect(decoder.thumbnail).toHaveBeenCalledTimes(1);
-      expect(decoder.thumbnail).toHaveBeenCalledWith(path.join(source, 'b.cbz'));
-      decoder.hasThumbnail.mockImplementation(async () => false);
+      expect(decoder.thumbnail).toHaveBeenCalledWith(path.join(source, 'c.cbz'));
+      decoder.coverState.mockImplementation(async () => 'missing');
     });
 
     it('has nothing to cancel when no run is going', () => {

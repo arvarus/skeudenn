@@ -209,8 +209,17 @@ describe('ThumbnailCache', () => {
       expect(await new ThumbnailCache(join(dir, 'cache'), open).ensure(comic)).toBeNull();
       expect(await readdir(join(dir, 'cache'))).toContain(FAILED_COVERS_FILE);
 
-      expect(await new ThumbnailCache(join(dir, 'cache'), open).ensure(comic)).toBeNull();
+      const later = new ThumbnailCache(join(dir, 'cache'), open);
+      expect(await later.state(comic)).toBe('failed');
+      expect(await later.ensure(comic)).toBeNull();
       expect(calls.opened).toBe(1);
+    });
+
+    it('says the cover is missing again once the broken file has changed', async () => {
+      await new ThumbnailCache(join(dir, 'cache'), brokenOpener().open).ensure(comic);
+      await writeFile(comic, 'repaired, and longer');
+
+      expect(await new ThumbnailCache(join(dir, 'cache'), brokenOpener().open).state(comic)).toBe('missing');
     });
 
     it('remembers a book without an image page too', async () => {
@@ -304,9 +313,9 @@ describe('ThumbnailCache', () => {
     cache.sidecars = false;
     await cache.ensure(local);
 
-    expect(await cache.has(beside)).toBe(true);
-    expect(await cache.has(local)).toBe(true);
-    expect(await cache.has(none)).toBe(false);
+    expect(await cache.state(beside)).toBe('cover');
+    expect(await cache.state(local)).toBe('cover');
+    expect(await cache.state(none)).toBe('missing');
     expect(calls.opened).toBe(2);
   });
 

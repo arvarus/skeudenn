@@ -98,20 +98,22 @@ export class ThumbnailCache {
   ) {}
 
   /**
-   * Whether the book already has a thumbnail, beside it or in the local cache: two `stat`s, without
-   * reading the image, nor asking whether a sidecar is a cloud placeholder (a cover there counts, it
-   * only has to be downloaded). What a resynchronization asks of every book before extracting the
-   * missing covers.
+   * Where the book's cover stands, what a resynchronization asks of every book before extracting the
+   * missing covers: `cover` when it has one, beside it or in the local cache (two `stat`s, without reading
+   * the image, nor asking whether a sidecar is a cloud placeholder: a cover there counts, it only has to be
+   * downloaded); `failed` when it couldn't be made from this very file (see `knownFailure()`, one more
+   * `stat`); `missing` otherwise. Never opens the book, so the caller can skip the broken ones before
+   * anything costly (such as asking whether the comic itself is a cloud placeholder).
    */
-  async has(filePath: string): Promise<boolean> {
+  async state(filePath: string): Promise<'cover' | 'failed' | 'missing'> {
     for (const candidate of [coverSidecarPath(filePath), this.fileFor(filePath)]) {
       try {
-        if ((await stat(candidate)).isFile()) return true;
+        if ((await stat(candidate)).isFile()) return 'cover';
       } catch {
         // Not there: the next place, or none.
       }
     }
-    return false;
+    return (await this.knownFailure(filePath, thumbnailKey(filePath))) ? 'failed' : 'missing';
   }
 
   /**

@@ -23,6 +23,12 @@ export interface PageSizeAverage {
 }
 
 /**
+ * Where a book's cover stands: `cover` when it has one (beside it or in the local cache), `failed` when it
+ * couldn't be made from this very file before (unreadable archive, no image page), `missing` otherwise.
+ */
+export type CoverState = 'cover' | 'failed' | 'missing';
+
+/**
  * The calls the decoder process answers, as the main process sees them (the arguments, and what the
  * call resolves to). Everything that opens an archive, decodes an image or touches the thumbnail
  * cache goes through here.
@@ -68,8 +74,8 @@ export interface DecoderMethods {
    * With `cachedOnly`, the file is never opened: the cached thumbnail or null.
    */
   thumbnail(filePath: string, archiveId?: string, cachedOnly?: boolean): Uint8Array<ArrayBuffer> | null;
-  /** Whether a book has a thumbnail already (beside it or in the local cache), without reading it. */
-  hasThumbnail(filePath: string): boolean;
+  /** Where a book's cover stands, without reading it nor opening the book; see `ThumbnailCache.state()`. */
+  coverState(filePath: string): CoverState;
   /** Replaces a book's cover with the given image (PNG, JPEG, WebP…), shrunk to the thumbnail size; rejects when it isn't a usable image. */
   setThumbnail(filePath: string, image: Uint8Array): void;
   /** Deletes a book's thumbnail. */
