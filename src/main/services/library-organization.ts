@@ -239,6 +239,11 @@ export interface Resynchronizer {
    * did. False when no resynchronization is running.
    */
   cancel(): boolean;
+  /**
+   * The last progress of the run in progress, null when none runs: what a window that loads during a
+   * resynchronization (the one started at launch) shows before the next progress arrives.
+   */
+  progress(): ScanProgress | null;
 }
 
 /** Builds the resynchronizer, built once in `main.ts`; it takes the organizer's lock. */
@@ -255,17 +260,22 @@ export function createResynchronizer(
 ): Resynchronizer {
   // The run in progress, to stop it; null between runs.
   let running: AbortController | null = null;
+  let latest: ScanProgress | null = null;
   return {
     async run(onProgress = () => undefined) {
       if (!organizer.lock.tryStart('resync')) return { status: 'error', message: organizer.lock.busyMessage() };
       const startedBy = activeUser();
       const controller = new AbortController();
       running = controller;
+      const report = (progress: ScanProgress) => {
+        latest = progress.phase === 'done' ? null : progress;
+        onProgress(progress);
+      };
       try {
         const summary = await resyncLibrary(
           repo,
           organizer.watchedFolders(folders.list()),
-          onProgress,
+          report,
           (filePath) => decoder.inspect(filePath),
           // Asked of every book: a cover already there, or one that failed from this very file, costs a few
           // `stat`s; only a missing one is worth checking for a cloud placeholder (an `attrib` process on
@@ -310,8 +320,13 @@ export function createResynchronizer(
         return { status: 'error', message: error instanceof Error ? error.message : String(error) };
       } finally {
         running = null;
+        latest = null;
         organizer.lock.end();
       }
+    },
+
+    progress() {
+      return latest;
     },
 
     cancel() {

@@ -65,6 +65,7 @@ export const LIBRARY_CHANNELS = {
   relinkFolder: 'library:relink-folder',
   resync: 'library:resync',
   cancelResync: 'library:cancel-resync',
+  resyncStatus: 'library:resync-status',
   updateProgress: 'library:update-progress',
   updateRating: 'library:update-rating',
   updateTags: 'library:update-tags',
@@ -95,6 +96,18 @@ export function broadcastImageScanProgress(progress: ImageScanProgress): void {
   for (const window of BrowserWindow.getAllWindows()) {
     if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
       window.webContents.send(LIBRARY_CHANNELS.imageScanProgress, progress);
+    }
+  }
+}
+
+/**
+ * Sends a run's progress to every open window (one being closed is skipped): the resynchronization started
+ * at launch, which no window asked for, is shown by all of them.
+ */
+export function broadcastScanProgress(progress: ScanProgress): void {
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
+      window.webContents.send(LIBRARY_CHANNELS.scanProgress, progress);
     }
   }
 }
@@ -361,6 +374,7 @@ export function registerLibraryIpc({
 
   // Whichever window started the run (or the start-up): any window may stop it.
   handle(LIBRARY_CHANNELS.cancelResync, args(), () => resynchronizer.cancel());
+  handle(LIBRARY_CHANNELS.resyncStatus, args(), () => resynchronizer.progress());
 
   handle(LIBRARY_CHANNELS.remove, args(idArg, booleanArg), async (_event, id, deleteFile): Promise<RemoveEntryResult> => {
     const entry = repo.get(id);

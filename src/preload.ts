@@ -132,7 +132,9 @@ export interface LibraryApi {
   resync(): Promise<ResyncResult>;
   /** Stops the resynchronization in progress (started from any window, or at launch) between two files; false when none is running. */
   cancelResync(): Promise<boolean>;
-  /** Subscribes to the progress of `addFolder`, `resync`, `organizeAll`, `convertCbr`, `countDeflate64`, `convertDeflate64` and `cleanFolders`; returns the unsubscribe function. */
+  /** Where the resynchronization in progress is (its last progress, with its `step`), null when none runs; for a window that loads during one, such as the run started at launch. */
+  resyncStatus(): Promise<ScanProgress | null>;
+  /** Subscribes to the progress of `addFolder`, `resync` (also the one started at launch, sent to every window), `organizeAll`, `convertCbr`, `countDeflate64`, `convertDeflate64` and `cleanFolders`; returns the unsubscribe function. */
   onScanProgress(listener: (progress: ScanProgress) => void): () => void;
   /** Where the background measure of the books' page sizes is now (it runs after an import, a resync or the first opening of a book); resolves with the state a window that loads late missed. */
   imageScanStatus(): Promise<ImageScanProgress>;
@@ -373,6 +375,7 @@ const api: TankobonApi = {
     relinkFolder: (id) => ipcRenderer.invoke('library:relink-folder', id),
     resync: () => ipcRenderer.invoke('library:resync'),
     cancelResync: () => ipcRenderer.invoke('library:cancel-resync'),
+    resyncStatus: () => ipcRenderer.invoke('library:resync-status'),
     remove: (id, deleteFile = false) => ipcRenderer.invoke('library:remove', id, deleteFile),
     removeMany: (ids, deleteFiles) => ipcRenderer.invoke('library:remove-many', ids, deleteFiles),
     updateProgress: (id, currentPage) => ipcRenderer.invoke('library:update-progress', id, currentPage),

@@ -4,6 +4,7 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { ScanProgress } from '../../shared/library';
 import type { LibraryOrganization } from '../../shared/settings';
 import { LibraryFolderRepository } from '../db/library-folder-repository';
 import { LibraryRepository } from '../db/library-repository';
@@ -379,6 +380,35 @@ describe('library organization and resynchronization', () => {
 
     it('has nothing to cancel when no run is going', () => {
       expect(resynchronizer().cancel()).toBe(false);
+    });
+
+    it('tells where the run in progress is, for a window that loads meanwhile, and nothing once it is over', async () => {
+      const source = await folderWith(['a.cbz']);
+      folders.add(source);
+      let resync: ReturnType<typeof createResynchronizer> | null = null;
+      let seen: ScanProgress | null = null;
+      const watching = {
+        ...decoder,
+        inspect: async (...args: Parameters<typeof decoder.inspect>) => {
+          seen = resync!.progress();
+          return decoder.inspect(...args);
+        },
+      };
+      resync = createResynchronizer(
+        repo,
+        folders,
+        settings,
+        watching as unknown as DecoderClient,
+        notify,
+        imageScanner as unknown as ImageStatsScanner,
+        organizer,
+      );
+      expect(resync.progress()).toBeNull();
+
+      await resync.run();
+
+      expect(seen).toMatchObject({ phase: 'importing', currentFile: path.join(source, 'a.cbz'), step: { index: 1, name: 'scan' } });
+      expect(resync.progress()).toBeNull();
     });
 
     it('refuses to run while the lock is held, and releases it when it is done', async () => {

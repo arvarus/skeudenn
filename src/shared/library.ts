@@ -123,8 +123,9 @@ export interface ScanProgress {
   /** Absolute path currently being handled, for the progress label. */
   currentFile: string;
   /**
-   * The step of a resynchronization this progress belongs to; set by a resynchronization only, which
-   * tells it apart from the other runs on this channel (`processed`/`total` then count that step).
+   * The step of a resynchronization this progress belongs to; set by a resynchronization only (its final
+   * `done` included, with the last step), which tells it apart from the other runs on this channel
+   * (`processed`/`total` then count that step).
    */
   step?: ResyncStep;
 }

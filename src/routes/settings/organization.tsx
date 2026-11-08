@@ -84,8 +84,19 @@ function OrganizationSettingsPage() {
   const [deletedBytes, setDeletedBytes] = useState<number | null>(null);
   const organizationReady = settings.libraryOrganization !== 'off' && Boolean(settings.libraryOrganizationFolder);
 
-  // Also shows a run started at launch, or from another window.
-  useEffect(() => window.tankobon.library.onScanProgress((p) => setProgress(p.phase === 'done' ? null : p)), []);
+  // Also shows a run started from the sidebar, or the resynchronization started at launch (already going
+  // when the page opens: it starts from `resyncStatus()`, unless a progress arrived first).
+  useEffect(() => {
+    let pushed = false;
+    const unsubscribe = window.tankobon.library.onScanProgress((p) => {
+      pushed = true;
+      setProgress(p.phase === 'done' ? null : p);
+    });
+    void window.tankobon.library.resyncStatus().then((status) => {
+      if (!pushed && status) setProgress(status);
+    });
+    return unsubscribe;
+  }, []);
 
   // Counted again whenever the library changes (a conversion updates its entries), the folder does or a run ends
   // (an orphan cleaning fills `.deletedByTankobon` without touching the library).

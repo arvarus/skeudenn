@@ -182,6 +182,6 @@ export async function resyncLibrary(
   }
 
   summary.cancelled = stopped();
-  onProgress({ phase: 'done', processed: 0, total: 0, currentFile: '' });
+  onProgress({ phase: 'done', processed: 0, total: 0, currentFile: '', step });
   return summary;
 }

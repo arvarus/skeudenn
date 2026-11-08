@@ -27,7 +27,7 @@ import { PickedFiles } from './main/ipc/picked-files';
 import { createBackupMaker, createBackupRunner } from './main/db/backup-runner';
 import { registerDatabaseIpc, runBackup } from './main/ipc/database';
 import { registerDataIpc } from './main/ipc/data';
-import { broadcastImageScanProgress, registerLibraryIpc } from './main/ipc/library';
+import { broadcastImageScanProgress, broadcastScanProgress, registerLibraryIpc } from './main/ipc/library';
 import { registerMetadataIpc } from './main/ipc/metadata';
 import { registerReadingListIpc } from './main/ipc/reading-lists';
 import { registerStatsIpc } from './main/ipc/stats';
@@ -265,9 +265,10 @@ app.whenReady().then(() => {
   trashTimer.unref();
   app.on('will-quit', () => clearInterval(trashTimer));
 
-  // In the background: the library is usable meanwhile, and its views update as the walk goes.
+  // In the background: the library is usable meanwhile, and its views update as the walk goes. Every window
+  // shows it (sidebar, Paramètres › Organisation) and may stop it; one still loading asks `library:resync-status`.
   if (settingsRepo.getAll().resyncOnStartup) {
-    void resynchronizer.run();
+    void resynchronizer.run(broadcastScanProgress);
   }
   // Books left unmeasured by an earlier session (or a database from before the measure existed).
   void imageScanner.kick();
