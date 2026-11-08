@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented here. This file is maintained by [release-please](https://github.com/googleapis/release-please) from the [Conventional Commits](https://www.conventionalcommits.org/) merged into `master`: don't edit released entries by hand. New versions are inserted above the previous ones.
 
+## [0.25.0](https://github.com/arvarus/skeudenn/compare/v0.24.1...v0.25.0) (2026-11-08)
+
+
+### Features
+
+* **library:** rewrite Deflate64 CBZ with standard compression ([#296](https://github.com/arvarus/skeudenn/issues/296)) ([572d2d1](https://github.com/arvarus/skeudenn/commit/572d2d16a481dc667e97e752545dbd4301b6d70a))
+* **library:** show the resynchronization's steps and let it be stopped ([#298](https://github.com/arvarus/skeudenn/issues/298)) ([cac0e46](https://github.com/arvarus/skeudenn/commit/cac0e46946ef7c87858af847d35c8a7619da0ed4))
+
+
+### Bug Fixes
+
+* **ci:** retry packaging and cache Electron in the e2e workflow ([#297](https://github.com/arvarus/skeudenn/issues/297)) ([84fd678](https://github.com/arvarus/skeudenn/commit/84fd678a2f10060e5568154a489fa72e1082d92e))
+
+
+### Documentation
+
+* publish the documentation on skeudenn.arvarus.com ([#294](https://github.com/arvarus/skeudenn/issues/294)) ([2383aee](https://github.com/arvarus/skeudenn/commit/2383aeefe088cc2ee3ddf4f9c77b9e89f5457bce))
+
 ## [0.24.1](https://github.com/arvarus/skeudenn/compare/v0.24.0...v0.24.1) (2026-11-07)
 
 
