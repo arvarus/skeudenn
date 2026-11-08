@@ -92,7 +92,8 @@ function LibraryPage() {
 
   // Subscribed for the whole page's life rather than around each scan: the main process starts
   // sending progress as soon as the directory is picked, which is before `addFolder()` resolves.
-  useEffect(() => window.tankobon.library.onScanProgress(setScan), []);
+  // A resynchronization (it carries a `step`) is the sidebar's to show, wherever it was started.
+  useEffect(() => window.tankobon.library.onScanProgress((p) => !p.step && setScan(p)), []);
 
   // The bar stays on its final state once the scan is done, until the user closes it.
   const scanning = scan !== null && scan.phase !== 'done';

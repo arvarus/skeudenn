@@ -24,6 +24,24 @@ export const THUMBNAIL_MAX_HEIGHT = 360;
 export const STORE_MAX_WAIT_MS = 10_000;
 
 const THUMBNAIL_EXTENSION = '.webp';
+
+/** The books whose cover couldn't be made, kept in the cache directory across sessions. */
+export const FAILED_COVERS_FILE = 'failed-covers.json';
+
+/** What a book's file was when its cover failed: a change of either gives it a new chance. */
+interface FailedCover {
+  size: number;
+  mtimeMs: number;
+}
+
+/**
+ * Whether an error says nothing about the book itself: a system error (`EBUSY`, `EACCES`, `ENOENT`…: a
+ * file locked by a sync tool, a drive gone) may not happen next time, so it is only remembered for the session.
+ */
+function isPassingError(error: unknown): boolean {
+  const code = (error as NodeJS.ErrnoException | undefined)?.code;
+  return typeof code === 'string' && /^E[A-Z0-9]+$/.test(code);
+}
 const WEBP_QUALITY = 80;
 
 /**
@@ -61,8 +79,16 @@ export function thumbnailKey(filePath: string): string {
 export class ThumbnailCache {
   private queue: Promise<unknown> = Promise.resolve();
   private readonly inFlight = new Map<string, Promise<Uint8Array<ArrayBuffer> | null>>();
-  /** Books whose file couldn't be opened this session, so they aren't reopened on every request. */
+  /** Books whose cover failed this session, so they aren't reopened on every request. */
   private readonly failed = new Set<string>();
+  /**
+   * Books whose cover failed in an earlier session too (unreadable archive, no image page), by key, read
+   * once from {@link FAILED_COVERS_FILE}: a resynchronization asks for the missing covers at every run, and
+   * reopening the same broken archives each time is what made it slow. Loaded lazily.
+   */
+  private failures: Promise<Map<string, FailedCover>> | null = null;
+  /** The writes of {@link FAILED_COVERS_FILE}, one after the other. */
+  private failuresSaved: Promise<void> = Promise.resolve();
   /** Whether new covers go beside the comic (else only to the local cache). */
   sidecars = true;
 
@@ -70,6 +96,25 @@ export class ThumbnailCache {
     private readonly directory: string,
     private readonly open: (filePath: string) => Promise<ComicArchive> = openArchive,
   ) {}
+
+  /**
+   * Where the book's cover stands, what a resynchronization asks of every book before extracting the
+   * missing covers: `cover` when it has one, beside it or in the local cache (two `stat`s, without reading
+   * the image, nor asking whether a sidecar is a cloud placeholder: a cover there counts, it only has to be
+   * downloaded); `failed` when it couldn't be made from this very file (see `knownFailure()`, one more
+   * `stat`); `missing` otherwise. Never opens the book, so the caller can skip the broken ones before
+   * anything costly (such as asking whether the comic itself is a cloud placeholder).
+   */
+  async state(filePath: string): Promise<'cover' | 'failed' | 'missing'> {
+    for (const candidate of [coverSidecarPath(filePath), this.fileFor(filePath)]) {
+      try {
+        if ((await stat(candidate)).isFile()) return 'cover';
+      } catch {
+        // Not there: the next place, or none.
+      }
+    }
+    return (await this.knownFailure(filePath, thumbnailKey(filePath))) ? 'failed' : 'missing';
+  }
 
   /**
    * The cached thumbnail of a book, or null when there is none yet. Never generates one. The
@@ -105,8 +150,8 @@ export class ThumbnailCache {
     if (pending) {
       return pending;
     }
-    const result = this.read(filePath).then((cached) => {
-      if (cached || (!readFirstPage && this.failed.has(key))) {
+    const result = this.read(filePath).then(async (cached) => {
+      if (cached || (!readFirstPage && (await this.knownFailure(filePath, key)))) {
         return cached;
       }
       return this.enqueue(() => this.generate(filePath, readFirstPage));
@@ -161,7 +206,7 @@ export class ThumbnailCache {
         // The sidecar wins over the local cache: a stale local file would only waste space.
         await rm(this.fileFor(filePath), { force: true });
       }
-      this.failed.delete(thumbnailKey(filePath));
+      await this.forgetFailure(thumbnailKey(filePath));
     });
   }
 
@@ -173,18 +218,26 @@ export class ThumbnailCache {
    */
   remove(filePath: string): Promise<void> {
     return this.enqueue(async () => {
-      this.failed.delete(thumbnailKey(filePath));
+      await this.forgetFailure(thumbnailKey(filePath));
       await rm(this.fileFor(filePath), { force: true });
     });
   }
 
   /**
    * Deletes every cached file that isn't the thumbnail of one of `filePaths`, including temporary
-   * files left by a crash. Queued like a generation, so it never deletes one being written.
+   * files left by a crash, and forgets the failures of the other books (all of them for an empty list,
+   * which clears the cache). Queued like a generation, so it never deletes one being written.
    */
   prune(filePaths: readonly string[]): Promise<void> {
-    const keep = new Set(filePaths.map((filePath) => thumbnailKey(filePath) + THUMBNAIL_EXTENSION));
+    const keys = new Set(filePaths.map(thumbnailKey));
+    const keep = new Set([...keys].map((key) => key + THUMBNAIL_EXTENSION));
+    keep.add(FAILED_COVERS_FILE);
     return this.enqueue(async () => {
+      const failures = await this.loadFailures();
+      for (const key of [...failures.keys()]) {
+        if (!keys.has(key)) failures.delete(key);
+      }
+      await this.saveFailures();
       let names: string[];
       try {
         names = await readdir(this.directory);
@@ -205,6 +258,7 @@ export class ThumbnailCache {
    */
   async rebuild(filePaths: readonly string[]): Promise<void> {
     this.failed.clear();
+    (await this.loadFailures()).clear();
     await this.prune(filePaths);
     for (const filePath of filePaths) {
       await this.ensure(filePath);
@@ -229,19 +283,101 @@ export class ThumbnailCache {
     try {
       const page = readFirstPage ? await readFirstPage() : await this.readCover(filePath);
       if (!page) {
+        // No image page: opening the book again won't give it one.
+        await this.recordFailure(filePath, key, null);
         return null;
       }
       const thumbnail = await renderThumbnail(page.data);
       await this.write(filePath, thumbnail);
-      this.failed.delete(key);
+      await this.forgetFailure(key);
       return thumbnail;
-    } catch {
+    } catch (error) {
       // An archive the reader closed meanwhile isn't the book's fault: only remember failures to open it.
       if (!readFirstPage) {
-        this.failed.add(key);
+        await this.recordFailure(filePath, key, error);
       }
       return null;
     }
+  }
+
+  private loadFailures(): Promise<Map<string, FailedCover>> {
+    this.failures ??= readFile(path.join(this.directory, FAILED_COVERS_FILE), 'utf8')
+      .then((text) => {
+        const failures = new Map<string, FailedCover>();
+        const parsed: unknown = JSON.parse(text);
+        if (typeof parsed !== 'object' || parsed === null) return failures;
+        // A file anyone can edit: only well-formed entries count.
+        for (const [key, value] of Object.entries(parsed)) {
+          const { size, mtimeMs } = (value ?? {}) as Partial<FailedCover>;
+          if (typeof size === 'number' && typeof mtimeMs === 'number') failures.set(key, { size, mtimeMs });
+        }
+        return failures;
+      })
+      .catch(() => new Map<string, FailedCover>());
+    return this.failures;
+  }
+
+  /** Writes the failures as they are now (deletes the file when there is none); a failed write only costs the memory of them. */
+  private saveFailures(): Promise<void> {
+    this.failuresSaved = this.failuresSaved.then(async () => {
+      const failures = await this.loadFailures();
+      const file = path.join(this.directory, FAILED_COVERS_FILE);
+      try {
+        if (failures.size === 0) {
+          await rm(file, { force: true });
+          return;
+        }
+        await mkdir(this.directory, { recursive: true });
+        await this.writeAtomically(file, new TextEncoder().encode(JSON.stringify(Object.fromEntries(failures))));
+      } catch {
+        // Retried at the next change, or at the next session.
+      }
+    });
+    return this.failuresSaved;
+  }
+
+  /** Whether the book's cover failed this session, or in an earlier one while its file was the same as now. */
+  private async knownFailure(filePath: string, key: string): Promise<boolean> {
+    if (this.failed.has(key)) return true;
+    const failures = await this.loadFailures();
+    const recorded = failures.get(key);
+    if (!recorded) return false;
+    try {
+      const { size, mtimeMs } = await stat(filePath);
+      if (size === recorded.size && mtimeMs === recorded.mtimeMs) {
+        this.failed.add(key);
+        return true;
+      }
+    } catch {
+      // Gone or unreadable now: say nothing, the attempt will tell.
+      return false;
+    }
+    // Replaced or repaired since: a new chance.
+    failures.delete(key);
+    await this.saveFailures();
+    return false;
+  }
+
+  /**
+   * Remembers that the book's cover failed: for the session, and across sessions when the failure is the
+   * book's own (`error` null for a book without an image page) and its file can be described.
+   */
+  private async recordFailure(filePath: string, key: string, error: unknown): Promise<void> {
+    this.failed.add(key);
+    if (isPassingError(error)) return;
+    try {
+      const { size, mtimeMs } = await stat(filePath);
+      (await this.loadFailures()).set(key, { size, mtimeMs });
+      await this.saveFailures();
+    } catch {
+      // A file that can't be described can't be told apart from its repaired version: the session only.
+    }
+  }
+
+  private async forgetFailure(key: string): Promise<void> {
+    this.failed.delete(key);
+    const failures = await this.loadFailures();
+    if (failures.delete(key)) await this.saveFailures();
   }
 
   /** Beside the comic when the setting is on and its folder accepts it (read-only share, full disk…), else in the local cache. Returns whether the sidecar was written. */

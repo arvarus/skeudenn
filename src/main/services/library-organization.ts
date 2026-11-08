@@ -19,7 +19,8 @@ import type {
 import type { LibraryFolderRepository } from '../db/library-folder-repository';
 import type { LibraryRepository } from '../db/library-repository';
 import type { SettingsRepository } from '../db/settings-repository';
-import type { ArchiveSummary } from '../decoder/protocol';
+import type { ArchiveSummary, CoverState } from '../decoder/protocol';
+import { isOnlineOnly } from './cloud-files';
 import type { ImageStatsScanner } from './image-stats-scanner';
 import { organizeEntries, planOrganization, unorganizedIds, type OrganizationTarget } from './library-organizer';
 import { resyncLibrary } from './library-sync';
@@ -31,6 +32,8 @@ export interface LibraryDecoder {
   inspect(filePath: string): Promise<ArchiveSummary>;
   /** A book's thumbnail, generated when missing (unless `cachedOnly`); null when it has none. */
   thumbnail(filePath: string, archiveId?: string, cachedOnly?: boolean): Promise<Uint8Array | null>;
+  /** Where a book's cover stands (has one, failed before, missing), without reading it nor opening the book. */
+  coverState(filePath: string): Promise<CoverState>;
   /** Deletes a book's cached thumbnail. */
   removeThumbnail(filePath: string): Promise<void>;
 }
@@ -231,6 +234,16 @@ export interface Resynchronizer {
    * one resolves to an error result.
    */
   run(onProgress?: (progress: ScanProgress) => void): Promise<ResyncResult>;
+  /**
+   * Stops the run in progress between two files; it then resolves with `cancelled`, keeping what it
+   * did. False when no resynchronization is running.
+   */
+  cancel(): boolean;
+  /**
+   * The last progress of the run in progress, null when none runs: what a window that loads during a
+   * resynchronization (the one started at launch) shows before the next progress arrives.
+   */
+  progress(): ScanProgress | null;
 }
 
 /** Builds the resynchronizer, built once in `main.ts`; it takes the organizer's lock. */
@@ -245,24 +258,45 @@ export function createResynchronizer(
   // Who the run is for: the date and the organization are the user's who started it, not whoever is active at the end.
   activeUser: () => string = () => '',
 ): Resynchronizer {
+  // The run in progress, to stop it; null between runs.
+  let running: AbortController | null = null;
+  let latest: ScanProgress | null = null;
   return {
     async run(onProgress = () => undefined) {
       if (!organizer.lock.tryStart('resync')) return { status: 'error', message: organizer.lock.busyMessage() };
       const startedBy = activeUser();
+      const controller = new AbortController();
+      running = controller;
+      const report = (progress: ScanProgress) => {
+        latest = progress.phase === 'done' ? null : progress;
+        onProgress(progress);
+      };
       try {
-        const summary = await resyncLibrary(repo, organizer.watchedFolders(folders.list()), onProgress, (filePath) =>
-          decoder.inspect(filePath),
-          async (filePath) => !(await decoder.thumbnail(filePath, undefined, true)) && (await decoder.thumbnail(filePath)) !== null,
+        const summary = await resyncLibrary(
+          repo,
+          organizer.watchedFolders(folders.list()),
+          report,
+          (filePath) => decoder.inspect(filePath),
+          // Asked of every book: a cover already there, or one that failed from this very file, costs a few
+          // `stat`s; only a missing one is worth checking for a cloud placeholder (an `attrib` process on
+          // Windows), which isn't read.
+          async (filePath) =>
+            (await decoder.coverState(filePath)) === 'missing' &&
+            !(await isOnlineOnly(filePath)) &&
+            (await decoder.thumbnail(filePath)) !== null,
           settings.getAll().libraryWriteNfo,
+          controller.signal,
         );
         // The user switched meanwhile: the organized folder and the date are now another user's settings.
+        // A stopped run is not a resynchronization: no date, and nothing moved after the user asked to stop.
         const sameUser = activeUser() === startedBy;
-        const organization = sameUser ? await organizer.afterAdd(summary.addedEntries) : NOTHING_ORGANIZED;
+        const complete = sameUser && !summary.cancelled;
+        const organization = complete ? await organizer.afterAdd(summary.addedEntries) : NOTHING_ORGANIZED;
         const finishedAt = new Date().toISOString();
-        if (sameUser) settings.set('lastResyncAt', finishedAt);
+        if (complete) settings.set('lastResyncAt', finishedAt);
 
         notify({ scope: 'library' });
-        if (sameUser) notify({ scope: 'settings', values: { lastResyncAt: finishedAt } });
+        if (complete) notify({ scope: 'settings', values: { lastResyncAt: finishedAt } });
         void imageScanner.kick();
         if (summary.removed > 0) {
           // The removed books left the reading lists they were in, and their covers are useless.
@@ -279,13 +313,26 @@ export function createResynchronizer(
           nfoWritten: summary.nfoWritten,
           coversExtracted: summary.coversExtracted,
           finishedAt,
+          cancelled: summary.cancelled,
           organization,
         };
       } catch (error) {
         return { status: 'error', message: error instanceof Error ? error.message : String(error) };
       } finally {
+        running = null;
+        latest = null;
         organizer.lock.end();
       }
+    },
+
+    progress() {
+      return latest;
+    },
+
+    cancel() {
+      if (!running || running.signal.aborted) return false;
+      running.abort();
+      return true;
     },
   };
 }

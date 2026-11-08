@@ -8,10 +8,21 @@ import type { ScanProgress } from '@/shared/library';
 
 /**
  * The latest progress pushed by the main process while a scan runs, `null` when none does. Follows
- * every run, including a resynchronization started at launch or from another window.
+ * every run of this window, and the resynchronization started at launch: a window that loads during it
+ * starts from `library.resyncStatus()`, unless a progress arrived first.
  */
 export function useScanProgress(): ScanProgress | null {
   const [progress, setProgress] = useState<ScanProgress | null>(null);
-  useEffect(() => window.tankobon.library.onScanProgress((p) => setProgress(p.phase === 'done' ? null : p)), []);
+  useEffect(() => {
+    let pushed = false;
+    const unsubscribe = window.tankobon.library.onScanProgress((p) => {
+      pushed = true;
+      setProgress(p.phase === 'done' ? null : p);
+    });
+    void window.tankobon.library.resyncStatus().then((status) => {
+      if (!pushed) setProgress(status);
+    });
+    return unsubscribe;
+  }, []);
   return progress;
 }

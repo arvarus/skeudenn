@@ -4,12 +4,14 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { ScanProgress } from '../../shared/library';
 import type { LibraryOrganization } from '../../shared/settings';
 import { LibraryFolderRepository } from '../db/library-folder-repository';
 import { LibraryRepository } from '../db/library-repository';
 import { migrate } from '../db/schema';
 import { SettingsRepository } from '../db/settings-repository';
 import type { DecoderClient } from '../decoder/decoder-client';
+import type { CoverState } from '../decoder/protocol';
 import type { ImageStatsScanner } from './image-stats-scanner';
 import {
   createLibraryOrganizer,
@@ -69,7 +71,12 @@ describe('library organization and resynchronization', () => {
   let repo: LibraryRepository;
   let settings: SettingsRepository;
   let folders: LibraryFolderRepository;
-  const decoder = { thumbnail: vi.fn(async () => new Uint8Array([1])), removeThumbnail: vi.fn(async () => undefined), inspect: vi.fn(async () => ({ pageCount: 10, fileCount: 10 })) };
+  const decoder = {
+    thumbnail: vi.fn(async () => new Uint8Array([1])),
+    coverState: vi.fn<(filePath: string) => Promise<CoverState>>(async () => 'missing'),
+    removeThumbnail: vi.fn(async () => undefined),
+    inspect: vi.fn(async () => ({ pageCount: 10, fileCount: 10 })),
+  };
   const imageScanner = { kick: vi.fn() };
   const notify = vi.fn();
   let organizer: LibraryOrganizer;
@@ -318,6 +325,90 @@ describe('library organization and resynchronization', () => {
       expect(result).toMatchObject({ status: 'ok', added: 1, organization: NOTHING_ORGANIZED });
       expect(settings.getAll().lastResyncAt).toBe('');
       expect(repo.list()[0].path.startsWith(root)).toBe(false);
+    });
+
+    it('stops when cancelled: keeps what it added, stores no date and organizes nothing', async () => {
+      const source = await folderWith(['a.cbz', 'b.cbz']);
+      const root = await folderWith([]);
+      folders.add(source);
+      configure('always', root);
+      let resync: ReturnType<typeof createResynchronizer> | null = null;
+      // Stopped while the first file is being opened.
+      const stopping = {
+        ...decoder,
+        inspect: async (...args: Parameters<typeof decoder.inspect>) => {
+          expect(resync!.cancel()).toBe(true);
+          return decoder.inspect(...args);
+        },
+      };
+      resync = createResynchronizer(
+        repo,
+        folders,
+        settings,
+        stopping as unknown as DecoderClient,
+        notify,
+        imageScanner as unknown as ImageStatsScanner,
+        organizer,
+      );
+
+      const result = await resync.run();
+
+      expect(result).toMatchObject({ status: 'ok', added: 1, cancelled: true, organization: NOTHING_ORGANIZED });
+      expect(settings.getAll().lastResyncAt).toBe('');
+      expect(repo.list()[0].path.startsWith(root)).toBe(false);
+      expect(notify).toHaveBeenCalledWith({ scope: 'library' });
+      // Nothing left to stop, and the next run is free to start and complete.
+      expect(resync.cancel()).toBe(false);
+      expect(organizer.lock.tryStart('add')).toBe(true);
+      organizer.lock.end();
+    });
+
+    it('extracts only the covers that are missing, leaving alone those there and those that failed before', async () => {
+      const source = await folderWith(['a.cbz', 'b.cbz', 'c.cbz']);
+      folders.add(source);
+      const states: Record<string, CoverState> = { 'a.cbz': 'cover', 'b.cbz': 'failed', 'c.cbz': 'missing' };
+      decoder.coverState.mockImplementation(async (filePath: string) => states[path.basename(filePath)]);
+
+      const result = await resynchronizer().run();
+
+      expect(result).toMatchObject({ status: 'ok', coversExtracted: 1 });
+      expect(decoder.coverState).toHaveBeenCalledTimes(3);
+      expect(decoder.thumbnail).toHaveBeenCalledTimes(1);
+      expect(decoder.thumbnail).toHaveBeenCalledWith(path.join(source, 'c.cbz'));
+      decoder.coverState.mockImplementation(async () => 'missing');
+    });
+
+    it('has nothing to cancel when no run is going', () => {
+      expect(resynchronizer().cancel()).toBe(false);
+    });
+
+    it('tells where the run in progress is, for a window that loads meanwhile, and nothing once it is over', async () => {
+      const source = await folderWith(['a.cbz']);
+      folders.add(source);
+      let resync: ReturnType<typeof createResynchronizer> | null = null;
+      let seen: ScanProgress | null = null;
+      const watching = {
+        ...decoder,
+        inspect: async (...args: Parameters<typeof decoder.inspect>) => {
+          seen = resync!.progress();
+          return decoder.inspect(...args);
+        },
+      };
+      resync = createResynchronizer(
+        repo,
+        folders,
+        settings,
+        watching as unknown as DecoderClient,
+        notify,
+        imageScanner as unknown as ImageStatsScanner,
+        organizer,
+      );
+      expect(resync.progress()).toBeNull();
+
+      await resync.run();
+
+      expect(seen).toMatchObject({ phase: 'importing', currentFile: path.join(source, 'a.cbz'), step: { index: 1, name: 'scan' } });
+      expect(resync.progress()).toBeNull();
     });
 
     it('refuses to run while the lock is held, and releases it when it is done', async () => {

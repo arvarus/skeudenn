@@ -1,5 +1,5 @@
 import { Navigate, createFileRoute } from '@tanstack/react-router';
-import { Copy, Eraser, FolderMinus, FileArchive, FolderTree, RefreshCw, Trash2 } from 'lucide-react';
+import { CircleStop, Copy, Eraser, FolderMinus, FileArchive, FolderTree, RefreshCw, Trash2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -10,6 +10,7 @@ import { ScanFailuresDialog } from '@/components/scan-failures-dialog';
 import { SETTINGS_SELECT_CLASS, SettingsSection } from '@/components/settings-section';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { resyncStepLabel } from '@/lib/resync-step';
 import { isOrganizationOn } from '@/lib/settings-nav';
 import { useOrganizationOffer } from '@/hooks/use-organization-offer';
 import { useLibrary } from '@/hooks/use-library';
@@ -68,17 +69,34 @@ function OrganizationSettingsPage() {
   const [failuresOpen, setFailuresOpen] = useState(false);
   const [convertStatus, setConvertStatus] = useState<{ message: string; error?: boolean } | null>(null);
   const [resyncRunning, setResyncRunning] = useState(false);
+  const [resyncStopping, setResyncStopping] = useState(false);
   const [resyncStatus, setResyncStatus] = useState<{ message: string; error?: boolean } | null>(null);
   const [organizeStatus, setOrganizeStatus] = useState<{ message: string; error?: boolean } | null>(null);
   // A resynchronization or an organization: either one blocks the other.
   const busy = progress !== null;
+  // A resynchronization runs in this window, started here or from the sidebar (only it sends a `step`).
+  const resyncStep = progress?.step ?? null;
+  const resyncing = resyncRunning || resyncStep !== null;
+  // Stopped from the sidebar: nothing else drops the stopping state ("adjust state while rendering").
+  if (resyncStopping && !resyncing) setResyncStopping(false);
   // CBR waiting to be converted and what `.deletedByTankobon` holds, shown beside the actions; null while not counted yet.
   const [convertibleCount, setConvertibleCount] = useState<number | null>(null);
   const [deletedBytes, setDeletedBytes] = useState<number | null>(null);
   const organizationReady = settings.libraryOrganization !== 'off' && Boolean(settings.libraryOrganizationFolder);
 
-  // Also shows a run started at launch, or from another window.
-  useEffect(() => window.tankobon.library.onScanProgress((p) => setProgress(p.phase === 'done' ? null : p)), []);
+  // Also shows a run started from the sidebar, or the resynchronization started at launch (already going
+  // when the page opens: it starts from `resyncStatus()`, unless a progress arrived first).
+  useEffect(() => {
+    let pushed = false;
+    const unsubscribe = window.tankobon.library.onScanProgress((p) => {
+      pushed = true;
+      setProgress(p.phase === 'done' ? null : p);
+    });
+    void window.tankobon.library.resyncStatus().then((status) => {
+      if (!pushed && status) setProgress(status);
+    });
+    return unsubscribe;
+  }, []);
 
   // Counted again whenever the library changes (a conversion updates its entries), the folder does or a run ends
   // (an orphan cleaning fills `.deletedByTankobon` without touching the library).
@@ -265,6 +283,7 @@ function OrganizationSettingsPage() {
     }
     if (result.failed > 0) setFailures({ list: result.failures, total: result.failed });
     const parts = [t('resyncDone', { added: result.added, removed: result.removed })];
+    if (result.cancelled) parts.unshift(t('resyncStopped'));
     if (result.failed > 0) parts.push(t('resyncFailed', { count: result.failed }));
     if (result.nfoWritten > 0) parts.push(t('resyncNfoWritten', { count: result.nfoWritten }));
     if (result.coversExtracted > 0) parts.push(t('resyncCoversExtracted', { count: result.coversExtracted }));
@@ -272,6 +291,11 @@ function OrganizationSettingsPage() {
     setResyncStatus({ message: parts.join(' · ') });
     parts.push(...(await offerOrganization(result.organization)));
     setResyncStatus({ message: parts.join(' · ') });
+  };
+
+  const stopResync = async () => {
+    setResyncStopping(true);
+    if (!(await window.tankobon.library.cancelResync())) setResyncStopping(false);
   };
 
   const lastResync = settings.lastResyncAt
@@ -461,14 +485,29 @@ function OrganizationSettingsPage() {
       </SettingsSection>
       <SettingsSection title={t('resync')}>
         <p className="text-sm text-muted-foreground">{t('resyncHint')}</p>
-        <div>
+        <div className="flex flex-wrap items-center gap-2">
           <Button variant="outline" onClick={() => void resync()} disabled={busy}>
-            <RefreshCw />
-            {resyncRunning ? t('resyncRunning') : t('resyncButton')}
+            <RefreshCw className={cn(resyncing && 'animate-spin')} />
+            {resyncing ? t('resyncRunning') : t('resyncButton')}
           </Button>
+          {resyncing && (
+            <Button variant="outline" onClick={() => void stopResync()} disabled={resyncStopping}>
+              <CircleStop />
+              {resyncStopping ? t('resyncStopping') : t('resyncStop')}
+            </Button>
+          )}
         </div>
-        {progress && progress.phase === 'importing' && resyncRunning && (
-          <Progress value={progress.processed} max={progress.total} label={t('resyncRunning')} />
+        {progress && resyncStep && (
+          <div className="flex flex-col gap-1">
+            <p className="text-sm">{resyncStepLabel(resyncStep)}</p>
+            {progress.phase === 'importing' ? (
+              <RunProgress progress={progress} label={t('resyncRunning')} />
+            ) : (
+              <p className="truncate text-xs text-muted-foreground" title={progress.currentFile}>
+                {progress.currentFile}
+              </p>
+            )}
+          </div>
         )}
         {resyncStatus && (
           <p className={cn('text-sm', resyncStatus.error ? 'text-destructive' : 'text-muted-foreground')}>

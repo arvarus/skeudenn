@@ -8,6 +8,7 @@ import type { ComicPage } from '../../shared/comic';
 import type { ComicArchive } from './comic-archive';
 import { coverSidecarPath } from './cover-sidecar';
 import {
+  FAILED_COVERS_FILE,
   renderThumbnail,
   THUMBNAIL_MAX_HEIGHT,
   THUMBNAIL_MAX_WIDTH,
@@ -185,6 +186,92 @@ describe('ThumbnailCache', () => {
     expect(await garbage.ensure('/bd/bad.cbz')).toBeNull();
   });
 
+  describe('failures across sessions', () => {
+    let comic: string;
+
+    beforeEach(async () => {
+      await mkdir(join(dir, 'library'));
+      comic = join(dir, 'library', 'broken.cbz');
+      await writeFile(comic, 'not a zip');
+    });
+
+    function brokenOpener() {
+      const calls = { opened: 0 };
+      const open = async (): Promise<ComicArchive> => {
+        calls.opened += 1;
+        throw new Error('Bad archive');
+      };
+      return { open, calls };
+    }
+
+    it('does not reopen a broken book in a later session while its file is unchanged', async () => {
+      const { open, calls } = brokenOpener();
+      expect(await new ThumbnailCache(join(dir, 'cache'), open).ensure(comic)).toBeNull();
+      expect(await readdir(join(dir, 'cache'))).toContain(FAILED_COVERS_FILE);
+
+      const later = new ThumbnailCache(join(dir, 'cache'), open);
+      expect(await later.state(comic)).toBe('failed');
+      expect(await later.ensure(comic)).toBeNull();
+      expect(calls.opened).toBe(1);
+    });
+
+    it('says the cover is missing again once the broken file has changed', async () => {
+      await new ThumbnailCache(join(dir, 'cache'), brokenOpener().open).ensure(comic);
+      await writeFile(comic, 'repaired, and longer');
+
+      expect(await new ThumbnailCache(join(dir, 'cache'), brokenOpener().open).state(comic)).toBe('missing');
+    });
+
+    it('remembers a book without an image page too', async () => {
+      const { open, calls } = fakeOpener({ [comic]: [] });
+      await new ThumbnailCache(join(dir, 'cache'), open).ensure(comic);
+      await new ThumbnailCache(join(dir, 'cache'), open).ensure(comic);
+      expect(calls.opened).toBe(1);
+    });
+
+    it('tries again once the file has changed, and forgets the failure when it works', async () => {
+      await new ThumbnailCache(join(dir, 'cache'), brokenOpener().open).ensure(comic);
+      await writeFile(comic, 'repaired, and longer');
+
+      const { open, calls } = fakeOpener({ [comic]: [cover] });
+      const cache = new ThumbnailCache(join(dir, 'cache'), open);
+      expect(await cache.ensure(comic)).not.toBeNull();
+      expect(calls.opened).toBe(1);
+      expect(await readdir(join(dir, 'cache'))).not.toContain(FAILED_COVERS_FILE);
+    });
+
+    it('keeps a system error (a locked file) for the session only', async () => {
+      const locked = Object.assign(new Error('busy'), { code: 'EBUSY' });
+      const cache = new ThumbnailCache(join(dir, 'cache'), async () => {
+        throw locked;
+      });
+      expect(await cache.ensure(comic)).toBeNull();
+      await cache.remove('/nothing.cbz'); // flushes the queue
+      expect(await readdir(join(dir, 'cache')).catch(() => [])).not.toContain(FAILED_COVERS_FILE);
+    });
+
+    it('forgets the failures when the cache is cleared, and gives them a new chance on a rebuild', async () => {
+      const { open, calls } = brokenOpener();
+      await new ThumbnailCache(join(dir, 'cache'), open).ensure(comic);
+      await new ThumbnailCache(join(dir, 'cache'), open).prune([comic]);
+      expect(await readdir(join(dir, 'cache'))).toContain(FAILED_COVERS_FILE);
+
+      await new ThumbnailCache(join(dir, 'cache'), open).rebuild([comic]);
+      expect(calls.opened).toBe(2);
+
+      await new ThumbnailCache(join(dir, 'cache'), open).prune([]);
+      expect(await readdir(join(dir, 'cache'))).not.toContain(FAILED_COVERS_FILE);
+    });
+
+    it('ignores a damaged failures file', async () => {
+      await mkdir(join(dir, 'cache'));
+      await writeFile(join(dir, 'cache', FAILED_COVERS_FILE), '{ not json');
+      const { open, calls } = fakeOpener({ [comic]: [cover] });
+      expect(await new ThumbnailCache(join(dir, 'cache'), open).ensure(comic)).not.toBeNull();
+      expect(calls.opened).toBe(1);
+    });
+  });
+
   it('does not remember a failure of the page reader it was given', async () => {
     const { open } = fakeOpener({ '/bd/a.cbz': [cover] });
     const cache = new ThumbnailCache(dir, open);
@@ -212,6 +299,24 @@ describe('ThumbnailCache', () => {
     // Another machine (or a new cache directory) finds it without opening the comic.
     expect(await new ThumbnailCache(join(dir, 'other-cache'), open).read(comic)).toEqual(generated);
     expect(calls.opened).toBe(1);
+  });
+
+  it('knows a book has a cover, beside it or in the local cache, without opening it', async () => {
+    const folder = join(dir, 'library');
+    await mkdir(folder);
+    const beside = join(folder, 'beside.cbz');
+    const local = join(folder, 'local.cbz');
+    const none = join(folder, 'none.cbz');
+    const { open, calls } = fakeOpener({ [beside]: [cover], [local]: [cover] });
+    const cache = new ThumbnailCache(join(dir, 'cache'), open);
+    await cache.ensure(beside);
+    cache.sidecars = false;
+    await cache.ensure(local);
+
+    expect(await cache.state(beside)).toBe('cover');
+    expect(await cache.state(local)).toBe('cover');
+    expect(await cache.state(none)).toBe('missing');
+    expect(calls.opened).toBe(2);
   });
 
   it('keeps the cover in the local cache only when sidecars are turned off, but still reads existing ones', async () => {
