@@ -14,4 +14,16 @@ export default {
   syncProgress: 'Synchronizing… {{processed}} / {{total}}',
   syncLast: 'Last synchronization: {{date}}',
   syncNever: 'Never synchronized',
+  syncStart: 'Synchronize the library',
+  syncStop: 'Stop the synchronization',
+  syncStopping: 'Stopping…',
+  syncStopped: 'Synchronization stopped',
+  syncCount: '{{processed}} / {{total}}',
+  syncStep: 'Step {{index}}/{{count}}: {{name}}',
+  syncSteps: {
+    scan: 'looking through {{folder}}',
+    nfo: 'writing the .nfo files',
+    covers: 'extracting the covers',
+    missing: 'checking the comics added one by one',
+  },
 };

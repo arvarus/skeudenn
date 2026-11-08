@@ -4,6 +4,7 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { afterEach, describe, expect, it } from 'vitest';
 
+import type { ScanProgress } from '../../shared/library';
 import { LibraryRepository } from '../db/library-repository';
 import { migrate } from '../db/schema';
 import { resyncLibrary } from './library-sync';
@@ -171,5 +172,77 @@ describe('resyncLibrary covers', () => {
       process.chdir(previous);
     }
     expect(repo.hasPath('root:abc/gone.cbz')).toBe(true);
+  });
+});
+
+describe('resyncLibrary steps', () => {
+  it('tags every progress with its step: one scan per folder, then nfo, covers and missing', async () => {
+    const first = await tree(['a.cbz']);
+    const second = await tree(['b.cbz']);
+    const progress: ScanProgress[] = [];
+
+    await resyncLibrary(repository(), [first, second], (p) => progress.push(p), inspect);
+
+    const steps = progress.filter((p) => p.phase !== 'done').map((p) => p.step!);
+    expect(steps.every((step) => step.count === 5)).toBe(true);
+    const started = steps.filter((step, index) => index === 0 || steps[index - 1]!.index !== step.index);
+    expect(started.map((step) => [step.index, step.name, step.folder])).toEqual([
+      [1, 'scan', first],
+      [2, 'scan', second],
+      [3, 'nfo', ''],
+      [4, 'covers', ''],
+      [5, 'missing', ''],
+    ]);
+    expect(progress.at(-1)).toMatchObject({ phase: 'done' });
+    expect(progress.filter((p) => p.phase === 'done')).toHaveLength(1);
+  });
+
+  it('has no nfo step when the .nfo are not written', async () => {
+    const root = await tree(['a.cbz']);
+    const names = new Set<string>();
+
+    await resyncLibrary(repository(), [root], (p) => p.step && names.add(`${p.step.index}/${p.step.count} ${p.step.name}`), inspect, async () => false, false);
+
+    expect([...names]).toEqual(['1/3 scan', '2/3 covers', '3/3 missing']);
+  });
+});
+
+describe('resyncLibrary cancellation', () => {
+  it('stops between two files, keeps what it added and says so', async () => {
+    const root = await tree(['a.cbz', 'b.cbz', 'c.cbz']);
+    const repo = repository();
+    const controller = new AbortController();
+    // The first file opened stops the run: the scan finishes it, then goes no further.
+    const stoppingInspect = async () => {
+      controller.abort();
+      return { pageCount: 10, fileCount: 10 };
+    };
+    const progress: ScanProgress[] = [];
+
+    const summary = await resyncLibrary(repo, [root], (p) => progress.push(p), stoppingInspect, async () => false, true, controller.signal);
+
+    expect(summary).toMatchObject({ added: 1, cancelled: true });
+    expect(repo.list()).toHaveLength(1);
+    expect(progress.some((p) => p.step && p.step.name !== 'scan')).toBe(false);
+    expect(progress.at(-1)).toMatchObject({ phase: 'done' });
+  });
+
+  it('removes nothing once stopped', async () => {
+    const root = await tree(['kept.cbz']);
+    const repo = repository();
+    repo.register(path.join(root, 'gone.cbz'), 'gone', 10, 10, 0);
+    const controller = new AbortController();
+    controller.abort();
+
+    const summary = await resyncLibrary(repo, [root], noProgress, inspect, async () => false, true, controller.signal);
+
+    expect(summary).toMatchObject({ added: 0, removed: 0, cancelled: true });
+    expect(repo.list()).toHaveLength(1);
+  });
+
+  it('is not cancelled when the signal is never aborted', async () => {
+    const root = await tree(['a.cbz']);
+    const summary = await resyncLibrary(repository(), [root], noProgress, inspect, async () => false, true, new AbortController().signal);
+    expect(summary.cancelled).toBe(false);
   });
 });

@@ -128,8 +128,10 @@ export interface LibraryApi {
   listUnlinkedFolders(): Promise<UnlinkedFolder[]>;
   /** Opens a native directory picker to say where an unlinked folder (an `id` returned by `listUnlinkedFolders`) is on this machine; the comics stored relative to it are found again. */
   relinkFolder(id: string): Promise<RelinkFolderResult>;
-  /** Walks the remembered folders (and the organized folder, when the organization is on) again: new comics are added (then moved or offered by the organization, a comic dropped in the organized folder being moved into place), and comics whose file no longer exists are removed from the library (with their progress, rating, tags and reading-list places; the files on disk are never touched). A folder that can't be read is skipped and counted as `unreachable`. Comics of those folders without a `.nfo` get one written from their library information (an existing one is never overwritten), counted as `nfoWritten`, and the missing cover thumbnails of those comics are extracted, counted as `coversExtracted`. Stores the date as the `lastResyncAt` setting. Reports through `onScanProgress`; an error result when one is already running. */
+  /** Walks the remembered folders (and the organized folder, when the organization is on) again: new comics are added (then moved or offered by the organization, a comic dropped in the organized folder being moved into place), and comics whose file no longer exists are removed from the library (with their progress, rating, tags and reading-list places; the files on disk are never touched). A folder that can't be read is skipped and counted as `unreachable`. Comics of those folders without a `.nfo` get one written from their library information (an existing one is never overwritten), counted as `nfoWritten`, and the missing cover thumbnails of those comics are extracted, counted as `coversExtracted`. Stores the date as the `lastResyncAt` setting. Reports through `onScanProgress`, each progress carrying its `step`; an error result when one is already running. A run stopped by `cancelResync` resolves with `cancelled`: what it did stays, but the date isn't stored and nothing is organized. */
   resync(): Promise<ResyncResult>;
+  /** Stops the resynchronization in progress (started from any window, or at launch) between two files; false when none is running. */
+  cancelResync(): Promise<boolean>;
   /** Subscribes to the progress of `addFolder`, `resync`, `organizeAll`, `convertCbr`, `countDeflate64`, `convertDeflate64` and `cleanFolders`; returns the unsubscribe function. */
   onScanProgress(listener: (progress: ScanProgress) => void): () => void;
   /** Where the background measure of the books' page sizes is now (it runs after an import, a resync or the first opening of a book); resolves with the state a window that loads late missed. */
@@ -370,6 +372,7 @@ const api: TankobonApi = {
     listUnlinkedFolders: () => ipcRenderer.invoke('library:list-unlinked-folders'),
     relinkFolder: (id) => ipcRenderer.invoke('library:relink-folder', id),
     resync: () => ipcRenderer.invoke('library:resync'),
+    cancelResync: () => ipcRenderer.invoke('library:cancel-resync'),
     remove: (id, deleteFile = false) => ipcRenderer.invoke('library:remove', id, deleteFile),
     removeMany: (ids, deleteFiles) => ipcRenderer.invoke('library:remove-many', ids, deleteFiles),
     updateProgress: (id, currentPage) => ipcRenderer.invoke('library:update-progress', id, currentPage),

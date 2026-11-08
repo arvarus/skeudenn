@@ -6,7 +6,13 @@
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
 
-import { MAX_REPORTED_FAILURES, type ScanFailure, type ScanProgress } from '../../shared/library';
+import {
+  MAX_REPORTED_FAILURES,
+  type ResyncStep,
+  type ResyncStepName,
+  type ScanFailure,
+  type ScanProgress,
+} from '../../shared/library';
 import type { ArchiveSummary } from '../decoder/protocol';
 import type { LibraryRepository } from '../db/library-repository';
 import { ROOT_PREFIX } from '../db/path-roots';
@@ -35,6 +41,8 @@ export interface ResyncSummary {
   addedEntries: { id: string; path: string }[];
   /** Ids of the removed entries and the path of their file, for the caller's follow-up (thumbnails, notifications). */
   removedEntries: { id: string; path: string }[];
+  /** Stopped through the signal before the end. */
+  cancelled: boolean;
 }
 
 async function isReadableDirectory(directory: string): Promise<boolean> {
@@ -67,6 +75,10 @@ async function isMissing(filePath: string): Promise<boolean> {
  * is missing get it extracted (`extractCover`, which says whether it made one; a cloud placeholder is
  * skipped, since reading it would download it). Comics inside the folders that have no
  * `.nfo` sidecar get one written from their library information (unless `writeNfos` is off); no other file on disk is touched.
+ *
+ * Every progress carries its {@link ResyncStep} (one `scan` per folder, then `nfo`, `covers` and
+ * `missing`), so the bar that fills once per step can say which one it is. An aborted `signal` stops
+ * the run between two files: what was done stays, and the summary says `cancelled`.
  */
 export async function resyncLibrary(
   repo: LibraryRepository,
@@ -75,27 +87,52 @@ export async function resyncLibrary(
   inspect: (filePath: string) => Promise<ArchiveSummary>,
   extractCover: (filePath: string) => Promise<boolean> = async () => false,
   writeNfos = true,
+  signal?: AbortSignal,
 ): Promise<ResyncSummary> {
-  const summary: ResyncSummary = { added: 0, removed: 0, failed: 0, failures: [], nfoWritten: 0, coversExtracted: 0, unreachable: 0, removedEntries: [], addedEntries: [] };
-  // Each folder reports its own `done`; the caller only wants the one after the last.
-  const forward = (progress: ScanProgress) => {
-    if (progress.phase !== 'done') onProgress(progress);
+  const summary: ResyncSummary = {
+    added: 0,
+    removed: 0,
+    failed: 0,
+    failures: [],
+    nfoWritten: 0,
+    coversExtracted: 0,
+    unreachable: 0,
+    removedEntries: [],
+    addedEntries: [],
+    cancelled: false,
+  };
+  const stopped = () => signal?.aborted === true;
+
+  const stepCount = folders.length + (writeNfos ? 1 : 0) + 2;
+  let step: ResyncStep = { index: 0, count: stepCount, name: 'scan', folder: '' };
+  // Each folder's scan reports its own `done`; the caller only wants the one after the last.
+  const report = (progress: ScanProgress) => {
+    if (progress.phase !== 'done') onProgress({ ...progress, step });
+  };
+  /** Moves to the next step and says so at once, even when the step has nothing to do. */
+  const startStep = (name: ResyncStepName, total: number, folder = '') => {
+    step = { index: step.index + 1, count: stepCount, name, folder };
+    report({ phase: name === 'scan' ? 'scanning' : 'importing', processed: 0, total, currentFile: folder });
   };
 
   for (const folder of folders) {
+    if (stopped()) break;
+    startStep('scan', 0, folder);
     if (!(await isReadableDirectory(folder))) {
       summary.unreachable += 1;
       continue;
     }
 
-    const scanned = await scanIntoLibrary(repo, folder, forward, inspect);
+    const scanned = await scanIntoLibrary(repo, folder, report, inspect, signal);
     summary.added += scanned.added;
     summary.failed += scanned.failed;
     summary.failures.push(...scanned.failures.slice(0, MAX_REPORTED_FAILURES - summary.failures.length));
     summary.addedEntries.push(...scanned.addedEntries);
+    if (stopped()) break;
 
     const found = new Set(await collectComicFiles(folder));
     for (const entry of repo.list()) {
+      if (stopped()) break;
       if (found.has(entry.path) || !isInside(folder, entry.path)) continue;
       if (await isMissing(entry.path)) {
         repo.remove(entry.id);
@@ -106,32 +143,47 @@ export async function resyncLibrary(
   }
 
   // Comics inside the walked folders get the `.nfo` they lack (an existing one is never touched).
-  const inFolders = repo.list().filter((entry) => folders.some((folder) => isInside(folder, entry.path)));
-  for (const [index, entry] of writeNfos ? inFolders.entries() : []) {
-    onProgress({ phase: 'importing', processed: index, total: inFolders.length, currentFile: entry.path });
-    if (await writeNfoIfMissing(entry)) summary.nfoWritten += 1;
-  }
-
-  // Same entries, after the removals above: the missing covers are extracted, one book at a time.
-  const remaining = inFolders.filter((entry) => repo.hasPath(entry.path));
-  for (const [index, entry] of remaining.entries()) {
-    onProgress({ phase: 'importing', processed: index, total: remaining.length, currentFile: entry.path });
-    if (await isOnlineOnly(entry.path)) continue;
-    if (await extractCover(entry.path).catch(() => false)) summary.coversExtracted += 1;
-  }
-
-  for (const entry of repo.list()) {
-    if (folders.some((folder) => isInside(folder, entry.path))) continue;
-    // Still in its stored form: its library folder has no path on this machine (not relinked yet), so its
-    // file can't be looked for here, and its absence says nothing.
-    if (entry.path.startsWith(ROOT_PREFIX)) continue;
-    if ((await isMissing(entry.path)) && (await isReadableDirectory(path.dirname(entry.path)))) {
-      repo.remove(entry.id);
-      summary.removed += 1;
-      summary.removedEntries.push({ id: entry.id, path: entry.path });
+  const inFolders = stopped() ? [] : repo.list().filter((entry) => folders.some((folder) => isInside(folder, entry.path)));
+  if (writeNfos && !stopped()) {
+    startStep('nfo', inFolders.length);
+    for (const [index, entry] of inFolders.entries()) {
+      if (stopped()) break;
+      report({ phase: 'importing', processed: index, total: inFolders.length, currentFile: entry.path });
+      if (await writeNfoIfMissing(entry)) summary.nfoWritten += 1;
     }
   }
 
+  // Same entries, after the removals above: the missing covers are extracted, one book at a time.
+  if (!stopped()) {
+    const remaining = inFolders.filter((entry) => repo.hasPath(entry.path));
+    startStep('covers', remaining.length);
+    for (const [index, entry] of remaining.entries()) {
+      if (stopped()) break;
+      report({ phase: 'importing', processed: index, total: remaining.length, currentFile: entry.path });
+      if (await isOnlineOnly(entry.path)) continue;
+      if (await extractCover(entry.path).catch(() => false)) summary.coversExtracted += 1;
+    }
+  }
+
+  if (!stopped()) {
+    // Still in its stored form: its library folder has no path on this machine (not relinked yet), so its
+    // file can't be looked for here, and its absence says nothing.
+    const outside = repo
+      .list()
+      .filter((entry) => !folders.some((folder) => isInside(folder, entry.path)) && !entry.path.startsWith(ROOT_PREFIX));
+    startStep('missing', outside.length);
+    for (const [index, entry] of outside.entries()) {
+      if (stopped()) break;
+      report({ phase: 'importing', processed: index, total: outside.length, currentFile: entry.path });
+      if ((await isMissing(entry.path)) && (await isReadableDirectory(path.dirname(entry.path)))) {
+        repo.remove(entry.id);
+        summary.removed += 1;
+        summary.removedEntries.push({ id: entry.id, path: entry.path });
+      }
+    }
+  }
+
+  summary.cancelled = stopped();
   onProgress({ phase: 'done', processed: 0, total: 0, currentFile: '' });
   return summary;
 }

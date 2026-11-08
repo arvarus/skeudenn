@@ -60,12 +60,15 @@ export async function collectComicFiles(directory: string): Promise<string[]> {
  * library are skipped without being opened, and one unreadable file only costs itself (`failed`),
  * never the rest of the scan. Opening is `inspect`'s job (the decoder process, which also caches the
  * cover): the scanner itself never parses an archive, it only owns the walk and the database.
+ * An aborted `signal` stops it between two files.
  */
 export async function scanIntoLibrary(
   repo: LibraryRepository,
   directory: string,
   onProgress: (progress: ScanProgress) => void,
   inspect: (filePath: string) => Promise<ArchiveSummary>,
+  // Checked between files: an aborted scan stops after the file in hand and returns what it did.
+  signal?: AbortSignal,
 ): Promise<ScanSummary> {
   onProgress({ phase: 'scanning', processed: 0, total: 0, currentFile: directory });
   const files = await collectComicFiles(directory);
@@ -73,6 +76,7 @@ export async function scanIntoLibrary(
   const summary: ScanSummary = { added: 0, skipped: 0, failed: 0, failures: [], total: files.length, addedEntries: [] };
 
   for (const [index, filePath] of files.entries()) {
+    if (signal?.aborted) break;
     onProgress({ phase: 'importing', processed: index, total: files.length, currentFile: filePath });
 
     if (repo.hasPath(filePath)) {

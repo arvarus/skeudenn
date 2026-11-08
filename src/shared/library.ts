@@ -122,6 +122,30 @@ export interface ScanProgress {
   total: number;
   /** Absolute path currently being handled, for the progress label. */
   currentFile: string;
+  /**
+   * The step of a resynchronization this progress belongs to; set by a resynchronization only, which
+   * tells it apart from the other runs on this channel (`processed`/`total` then count that step).
+   */
+  step?: ResyncStep;
+}
+
+/**
+ * The steps of a resynchronization, in order: `scan` once per folder (walking it, adding the new
+ * comics, removing those whose file is gone), `nfo` (the missing `.nfo` sidecars; skipped when
+ * `libraryWriteNfo` is off), `covers` (the missing covers) and `missing` (the comics added one by one
+ * whose file is gone).
+ */
+export type ResyncStepName = 'scan' | 'nfo' | 'covers' | 'missing';
+
+/** Where a resynchronization is, for the "Step 2/5: …" label. */
+export interface ResyncStep {
+  /** The step's place, from 1 to `count`. */
+  index: number;
+  /** How many steps this run has. */
+  count: number;
+  name: ResyncStepName;
+  /** The folder walked, for a `scan` step; empty otherwise. */
+  folder: string;
 }
 
 /**
@@ -188,8 +212,13 @@ export type ResyncResult =
       nfoWritten: number;
       /** Cover thumbnails created for comics that had none. */
       coversExtracted: number;
-      /** When it finished (ISO 8601); also stored as the `lastResyncAt` setting. */
+      /** When it finished (ISO 8601); also stored as the `lastResyncAt` setting, unless it was `cancelled`. */
       finishedAt: string;
+      /**
+       * Stopped by `library.cancelResync()`: the counts are what was done until then, the date isn't
+       * stored and the comics added aren't organized.
+       */
+      cancelled: boolean;
       /** What the library organization did with the comics added. */
       organization: OrganizationOutcome;
     }

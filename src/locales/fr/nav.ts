@@ -16,6 +16,18 @@ const nav: Translation<typeof en> = {
   syncProgress: 'Synchronisation… {{processed}} / {{total}}',
   syncLast: 'Dernière synchronisation : {{date}}',
   syncNever: 'Jamais synchronisée',
+  syncStart: 'Synchroniser la bibliothèque',
+  syncStop: 'Arrêter la synchronisation',
+  syncStopping: 'Arrêt en cours…',
+  syncStopped: 'Synchronisation arrêtée',
+  syncCount: '{{processed}} / {{total}}',
+  syncStep: 'Étape {{index}}/{{count}} : {{name}}',
+  syncSteps: {
+    scan: 'parcours de {{folder}}',
+    nfo: 'écriture des fichiers .nfo',
+    covers: 'extraction des couvertures',
+    missing: 'vérification des BD ajoutées une par une',
+  },
 };
 
 export default nav;

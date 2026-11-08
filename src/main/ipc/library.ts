@@ -64,6 +64,7 @@ export const LIBRARY_CHANNELS = {
   listUnlinkedFolders: 'library:list-unlinked-folders',
   relinkFolder: 'library:relink-folder',
   resync: 'library:resync',
+  cancelResync: 'library:cancel-resync',
   updateProgress: 'library:update-progress',
   updateRating: 'library:update-rating',
   updateTags: 'library:update-tags',
@@ -357,6 +358,9 @@ export function registerLibraryIpc({
   handle(LIBRARY_CHANNELS.resync, args(), (event) =>
     resynchronizer.run(scanProgressTo(event)),
   );
+
+  // Whichever window started the run (or the start-up): any window may stop it.
+  handle(LIBRARY_CHANNELS.cancelResync, args(), () => resynchronizer.cancel());
 
   handle(LIBRARY_CHANNELS.remove, args(idArg, booleanArg), async (_event, id, deleteFile): Promise<RemoveEntryResult> => {
     const entry = repo.get(id);

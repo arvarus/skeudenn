@@ -320,6 +320,46 @@ describe('library organization and resynchronization', () => {
       expect(repo.list()[0].path.startsWith(root)).toBe(false);
     });
 
+    it('stops when cancelled: keeps what it added, stores no date and organizes nothing', async () => {
+      const source = await folderWith(['a.cbz', 'b.cbz']);
+      const root = await folderWith([]);
+      folders.add(source);
+      configure('always', root);
+      let resync: ReturnType<typeof createResynchronizer> | null = null;
+      // Stopped while the first file is being opened.
+      const stopping = {
+        ...decoder,
+        inspect: async (...args: Parameters<typeof decoder.inspect>) => {
+          expect(resync!.cancel()).toBe(true);
+          return decoder.inspect(...args);
+        },
+      };
+      resync = createResynchronizer(
+        repo,
+        folders,
+        settings,
+        stopping as unknown as DecoderClient,
+        notify,
+        imageScanner as unknown as ImageStatsScanner,
+        organizer,
+      );
+
+      const result = await resync.run();
+
+      expect(result).toMatchObject({ status: 'ok', added: 1, cancelled: true, organization: NOTHING_ORGANIZED });
+      expect(settings.getAll().lastResyncAt).toBe('');
+      expect(repo.list()[0].path.startsWith(root)).toBe(false);
+      expect(notify).toHaveBeenCalledWith({ scope: 'library' });
+      // Nothing left to stop, and the next run is free to start and complete.
+      expect(resync.cancel()).toBe(false);
+      expect(organizer.lock.tryStart('add')).toBe(true);
+      organizer.lock.end();
+    });
+
+    it('has nothing to cancel when no run is going', () => {
+      expect(resynchronizer().cancel()).toBe(false);
+    });
+
     it('refuses to run while the lock is held, and releases it when it is done', async () => {
       organizer.lock.tryStart('organize');
       expect((await resynchronizer().run()).status).toBe('error');

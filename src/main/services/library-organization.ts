@@ -231,6 +231,11 @@ export interface Resynchronizer {
    * one resolves to an error result.
    */
   run(onProgress?: (progress: ScanProgress) => void): Promise<ResyncResult>;
+  /**
+   * Stops the run in progress between two files; it then resolves with `cancelled`, keeping what it
+   * did. False when no resynchronization is running.
+   */
+  cancel(): boolean;
 }
 
 /** Builds the resynchronizer, built once in `main.ts`; it takes the organizer's lock. */
@@ -245,24 +250,34 @@ export function createResynchronizer(
   // Who the run is for: the date and the organization are the user's who started it, not whoever is active at the end.
   activeUser: () => string = () => '',
 ): Resynchronizer {
+  // The run in progress, to stop it; null between runs.
+  let running: AbortController | null = null;
   return {
     async run(onProgress = () => undefined) {
       if (!organizer.lock.tryStart('resync')) return { status: 'error', message: organizer.lock.busyMessage() };
       const startedBy = activeUser();
+      const controller = new AbortController();
+      running = controller;
       try {
-        const summary = await resyncLibrary(repo, organizer.watchedFolders(folders.list()), onProgress, (filePath) =>
-          decoder.inspect(filePath),
+        const summary = await resyncLibrary(
+          repo,
+          organizer.watchedFolders(folders.list()),
+          onProgress,
+          (filePath) => decoder.inspect(filePath),
           async (filePath) => !(await decoder.thumbnail(filePath, undefined, true)) && (await decoder.thumbnail(filePath)) !== null,
           settings.getAll().libraryWriteNfo,
+          controller.signal,
         );
         // The user switched meanwhile: the organized folder and the date are now another user's settings.
+        // A stopped run is not a resynchronization: no date, and nothing moved after the user asked to stop.
         const sameUser = activeUser() === startedBy;
-        const organization = sameUser ? await organizer.afterAdd(summary.addedEntries) : NOTHING_ORGANIZED;
+        const complete = sameUser && !summary.cancelled;
+        const organization = complete ? await organizer.afterAdd(summary.addedEntries) : NOTHING_ORGANIZED;
         const finishedAt = new Date().toISOString();
-        if (sameUser) settings.set('lastResyncAt', finishedAt);
+        if (complete) settings.set('lastResyncAt', finishedAt);
 
         notify({ scope: 'library' });
-        if (sameUser) notify({ scope: 'settings', values: { lastResyncAt: finishedAt } });
+        if (complete) notify({ scope: 'settings', values: { lastResyncAt: finishedAt } });
         void imageScanner.kick();
         if (summary.removed > 0) {
           // The removed books left the reading lists they were in, and their covers are useless.
@@ -279,13 +294,21 @@ export function createResynchronizer(
           nfoWritten: summary.nfoWritten,
           coversExtracted: summary.coversExtracted,
           finishedAt,
+          cancelled: summary.cancelled,
           organization,
         };
       } catch (error) {
         return { status: 'error', message: error instanceof Error ? error.message : String(error) };
       } finally {
+        running = null;
         organizer.lock.end();
       }
+    },
+
+    cancel() {
+      if (!running || running.signal.aborted) return false;
+      running.abort();
+      return true;
     },
   };
 }
