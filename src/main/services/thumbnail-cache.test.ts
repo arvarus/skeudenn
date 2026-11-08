@@ -214,6 +214,24 @@ describe('ThumbnailCache', () => {
     expect(calls.opened).toBe(1);
   });
 
+  it('knows a book has a cover, beside it or in the local cache, without opening it', async () => {
+    const folder = join(dir, 'library');
+    await mkdir(folder);
+    const beside = join(folder, 'beside.cbz');
+    const local = join(folder, 'local.cbz');
+    const none = join(folder, 'none.cbz');
+    const { open, calls } = fakeOpener({ [beside]: [cover], [local]: [cover] });
+    const cache = new ThumbnailCache(join(dir, 'cache'), open);
+    await cache.ensure(beside);
+    cache.sidecars = false;
+    await cache.ensure(local);
+
+    expect(await cache.has(beside)).toBe(true);
+    expect(await cache.has(local)).toBe(true);
+    expect(await cache.has(none)).toBe(false);
+    expect(calls.opened).toBe(2);
+  });
+
   it('keeps the cover in the local cache only when sidecars are turned off, but still reads existing ones', async () => {
     const folder = join(dir, 'library');
     await mkdir(folder);

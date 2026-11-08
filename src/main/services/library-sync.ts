@@ -17,7 +17,6 @@ import type { ArchiveSummary } from '../decoder/protocol';
 import type { LibraryRepository } from '../db/library-repository';
 import { ROOT_PREFIX } from '../db/path-roots';
 import { isInside } from '../path-containment';
-import { isOnlineOnly } from './cloud-files';
 import { collectComicFiles, scanIntoLibrary } from './library-scanner';
 import { writeNfoIfMissing } from './nfo';
 
@@ -72,8 +71,8 @@ async function isMissing(filePath: string): Promise<boolean> {
  * which skips the subfolders it can't read. Entries outside every folder (a file added on its own)
  * are checked one by one afterwards: they go when their file is gone and the directory that held it
  * is still readable, so a vanished drive or folder keeps them. Comics inside the folders whose cover
- * is missing get it extracted (`extractCover`, which says whether it made one; a cloud placeholder is
- * skipped, since reading it would download it). Comics inside the folders that have no
+ * is missing get it extracted (`extractCover`, asked of each of them: it makes the cover only when there
+ * is none, skipping a cloud placeholder, since reading it would download it, and says whether it made one). Comics inside the folders that have no
  * `.nfo` sidecar get one written from their library information (unless `writeNfos` is off); no other file on disk is touched.
  *
  * Every progress carries its {@link ResyncStep} (one `scan` per folder, then `nfo`, `covers` and
@@ -160,7 +159,6 @@ export async function resyncLibrary(
     for (const [index, entry] of remaining.entries()) {
       if (stopped()) break;
       report({ phase: 'importing', processed: index, total: remaining.length, currentFile: entry.path });
-      if (await isOnlineOnly(entry.path)) continue;
       if (await extractCover(entry.path).catch(() => false)) summary.coversExtracted += 1;
     }
   }

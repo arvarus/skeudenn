@@ -69,7 +69,12 @@ describe('library organization and resynchronization', () => {
   let repo: LibraryRepository;
   let settings: SettingsRepository;
   let folders: LibraryFolderRepository;
-  const decoder = { thumbnail: vi.fn(async () => new Uint8Array([1])), removeThumbnail: vi.fn(async () => undefined), inspect: vi.fn(async () => ({ pageCount: 10, fileCount: 10 })) };
+  const decoder = {
+    thumbnail: vi.fn(async () => new Uint8Array([1])),
+    hasThumbnail: vi.fn<(filePath: string) => Promise<boolean>>(async () => false),
+    removeThumbnail: vi.fn(async () => undefined),
+    inspect: vi.fn(async () => ({ pageCount: 10, fileCount: 10 })),
+  };
   const imageScanner = { kick: vi.fn() };
   const notify = vi.fn();
   let organizer: LibraryOrganizer;
@@ -354,6 +359,21 @@ describe('library organization and resynchronization', () => {
       expect(resync.cancel()).toBe(false);
       expect(organizer.lock.tryStart('add')).toBe(true);
       organizer.lock.end();
+    });
+
+    it('extracts only the covers that are missing, without reading those already there', async () => {
+      const source = await folderWith(['a.cbz', 'b.cbz']);
+      folders.add(source);
+      const withCover = path.join(source, 'a.cbz');
+      decoder.hasThumbnail.mockImplementation(async (filePath: string) => filePath === withCover);
+
+      const result = await resynchronizer().run();
+
+      expect(result).toMatchObject({ status: 'ok', coversExtracted: 1 });
+      expect(decoder.hasThumbnail).toHaveBeenCalledWith(withCover);
+      expect(decoder.thumbnail).toHaveBeenCalledTimes(1);
+      expect(decoder.thumbnail).toHaveBeenCalledWith(path.join(source, 'b.cbz'));
+      decoder.hasThumbnail.mockImplementation(async () => false);
     });
 
     it('has nothing to cancel when no run is going', () => {

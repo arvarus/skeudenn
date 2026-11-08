@@ -20,6 +20,7 @@ import type { LibraryFolderRepository } from '../db/library-folder-repository';
 import type { LibraryRepository } from '../db/library-repository';
 import type { SettingsRepository } from '../db/settings-repository';
 import type { ArchiveSummary } from '../decoder/protocol';
+import { isOnlineOnly } from './cloud-files';
 import type { ImageStatsScanner } from './image-stats-scanner';
 import { organizeEntries, planOrganization, unorganizedIds, type OrganizationTarget } from './library-organizer';
 import { resyncLibrary } from './library-sync';
@@ -31,6 +32,8 @@ export interface LibraryDecoder {
   inspect(filePath: string): Promise<ArchiveSummary>;
   /** A book's thumbnail, generated when missing (unless `cachedOnly`); null when it has none. */
   thumbnail(filePath: string, archiveId?: string, cachedOnly?: boolean): Promise<Uint8Array | null>;
+  /** Whether a book has a thumbnail already, without reading it. */
+  hasThumbnail(filePath: string): Promise<boolean>;
   /** Deletes a book's cached thumbnail. */
   removeThumbnail(filePath: string): Promise<void>;
 }
@@ -264,7 +267,12 @@ export function createResynchronizer(
           organizer.watchedFolders(folders.list()),
           onProgress,
           (filePath) => decoder.inspect(filePath),
-          async (filePath) => !(await decoder.thumbnail(filePath, undefined, true)) && (await decoder.thumbnail(filePath)) !== null,
+          // Asked of every book: a cover already there costs two `stat`s, and only a missing one is worth
+          // checking for a cloud placeholder (an `attrib` process on Windows), which isn't read.
+          async (filePath) =>
+            !(await decoder.hasThumbnail(filePath)) &&
+            !(await isOnlineOnly(filePath)) &&
+            (await decoder.thumbnail(filePath)) !== null,
           settings.getAll().libraryWriteNfo,
           controller.signal,
         );

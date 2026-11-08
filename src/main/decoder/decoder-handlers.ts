@@ -58,6 +58,7 @@ export function createDecoderHandlers(
       cachedOnly
         ? thumbnails.read(filePath)
         : thumbnails.ensure(filePath, archiveId ? () => service.readPage(archiveId, 0) : undefined),
+    hasThumbnail: (filePath) => thumbnails.has(filePath),
     setThumbnail: (filePath, image) => thumbnails.replace(filePath, image),
     removeThumbnail: (filePath) => thumbnails.remove(filePath),
     pruneThumbnails: (filePaths) => thumbnails.prune(filePaths),

@@ -72,6 +72,23 @@ export class ThumbnailCache {
   ) {}
 
   /**
+   * Whether the book already has a thumbnail, beside it or in the local cache: two `stat`s, without
+   * reading the image, nor asking whether a sidecar is a cloud placeholder (a cover there counts, it
+   * only has to be downloaded). What a resynchronization asks of every book before extracting the
+   * missing covers.
+   */
+  async has(filePath: string): Promise<boolean> {
+    for (const candidate of [coverSidecarPath(filePath), this.fileFor(filePath)]) {
+      try {
+        if ((await stat(candidate)).isFile()) return true;
+      } catch {
+        // Not there: the next place, or none.
+      }
+    }
+    return false;
+  }
+
+  /**
    * The cached thumbnail of a book, or null when there is none yet. Never generates one. The
    * sidecar comes first, unless it is a cloud placeholder (reading it would download it): the
    * local cache then answers, or nothing.

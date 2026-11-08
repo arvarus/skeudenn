@@ -120,6 +120,11 @@ export class DecoderClient {
     return this.call('thumbnail', filePath, archiveId, cachedOnly);
   }
 
+  /** Whether a book has a thumbnail already, without reading it; see `DecoderMethods.hasThumbnail`. */
+  hasThumbnail(filePath: string): Promise<boolean> {
+    return this.call('hasThumbnail', filePath);
+  }
+
   /** Replaces a book's cover with `image`; rejects when it isn't a usable image. */
   setThumbnail(filePath: string, image: Uint8Array): Promise<void> {
     return this.call('setThumbnail', filePath, image);
