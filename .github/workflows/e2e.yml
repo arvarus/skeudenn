@@ -27,7 +27,22 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npm run package
+      # Packaging downloads Electron's zip from GitHub's releases, which sometimes answers a 504:
+      # the zip is cached (keyed on the lock file, hence on Electron's version) and the packaging
+      # is tried again after a pause, so a network hiccup doesn't fail the night's run.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/electron
+          key: electron-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: electron-${{ runner.os }}-
+      - name: npm run package (up to 3 tries)
+        run: |
+          for attempt in 1 2 3; do
+            npm run package && exit 0
+            echo "::warning::Packaging failed (attempt $attempt of 3)"
+            [ "$attempt" -lt 3 ] && sleep $((attempt * 30))
+          done
+          exit 1
       - run: xvfb-run --auto-servernum npm run test:e2e
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         if: failure()
