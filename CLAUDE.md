@@ -51,4 +51,4 @@ CI (`.github/workflows/ci.yml`) runs `lint`, `typecheck`, `test` and `docs:build
 
 ## Documentation rule
 
-Any change to public behavior updates the documentation **in the same pull request**: user-visible behavior → `docs/guide/features.md`; IPC channels, shared types or exported symbols → their TSDoc; schema, settings, commands or build steps → `docs/architecture.md` / `docs/development.md` / this file; structural decisions → a new ADR in `docs/decisions/`. Every export in the TypeDoc scope (`typedoc.json`) must have a TSDoc comment. Use `/update-docs` to find what a change affects.
+Any change to public behavior updates the documentation **in the same pull request**: user-visible behavior → `docs/guide/features.md`; IPC channels, shared types or exported symbols → their TSDoc; schema, settings, commands or build steps → `docs/architecture.md` / `docs/development.md` / this file; structural decisions → a new ADR in `docs/decisions/`. Every export in the TypeDoc scope (`typedoc.json`) must have a TSDoc comment. Use `/arvarus-tools:update-docs` (from the shared `arvarus-tools` Claude Code plugin) to find what a change affects.
