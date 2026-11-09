@@ -16,7 +16,7 @@
 - the database schema, a setting, a command or a build step (update `docs/architecture.md`, `docs/development.md` or `CLAUDE.md`);
 - a structural decision (add an ADR in `docs/decisions/`).
 
-`npm run docs:build` fails on an undocumented export, a broken link, a cited file that no longer exists, or a cited npm script that doesn't exist. The `/update-docs` Claude Code command (`.claude/commands/update-docs.md`) helps find what a change affects. The `/audit` command (`.claude/commands/audit.md`) reviews the code base, a directory or the changes since a ref for logic errors, security issues, dead code, refactorings, best practices and architecture evolutions, and writes a prioritized report without changing the code.
+`npm run docs:build` fails on an undocumented export, a broken link, a cited file that no longer exists, or a cited npm script that doesn't exist. The `/arvarus-tools:update-docs` Claude Code command (shared `arvarus-tools` plugin, enabled in `.claude/settings.json`) helps find what a change affects. The `/arvarus-tools:audit` command (same plugin) reviews the code base, a directory or the changes since a ref for logic errors, security issues, dead code, refactorings, best practices and architecture evolutions, and writes a prioritized report without changing the code.
 
 ## Commit convention
 
