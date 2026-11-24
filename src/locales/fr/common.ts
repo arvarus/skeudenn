@@ -15,6 +15,16 @@ const common: Translation<typeof en> = {
     available: 'La version {{version}} est disponible.',
     download: 'Télécharger',
   },
+  run: {
+    start: 'Démarrer',
+    stop: 'Arrêter',
+    stopping: 'Arrêt en cours…',
+    stopped: 'Arrêté avant la fin : ce qui n’avait pas encore été atteint est resté tel quel.',
+    failed: 'L’opération a échoué.',
+    counting: 'Comptage…',
+    showDetail: 'Afficher le détail',
+    hideDetail: 'Masquer le détail',
+  },
   sizeUnits: {
     b: 'o',
     kb: 'Ko',
