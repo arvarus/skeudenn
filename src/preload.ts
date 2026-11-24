@@ -101,7 +101,7 @@ export interface LibraryApi {
   organize(token: string): Promise<OrganizeResult>;
   /** How many library comics aren't in their place in the organized folder yet; an error result when the organization is off or its folder unreachable. */
   countUnorganized(): Promise<UnorganizedCountResult>;
-  /** Moves every library comic not in its place yet into the organized folder (its own subfolder each), whenever it was added. Reports through `onScanProgress`; an error result when the organization is off, its folder unreachable, or a resynchronization or another organization is running. */
+  /** Moves every library comic not in its place yet into the organized folder (its own subfolder each), whenever it was added. Reports through `onScanProgress`; an error result when the organization is off, its folder unreachable, or a resynchronization or another organization is running. `cancelRun()` stops it before its next comic (`cancelled: true`). */
   organizeAll(): Promise<OrganizeResult>;
   /** First step of cleaning the books: lists the files that are not images in the CBZ of `ids` (the whole library when empty), grouped by extension, without touching anything. Progress goes over `onScanProgress`. The result's `token` is what `applyCleanup()` takes. */
   analyzeCleanup(ids: string[]): Promise<CleanupAnalysisResult>;
@@ -109,19 +109,21 @@ export interface LibraryApi {
   applyCleanup(token: string, keptExtensions: string[]): Promise<CleanupResult>;
   /** Stops the step of cleaning the books in progress (`analyzeCleanup` or `applyCleanup`) before its next book; the book being read or rewritten is finished. A stopped analysis resolves with `cancelled` and leaves no plan; a stopped rewrite resolves with `cancelled: true`, the books already cleaned staying so. False when no cleanup is running. */
   cancelCleanup(): Promise<boolean>;
+  /** Stops the run over the library files in progress, whichever it is and whichever window started it: `organize`, `organizeAll`, `convertCbr`, `countDeflate64`, `convertDeflate64`, `emptyDeleted`, `cleanFolders`, `removeMany`, `resync`, `applyCleanup`, and `analyzeCleanup` too. The run stops before its next item (book, folder, file): the one being moved, rewritten or converted is finished, and what was done stays and is announced. It then resolves with `cancelled: true` (`{ status: 'cancelled' }` for `countDeflate64` and `analyzeCleanup`, which yield no partial result). False when nothing is running or a stop was already asked. */
+  cancelRun(): Promise<boolean>;
   /** How many CBR of the organized folder `convertCbr()` would convert, and what its `.deletedByTankobon` folder holds; an error when the organization is off or its folder unreachable. */
   countConvertible(): Promise<ConvertCountResult>;
-  /** Writes each CBR of the organized folder as a CBZ beside it, points the book at it (progress, rating, tags and lists are kept) and moves the CBR to `.deletedByTankobon` at the root of the organized folder. Progress goes over `onScanProgress`. */
+  /** Writes each CBR of the organized folder as a CBZ beside it, points the book at it (progress, rating, tags and lists are kept) and moves the CBR to `.deletedByTankobon` at the root of the organized folder. Progress goes over `onScanProgress`; `cancelRun()` stops it before its next book (`cancelled: true`). */
   convertCbr(): Promise<ConvertCbrResult>;
-  /** How many CBZ of the library use the Deflate64 compression, which the reader can't inflate (`convertDeflate64()` rewrites them). Opens every CBZ, so progress goes over `onScanProgress`; an error result when another run on the files is in progress. */
+  /** How many CBZ of the library use the Deflate64 compression, which the reader can't inflate (`convertDeflate64()` rewrites them). Opens every CBZ, so progress goes over `onScanProgress`; an error result when another run on the files is in progress. Stopped by `cancelRun()`, it resolves with `cancelled` and keeps nothing for the next conversion. */
   countDeflate64(): Promise<Deflate64CountResult>;
-  /** Rewrites each Deflate64 CBZ of the library with standard compression, in place: the book keeps its path, progress, rating, tags and lists. The original is replaced only once the new archive has been checked. Progress goes over `onScanProgress`; an error result when another run on the files is in progress. */
+  /** Rewrites each Deflate64 CBZ of the library with standard compression, in place: the book keeps its path, progress, rating, tags and lists. The original is replaced only once the new archive has been checked. Progress goes over `onScanProgress`; an error result when another run on the files is in progress. `cancelRun()` stops it before its next book (`cancelled: true`). */
   convertDeflate64(): Promise<ConvertDeflate64Result>;
-  /** Deletes for good everything in the `.deletedByTankobon` folder of the organized folder. */
+  /** Deletes for good everything in the `.deletedByTankobon` folder of the organized folder, one item at a time; progress goes over `onScanProgress`, and `cancelRun()` stops it. */
   emptyDeleted(): Promise<EmptyDeletedResult>;
   /** How many folders of the organized folder `cleanFolders()` would move: those holding no book, only `.nfo` files and cover images; an error when the organization is off or its folder unreachable. */
   countOrphanFolders(): Promise<OrphanFoldersCountResult>;
-  /** Moves those orphan folders to the `.deletedByTankobon` folder of the organized folder; progress arrives through `onScanProgress`. The folders books are added from are never touched. */
+  /** Moves those orphan folders to the `.deletedByTankobon` folder of the organized folder; progress arrives through `onScanProgress`. The folders books are added from are never touched. `cancelRun()` stops it before its next folder (`cancelled: true`). */
   cleanFolders(): Promise<CleanFoldersResult>;
   /** The folders added with `addFolder`, which `resync` walks again, in the order they were added. */
   listFolders(): Promise<string[]>;
@@ -141,7 +143,7 @@ export interface LibraryApi {
   takeStartupOrganization(): Promise<OrganizationOutcome | null>;
   /** Subscribes to the main process's `library:startup-organization` push, sent when that outcome is waiting (call `takeStartupOrganization` then); returns the unsubscribe function. */
   onStartupOrganization(listener: () => void): () => void;
-  /** Subscribes to the progress of `addFolder`, `resync` (also the one started at launch, sent to every window), `organizeAll`, `convertCbr`, `countDeflate64`, `convertDeflate64` and `cleanFolders`; returns the unsubscribe function. */
+  /** Subscribes to the progress of `addFolder`, `resync` (also the one started at launch, sent to every window), `organizeAll`, `analyzeCleanup`, `applyCleanup`, `convertCbr`, `countDeflate64`, `convertDeflate64`, `emptyDeleted`, `cleanFolders` and `removeMany`; returns the unsubscribe function. */
   onScanProgress(listener: (progress: ScanProgress) => void): () => void;
   /** Where the background measure of the books' page sizes is now (it runs after an import, a resync or the first opening of a book); resolves with the state a window that loads late missed. */
   imageScanStatus(): Promise<ImageScanProgress>;
@@ -149,7 +151,7 @@ export interface LibraryApi {
   onImageScanProgress(listener: (progress: ImageScanProgress) => void): () => void;
   /** Removes an entry from the library. The file on disk is moved, with its cover and `.nfo` sidecars, to a `.deletedByTankobon` folder (the organized folder's when it lives there, else beside it) so that a resynchronization doesn't add it back, unless `deleteFile` is true: it then goes to the OS trash. An `error` result means the entry is gone from the library but the file could not be moved or trashed. */
   remove(id: string, deleteFile?: boolean): Promise<RemoveEntryResult>;
-  /** Removes several entries from the library; with `deleteFiles`, their files (and the covers beside them) are also moved to the system trash. A file that can't be trashed is counted as failed, its entry is removed anyway. */
+  /** Removes several entries from the library, one at a time with progress over `onScanProgress`; with `deleteFiles`, their files (and the covers beside them) are also moved to the system trash, otherwise they are parked in `.deletedByTankobon` like `remove()` does. A file that can't be trashed is counted as failed, its entry is removed anyway. An error result when another run over the library files is in progress; `cancelRun()` stops it between two books. */
   removeMany(ids: string[], deleteFiles: boolean): Promise<RemoveEntriesResult>;
   /** Saves the last page read (0-based) of a library entry. */
   updateProgress(id: string, currentPage: number): Promise<void>;
@@ -355,6 +357,7 @@ const api: TankobonApi = {
     analyzeCleanup: (ids) => ipcRenderer.invoke('library:analyze-cleanup', ids),
     applyCleanup: (token, keptExtensions) => ipcRenderer.invoke('library:apply-cleanup', token, keptExtensions),
     cancelCleanup: () => ipcRenderer.invoke('library:cancel-cleanup'),
+    cancelRun: () => ipcRenderer.invoke('library:cancel-run'),
     countConvertible: () => ipcRenderer.invoke('library:count-convertible'),
     convertCbr: () => ipcRenderer.invoke('library:convert-cbr'),
     countDeflate64: () => ipcRenderer.invoke('library:count-deflate64'),

@@ -242,7 +242,15 @@ export interface OrganizationOutcome {
 }
 
 /** Result of `library.organize()` and `library.organizeAll()`; an error (no organized folder, folder unreachable, unknown token) has a translated `message`. */
-export type OrganizeResult = { status: 'ok'; moved: number; failed: number } | { status: 'error'; message: string };
+export type OrganizeResult =
+  | {
+      status: 'ok';
+      moved: number;
+      failed: number;
+      /** True when `library.cancelRun()` stopped it before every comic was handled: the ones left stay where they were. */
+      cancelled: boolean;
+    }
+  | { status: 'error'; message: string };
 
 /** Result of `library.countUnorganized()`: how many library comics aren't in their place in the organized `folder` yet. */
 export type UnorganizedCountResult = { status: 'ok'; count: number; folder: string } | { status: 'error'; message: string };
@@ -255,25 +263,49 @@ export type ConvertCountResult =
   | { status: 'ok'; count: number; folder: string; deletedFiles: number; deletedBytes: number }
   | { status: 'error'; message: string };
 
-/** Result of `library.convertCbr()`: books converted, and books left as they were because the conversion failed. */
-export type ConvertCbrResult = { status: 'ok'; converted: number; failed: number } | { status: 'error'; message: string };
+/**
+ * Result of `library.convertCbr()`: books converted, and books left as they were because the conversion failed.
+ * `cancelled` when `library.cancelRun()` stopped it before every book was handled: those left are still CBR.
+ */
+export type ConvertCbrResult =
+  | { status: 'ok'; converted: number; failed: number; cancelled: boolean }
+  | { status: 'error'; message: string };
 
-/** Result of `library.countDeflate64()`: how many CBZ of the library use the Deflate64 compression, which only `library.convertDeflate64()` can make readable. */
-export type Deflate64CountResult = { status: 'ok'; count: number } | { status: 'error'; message: string };
+/**
+ * Result of `library.countDeflate64()`: how many CBZ of the library use the Deflate64 compression, which only
+ * `library.convertDeflate64()` can make readable. `cancelled` when `library.cancelRun()` stopped the check: a
+ * partial count is not given, and nothing is kept for the next conversion.
+ */
+export type Deflate64CountResult = { status: 'ok'; count: number } | { status: 'cancelled' } | { status: 'error'; message: string };
 
-/** Result of `library.convertDeflate64()`: CBZ rewritten with standard compression, and CBZ left as they were because the rewrite failed. */
-export type ConvertDeflate64Result = { status: 'ok'; converted: number; failed: number } | { status: 'error'; message: string };
+/**
+ * Result of `library.convertDeflate64()`: CBZ rewritten with standard compression, and CBZ left as they were because
+ * the rewrite failed. `cancelled` when `library.cancelRun()` stopped it before every book was handled (or while it
+ * was still looking for them): those left are as they were.
+ */
+export type ConvertDeflate64Result =
+  | { status: 'ok'; converted: number; failed: number; cancelled: boolean }
+  | { status: 'error'; message: string };
 
-/** Result of `library.emptyDeleted()`: files removed for good from `.deletedByTankobon`, the space freed and the files that could not be removed. */
+/**
+ * Result of `library.emptyDeleted()`: items removed for good from `.deletedByTankobon`, the space freed and the items
+ * that could not be removed. `cancelled` when `library.cancelRun()` stopped it before every item was deleted: those left
+ * stay in the folder.
+ */
 export type EmptyDeletedResult =
-  | { status: 'ok'; deleted: number; bytesFreed: number; failed: number }
+  | { status: 'ok'; deleted: number; bytesFreed: number; failed: number; cancelled: boolean }
   | { status: 'error'; message: string };
 
 /** Result of `library.countOrphanFolders()`: how many folders of the organized `folder` hold no book, only `.nfo` files and cover images. */
 export type OrphanFoldersCountResult = { status: 'ok'; count: number; folder: string } | { status: 'error'; message: string };
 
-/** Result of `library.cleanFolders()`: orphan folders moved to `.deletedByTankobon`, and folders that could not be moved. */
-export type CleanFoldersResult = { status: 'ok'; moved: number; failed: number } | { status: 'error'; message: string };
+/**
+ * Result of `library.cleanFolders()`: orphan folders moved to `.deletedByTankobon`, and folders that could not be moved.
+ * `cancelled` when `library.cancelRun()` stopped it before every folder was handled: those left stay where they were.
+ */
+export type CleanFoldersResult =
+  | { status: 'ok'; moved: number; failed: number; cancelled: boolean }
+  | { status: 'error'; message: string };
 
 /** A library folder that has no path on this machine yet, because the library comes from another one. */
 export interface UnlinkedFolder {
@@ -291,15 +323,23 @@ export type RelinkFolderResult = { status: 'cancelled' } | { status: 'ok' } | { 
 /** Result of `library.pickOrganizationFolder()`. */
 export type PickOrganizationFolderResult = { status: 'cancelled' } | { status: 'ok'; folder: string };
 
-/** Outcome of `library:remove-many`: how many entries left the library and how many files went with them. */
-export interface RemoveEntriesResult {
-  /** Entries removed from the library. */
-  removed: number;
-  /** Files moved to the trash (0 unless the files were to be deleted too). */
-  filesDeleted: number;
-  /** Files that could not be deleted (already gone, no permission); their entries were removed anyway. */
-  filesFailed: number;
-}
+/**
+ * Outcome of `library:remove-many`: how many entries left the library and how many files went with them. `error` when
+ * another run over the library files holds the lock (nothing was removed).
+ */
+export type RemoveEntriesResult =
+  | {
+      status: 'ok';
+      /** Entries removed from the library. */
+      removed: number;
+      /** Files moved to the trash (0 unless the files were to be deleted too). */
+      filesDeleted: number;
+      /** Files that could not be deleted (already gone, no permission); their entries were removed anyway. */
+      filesFailed: number;
+      /** True when `library.cancelRun()` stopped it before every entry was handled: those left are still in the library. */
+      cancelled: boolean;
+    }
+  | { status: 'error'; message: string };
 
 /** A book holding files of one {@link CleanupGroup}, for the unfolded detail of the cleanup dialog. */
 export interface CleanupGroupBook {
@@ -328,7 +368,7 @@ export interface CleanupGroup {
 /**
  * Outcome of `library.analyzeCleanup()`: what removing the non-image files from the archives would
  * delete. Nothing is touched yet; `token` is what `library.applyCleanup()` takes to do it. An
- * analysis stopped by `library.cancelCleanup()` is `cancelled`, with no plan to apply.
+ * analysis stopped by `library.cancelCleanup()` (or `library.cancelRun()`) is `cancelled`, with no plan to apply.
  */
 export type CleanupAnalysisResult =
   | { status: 'error'; message: string }
@@ -367,7 +407,7 @@ export type CleanupResult =
       /** The first `MAX_REPORTED_FAILURES` of those books, with the reason. */
       failures: ScanFailure[];
       /**
-       * Stopped by `library.cancelCleanup()` between two books: the counts are what was done until
+       * Stopped by `library.cancelCleanup()` (or `library.cancelRun()`) between two books: the counts are what was done until
        * then (those books stay cleaned), the others were not touched.
        */
       cancelled: boolean;

@@ -27,7 +27,10 @@ const SIDECAR_EXTENSIONS = new Set(['.nfo', '.jpg', '.jpeg', '.png', '.webp', '.
 export interface FolderCleaner {
   /** How many orphan folders the organized folder holds. An error when the organization is off or its folder unreachable. */
   count(): Promise<OrphanFoldersCountResult>;
-  /** Moves them to `.deletedByTankobon`, reporting each through `onProgress`. Holds the shared lock. */
+  /**
+   * Moves them to `.deletedByTankobon`, reporting each through `onProgress`. Holds the shared lock, whose `cancel()`
+   * stops it before its next folder (the one being moved is finished), with `cancelled` set.
+   */
   clean(onProgress?: (progress: ScanProgress) => void): Promise<CleanFoldersResult>;
 }
 
@@ -102,12 +105,17 @@ export function createFolderCleaner(settings: SettingsRepository, lock: LibraryR
     async clean(onProgress = () => undefined) {
       const usable = await usableRoot();
       if (!('root' in usable)) return usable;
-      if (!lock.tryStart('folders')) return { status: 'error', message: lock.busyMessage() };
+      const signal = lock.tryStart('folders');
+      if (!signal) return { status: 'error', message: lock.busyMessage() };
       const trash = path.join(usable.root, DELETED_BY_TANKOBON_FOLDER);
-      const result = { moved: 0, failed: 0 };
+      const result = { moved: 0, failed: 0, cancelled: false };
       try {
         const orphans = await findOrphanFolders(usable.root);
         for (const [index, folder] of orphans.entries()) {
+          if (signal.aborted) {
+            result.cancelled = true;
+            break;
+          }
           onProgress({ phase: 'importing', processed: index, total: orphans.length, currentFile: folder });
           try {
             await mkdir(trash, { recursive: true });

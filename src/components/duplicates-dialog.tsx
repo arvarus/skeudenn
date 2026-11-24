@@ -72,6 +72,11 @@ export function DuplicatesDialog({
         toRemove.map((entry) => entry.id),
         deleteFiles,
       );
+      if (result.status === 'error') {
+        setError(result.message);
+        setBusy(false);
+        return;
+      }
       if (result.filesFailed > 0) {
         setError(t('library:duplicatesFilesFailed', { count: result.filesFailed }));
         setBusy(false);

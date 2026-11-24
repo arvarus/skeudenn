@@ -277,6 +277,8 @@ export interface OrganizeSummary {
   moved: MovedEntry[];
   /** Comics whose move failed (file in use, missing, destination taken…); they stay where they were. */
   failed: number;
+  /** True when `signal` stopped the run before every comic was handled; those left stay where they were. */
+  cancelled: boolean;
 }
 
 /**
@@ -314,16 +316,22 @@ async function moveToFirstFree(repo: LibraryRepository, from: string, candidates
  * one after the other. An entry already in place, or no longer in the library, is skipped. A failure
  * only costs that comic. When a comic leaves a subfolder of the organized folder (one dropped there by
  * hand, or the place of an older structure), that subfolder and its parents are deleted if they are
- * now empty; nothing outside the organized folder is ever deleted.
+ * now empty; nothing outside the organized folder is ever deleted. An aborted `signal` stops the run
+ * before its next comic (the one being moved is finished), with `cancelled` set.
  */
 export async function organizeEntries(
   repo: LibraryRepository,
   target: OrganizationTarget,
   ids: string[],
   onProgress: (processed: number, total: number, currentFile: string) => void = () => undefined,
+  signal?: AbortSignal,
 ): Promise<OrganizeSummary> {
-  const summary: OrganizeSummary = { moved: [], failed: 0 };
+  const summary: OrganizeSummary = { moved: [], failed: 0, cancelled: false };
   for (const [index, id] of ids.entries()) {
+    if (signal?.aborted) {
+      summary.cancelled = true;
+      break;
+    }
     const entry = repo.get(id);
     if (entry) onProgress(index, ids.length, entry.path);
     if (!entry || isInPlace(target, entry)) continue;

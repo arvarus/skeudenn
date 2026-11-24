@@ -63,7 +63,9 @@ function OrganizationSettingsPage() {
   const [cleanupOpen, setCleanupOpen] = useState(false);
   const [progress, setProgress] = useState<ScanProgress | null>(null);
   // The run this page started, to show its progress under its button (a run started elsewhere only disables the controls).
-  const [running, setRunning] = useState<'organize' | 'convertCbr' | 'checkDeflate64' | 'deflate64' | 'cleanFolders' | null>(null);
+  const [running, setRunning] = useState<'organize' | 'convertCbr' | 'checkDeflate64' | 'deflate64' | 'emptyDeleted' | 'cleanFolders' | null>(
+    null,
+  );
   // The files the last resynchronization couldn't open (`total` is the exact count), shown in a dialog on request.
   const [failures, setFailures] = useState<{ list: ScanFailure[]; total: number } | null>(null);
   const [failuresOpen, setFailuresOpen] = useState(false);
@@ -187,6 +189,8 @@ function OrganizationSettingsPage() {
       setConvertStatus({ message: count.message, error: true });
       return;
     }
+    // Stopped (`cancelRun()`): nothing to offer.
+    if (count.status === 'cancelled') return;
     if (count.count === 0) {
       setConvertStatus({ message: t('convertDeflate64None') });
       return;
@@ -228,7 +232,11 @@ function OrganizationSettingsPage() {
       action: t('emptyDeletedAction'),
     });
     if (!accepted) return;
+    setRunning('emptyDeleted');
+    setProgress({ phase: 'importing', processed: 0, total: count.deletedFiles, currentFile: '' });
     const result = await window.tankobon.library.emptyDeleted();
+    setProgress(null);
+    setRunning(null);
     if (result.status === 'error') {
       setConvertStatus({ message: result.message, error: true });
       return;
@@ -420,6 +428,7 @@ function OrganizationSettingsPage() {
             <span className="ml-3 text-sm text-muted-foreground">{t('emptyDeletedSize', { size: formatFileSize(deletedBytes) })}</span>
           )}
         </div>
+        {progress && running === 'emptyDeleted' && <RunProgress progress={progress} label={t('emptyDeletedRunning')} />}
         <div className="flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2 text-sm">
             <input

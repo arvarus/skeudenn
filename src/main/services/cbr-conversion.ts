@@ -39,13 +39,20 @@ export interface ConversionDecoder {
 export interface CbrConverter {
   /** How many CBR of the organized folder can be converted, and what `.deletedByTankobon` holds. An error when the organization is off or its folder unreachable. */
   count(): Promise<ConvertCountResult>;
-  /** Converts them one at a time, reporting each through `onProgress`. Holds the shared lock. */
+  /**
+   * Converts them one at a time, reporting each through `onProgress`. Holds the shared lock, whose `cancel()`
+   * stops it before its next book (the one being converted is finished), with `cancelled` set.
+   */
   convert(onProgress?: (progress: ScanProgress) => void): Promise<ConvertCbrResult>;
-  /** Deletes everything in `.deletedByTankobon` for good. Holds the shared lock. */
-  emptyDeleted(): Promise<EmptyDeletedResult>;
+  /**
+   * Deletes everything in `.deletedByTankobon` for good, one item at a time, reporting each through `onProgress`.
+   * Holds the shared lock, whose `cancel()` stops it before its next item, with `cancelled` set.
+   */
+  emptyDeleted(onProgress?: (progress: ScanProgress) => void): Promise<EmptyDeletedResult>;
   /**
    * Deletes for good what has been in `.deletedByTankobon` for `days` days or more (the automatic emptying).
    * Does nothing, returning `null`, when the organization is off, the folder unreachable or another run holds the lock.
+   * Holds the lock too, so `cancel()` stops it like `emptyDeleted()`.
    */
   emptyDeletedOlderThan(days: number, now?: Date): Promise<EmptyDeletedResult | null>;
 }
@@ -89,13 +96,26 @@ export function createCbrConverter(
     return problem === null ? { root } : { status: 'error', message: problem };
   };
 
-  /** Deletes the items of the trash whose parking time `shouldDelete` accepts, and the folder itself once it is empty. */
-  const deleteFromTrash = async (root: string, shouldDelete: (parkedAt: number) => boolean): Promise<EmptyDeletedResult> => {
+  /**
+   * Deletes the items of the trash whose parking time `shouldDelete` accepts, one at a time, and the folder itself once
+   * it is empty; an aborted `signal` stops it before its next item.
+   */
+  const deleteFromTrash = async (
+    root: string,
+    shouldDelete: (parkedAt: number) => boolean,
+    signal: AbortSignal,
+    onProgress: (progress: ScanProgress) => void,
+  ): Promise<EmptyDeletedResult> => {
     const folder = path.join(root, DELETED_BY_TANKOBON_FOLDER);
-    const { names } = await folderContents(folder);
-    const result = { deleted: 0, bytesFreed: 0, failed: 0 };
-    for (const name of names) {
+    const names = await readdir(folder).catch(() => [] as string[]);
+    const result = { deleted: 0, bytesFreed: 0, failed: 0, cancelled: false };
+    for (const [index, name] of names.entries()) {
+      if (signal.aborted) {
+        result.cancelled = true;
+        break;
+      }
       const file = path.join(folder, name);
+      onProgress({ phase: 'importing', processed: index, total: names.length, currentFile: file });
       if (!shouldDelete(await parkedAt(file))) continue;
       const size = await sizeOf(file);
       try {
@@ -133,13 +153,19 @@ export function createCbrConverter(
     async convert(onProgress = () => undefined) {
       const usable = await usableRoot();
       if (!('root' in usable)) return usable;
-      if (!lock.tryStart('convert')) return { status: 'error', message: lock.busyMessage() };
+      const signal = lock.tryStart('convert');
+      if (!signal) return { status: 'error', message: lock.busyMessage() };
       const { root } = usable;
       const trash = path.join(root, DELETED_BY_TANKOBON_FOLDER);
-      const result = { converted: 0, failed: 0 };
+      const result = { converted: 0, failed: 0, cancelled: false };
       try {
         const ids = convertibleIds(root);
         for (const [index, id] of ids.entries()) {
+          // Checked between two books only: a conversion under way is finished, so a book is never left half-moved.
+          if (signal.aborted) {
+            result.cancelled = true;
+            break;
+          }
           const entry = repo.get(id);
           if (!entry) continue;
           const from = entry.path;
@@ -181,13 +207,15 @@ export function createCbrConverter(
       }
     },
 
-    async emptyDeleted() {
+    async emptyDeleted(onProgress = () => undefined) {
       const usable = await usableRoot();
       if (!('root' in usable)) return usable;
-      if (!lock.tryStart('convert')) return { status: 'error', message: lock.busyMessage() };
+      const signal = lock.tryStart('convert');
+      if (!signal) return { status: 'error', message: lock.busyMessage() };
       try {
-        return await deleteFromTrash(usable.root, () => true);
+        return await deleteFromTrash(usable.root, () => true, signal, onProgress);
       } finally {
+        onProgress({ phase: 'done', processed: 0, total: 0, currentFile: '' });
         lock.end();
       }
     },
@@ -195,10 +223,12 @@ export function createCbrConverter(
     async emptyDeletedOlderThan(days, now = new Date()) {
       const usable = await usableRoot();
       if (!('root' in usable)) return null;
-      if (!lock.tryStart('convert')) return null;
+      const signal = lock.tryStart('convert');
+      if (!signal) return null;
       try {
         const limit = now.getTime() - days * 24 * 60 * 60 * 1000;
-        return await deleteFromTrash(usable.root, (parked) => parked <= limit);
+        // No window asked for it: its progress goes nowhere.
+        return await deleteFromTrash(usable.root, (parked) => parked <= limit, signal, () => undefined);
       } finally {
         lock.end();
       }
