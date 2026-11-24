@@ -2,10 +2,11 @@ import { ChevronDown, ChevronRight, CircleStop } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { RunProgress } from '@/components/run-progress';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { formatFileSize } from '@/lib/utils';
-import type { CleanupAnalysisResult, CleanupResult, ScanFailure } from '@/shared/library';
+import type { CleanupAnalysisResult, CleanupResult, ScanFailure, ScanProgress } from '@/shared/library';
 
 type Analysis = Extract<CleanupAnalysisResult, { status: 'ok' }>;
 
@@ -49,7 +50,8 @@ function FailureDetail({ failures, total }: { failures: ScanFailure[]; total: nu
  * when empty), shows what each kind of file would cost, lets the user untick the kinds to keep,
  * and only then rewrites the archives. Only CBZ can be rewritten; the others are counted as skipped.
  * Either step can be stopped: a stopped analysis closes the dialog (no partial plan is offered), a
- * stopped rewrite shows what was done until then.
+ * stopped rewrite shows what was done until then. While a step runs, its progress (`library:scan-progress`:
+ * the count of books done and the name of the archive being handled) is shown under its message.
  */
 export function CleanupDialog({ ids, onClose }: { ids: string[]; onClose: () => void }) {
   const { t } = useTranslation(['library', 'common']);
@@ -63,6 +65,21 @@ export function CleanupDialog({ ids, onClose }: { ids: string[]; onClose: () => 
   const [error, setError] = useState<string | null>(null);
   // A stop was asked and the step hasn't answered yet.
   const [stopping, setStopping] = useState(false);
+  // The progress of the step running, null between steps.
+  const [progress, setProgress] = useState<ScanProgress | null>(null);
+  // Whether one of this dialog's steps runs: the channel also carries other runs (the resynchronization started at
+  // launch is sent to every window), and a push arriving outside a step must not be shown.
+  const stepRunning = useRef(true);
+
+  useEffect(
+    () =>
+      window.tankobon.library.onScanProgress((p) => {
+        // A resynchronization (the only run that sends a `step`) is not this dialog's.
+        if (p.step || !stepRunning.current) return;
+        setProgress(p.phase === 'done' ? null : p);
+      }),
+    [],
+  );
 
   // The analysis starts once per dialog, even though React's StrictMode (development) runs the effect twice: a
   // second request would meet the first one still running and answer "a cleanup is already running". The
@@ -83,7 +100,9 @@ export function CleanupDialog({ ids, onClose }: { ids: string[]; onClose: () => 
         })
         .catch(() => open.current && setError(t('library:cleanupFailed')))
         .finally(() => {
+          stepRunning.current = false;
           if (!open.current) return;
+          setProgress(null);
           setBusy(false);
           setStopping(false);
         });
@@ -117,6 +136,8 @@ export function CleanupDialog({ ids, onClose }: { ids: string[]; onClose: () => 
     if (!analysis) return;
     setBusy(true);
     setError(null);
+    setProgress(null);
+    stepRunning.current = true;
     try {
       const outcome = await window.tankobon.library.applyCleanup(analysis.token, [...kept]);
       if (outcome.status === 'error') setError(outcome.message);
@@ -124,6 +145,8 @@ export function CleanupDialog({ ids, onClose }: { ids: string[]; onClose: () => 
     } catch {
       setError(t('library:cleanupFailed'));
     }
+    stepRunning.current = false;
+    setProgress(null);
     setBusy(false);
     setStopping(false);
   };
@@ -147,6 +170,13 @@ export function CleanupDialog({ ids, onClose }: { ids: string[]; onClose: () => 
       <div className="flex min-h-0 flex-col gap-3 overflow-auto">
         {busy && !analysis && <p className="text-sm text-muted-foreground">{t('library:cleanupAnalyzing')}</p>}
         {busy && analysis && <p className="text-sm text-muted-foreground">{t('library:cleanupApplying')}</p>}
+        {busy && progress && (
+          <RunProgress
+            progress={progress}
+            label={analysis ? t('library:cleanupApplying') : t('library:cleanupAnalyzing')}
+            fileNameOnly
+          />
+        )}
 
         {analysis && !finished && !nothingToClean && (
           <>
