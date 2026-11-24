@@ -327,10 +327,12 @@ export interface CleanupGroup {
 
 /**
  * Outcome of `library.analyzeCleanup()`: what removing the non-image files from the archives would
- * delete. Nothing is touched yet; `token` is what `library.applyCleanup()` takes to do it.
+ * delete. Nothing is touched yet; `token` is what `library.applyCleanup()` takes to do it. An
+ * analysis stopped by `library.cancelCleanup()` is `cancelled`, with no plan to apply.
  */
 export type CleanupAnalysisResult =
   | { status: 'error'; message: string }
+  | { status: 'cancelled' }
   | {
       status: 'ok';
       /** Opaque handle of the analysis; works once, the latest ones only. */
@@ -364,6 +366,11 @@ export type CleanupResult =
       failed: number;
       /** The first `MAX_REPORTED_FAILURES` of those books, with the reason. */
       failures: ScanFailure[];
+      /**
+       * Stopped by `library.cancelCleanup()` between two books: the counts are what was done until
+       * then (those books stay cleaned), the others were not touched.
+       */
+      cancelled: boolean;
     };
 
 /** Largest image `library:set-cover` accepts, in bytes (the renderer sends the cropped picture, a few hundred kilobytes at most). */

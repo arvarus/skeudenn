@@ -81,7 +81,7 @@ describe('CleanupDialog failures', () => {
     renderWithTankobon(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
       library: {
         analyzeCleanup: vi.fn(async () => analysis),
-        applyCleanup: vi.fn(async () => ({ status: 'ok' as const, cleaned: 0, filesRemoved: 0, bytesFreed: 0, failed: 1, failures })),
+        applyCleanup: vi.fn(async () => ({ status: 'ok' as const, cleaned: 0, filesRemoved: 0, bytesFreed: 0, failed: 1, failures, cancelled: false })),
       },
     });
     fireEvent.click(await screen.findByRole('button', { name: /Supprimer 2 fichiers/ }));
@@ -110,5 +110,66 @@ describe('CleanupDialog failures', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Afficher le détail/ }));
     expect(screen.getByText('book.cbz')).toBeTruthy();
     expect(screen.getByText('a.txt, b.txt')).toBeTruthy();
+  });
+});
+
+describe('CleanupDialog stop', () => {
+  const analysis = {
+    status: 'ok' as const,
+    token: 't',
+    groups: [{ extension: '.txt', files: 2, books: 1, size: 20, examples: ['a.txt'], details: [{ name: 'book.cbz', files: ['a.txt', 'b.txt'] }] }],
+    scanned: 3,
+    booksWithJunk: 1,
+    skipped: 0,
+    failed: 0,
+    failures: [],
+  };
+
+  /** A promise the test settles. */
+  function deferred<T>() {
+    let resolve!: (value: T) => void;
+    const promise = new Promise<T>((done) => (resolve = done));
+    return { promise, resolve };
+  }
+
+  it('stops the analysis and closes, offering no partial plan', async () => {
+    const pending = deferred<{ status: 'cancelled' }>();
+    const cancelCleanup = vi.fn(async () => {
+      pending.resolve({ status: 'cancelled' });
+      return true;
+    });
+    const onClose = vi.fn();
+    renderWithTankobon(<CleanupDialog ids={[]} onClose={onClose} />, {
+      library: { analyzeCleanup: vi.fn(() => pending.promise), cancelCleanup },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: /Arrêter/ }));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(cancelCleanup).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: /Supprimer/ })).toBeNull();
+  });
+
+  it('stops the rewrite and shows what was done until then', async () => {
+    const pending = deferred<{
+      status: 'ok';
+      cleaned: number;
+      filesRemoved: number;
+      bytesFreed: number;
+      failed: number;
+      failures: never[];
+      cancelled: boolean;
+    }>();
+    const cancelCleanup = vi.fn(async () => {
+      pending.resolve({ status: 'ok', cleaned: 1, filesRemoved: 2, bytesFreed: 20, failed: 0, failures: [], cancelled: true });
+      return true;
+    });
+    renderWithTankobon(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
+      library: { analyzeCleanup: vi.fn(async () => analysis), applyCleanup: vi.fn(() => pending.promise), cancelCleanup },
+    });
+    expect(screen.queryByRole('button', { name: /Arrêter/ })).toBeTruthy();
+    fireEvent.click(await screen.findByRole('button', { name: /Supprimer 2 fichiers/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Arrêter/ }));
+    expect(await screen.findByText(/Arrêté avant la fin/)).toBeTruthy();
+    expect(screen.getByText(/1 livres nettoyés/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Arrêter/ })).toBeNull();
   });
 });

@@ -222,10 +222,80 @@ describe('createLibraryCleaner', () => {
       expect(analysis.groups.map((group) => group.extension).sort()).toEqual(['.bin', '.xml']);
 
       const result = await cleaner.apply(analysis.token, ['.xml'], noProgress);
-      expect(result).toEqual({ status: 'ok', cleaned: 1, filesRemoved: 1, bytesFreed: expect.any(Number), failed: 0, failures: [] });
+      expect(result).toEqual({ status: 'ok', cleaned: 1, filesRemoved: 1, bytesFreed: expect.any(Number), failed: 0, failures: [], cancelled: false });
       expect((await listJunkEntries(file)).map((entry) => entry.name)).toEqual(['ComicInfo.xml']);
       expect(repo.list()[0]).toMatchObject({ fileCount: 2 });
       expect(notify).toHaveBeenCalledWith(expect.objectContaining({ scope: 'library' }));
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+  it('has nothing to stop when no cleanup runs', () => {
+    const { cleaner } = setup();
+    expect(cleaner.cancel()).toBe(false);
+  });
+
+  it('stops an analysis between two books, keeping no plan', async () => {
+    const { cleaner, decoder } = setup();
+    const listJunk = vi.mocked(decoder.listJunk).getMockImplementation()!;
+    vi.mocked(decoder.listJunk).mockImplementation(async (file: string) => {
+      // Asked while the first book is read: that book is finished, the next ones are not read.
+      expect(cleaner.cancel()).toBe(true);
+      return listJunk(file);
+    });
+    const progress: ScanProgress[] = [];
+    expect(await cleaner.analyze([], (p) => progress.push(p))).toEqual({ status: 'cancelled' });
+    expect(decoder.listJunk).toHaveBeenCalledTimes(1);
+    expect(progress.at(-1)).toMatchObject({ phase: 'done', processed: 1 });
+    expect(cleaner.cancel()).toBe(false);
+    // Nothing is left running: a new analysis goes through.
+    vi.mocked(decoder.listJunk).mockImplementation(listJunk);
+    expect(await cleaner.analyze([], noProgress)).toMatchObject({ status: 'ok' });
+  });
+
+  it('stops a rewrite between two books, keeping and reporting the books already cleaned', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tankobon-cleanup-stop-'));
+    try {
+      const repo = repository();
+      const files = ['1.cbz', '2.cbz', '3.cbz'].map((name) => join(dir, name));
+      for (const file of files) {
+        await writeFile(file, 'x');
+        repo.register(file, file, 10, 5, 100);
+      }
+      const notify = vi.fn();
+      const lock = createLibraryRunLock();
+      const decoder: CleanupDecoder = {
+        listJunk: vi.fn(async () => [{ name: 'Thumbs.db', size: 10 }]),
+        cleanArchive: vi.fn(async () => ({ fileCount: 4 })),
+      };
+      const cleaner = createLibraryCleaner(repo, decoder, notify, lock);
+      const analysis = await cleaner.analyze([], noProgress);
+      if (analysis.status !== 'ok') throw new Error('analysis failed');
+
+      vi.mocked(decoder.cleanArchive).mockImplementation(async () => {
+        // Asked while the first book is rewritten: that rewrite is finished, the next books are not touched.
+        expect(cleaner.cancel()).toBe(true);
+        return { fileCount: 4 };
+      });
+      expect(await cleaner.apply(analysis.token, [], noProgress)).toEqual({
+        status: 'ok',
+        cleaned: 1,
+        filesRemoved: 1,
+        bytesFreed: 0,
+        failed: 0,
+        failures: [],
+        cancelled: true,
+      });
+      expect(decoder.cleanArchive).toHaveBeenCalledTimes(1);
+      const [cleanedPath] = vi.mocked(decoder.cleanArchive).mock.calls[0];
+      expect(repo.list().find((entry) => entry.path === cleanedPath)).toMatchObject({ fileCount: 4 });
+      expect(repo.list().filter((entry) => entry.fileCount === 5)).toHaveLength(2);
+      expect(notify).toHaveBeenCalledWith({ scope: 'library', upserted: [expect.objectContaining({ path: cleanedPath })] });
+      expect(cleaner.cancel()).toBe(false);
+      // The library lock is released, and the plan was used up.
+      expect(lock.tryStart('add')).toBe(true);
+      lock.end();
+      expect(await cleaner.apply(analysis.token, [], noProgress)).toMatchObject({ status: 'error' });
     } finally {
       await rm(dir, { recursive: true, force: true });
     }

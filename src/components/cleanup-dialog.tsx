@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { ChevronDown, ChevronRight, CircleStop } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -48,6 +48,8 @@ function FailureDetail({ failures, total }: { failures: ScanFailure[]; total: nu
  * Cleans the books of the files that are not images. It analyzes first (`ids`, the whole library
  * when empty), shows what each kind of file would cost, lets the user untick the kinds to keep,
  * and only then rewrites the archives. Only CBZ can be rewritten; the others are counted as skipped.
+ * Either step can be stopped: a stopped analysis closes the dialog (no partial plan is offered), a
+ * stopped rewrite shows what was done until then.
  */
 export function CleanupDialog({ ids, onClose }: { ids: string[]; onClose: () => void }) {
   const { t } = useTranslation(['library', 'common']);
@@ -59,6 +61,8 @@ export function CleanupDialog({ ids, onClose }: { ids: string[]; onClose: () => 
   const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(new Set());
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // A stop was asked and the step hasn't answered yet.
+  const [stopping, setStopping] = useState(false);
 
   // The analysis starts once per dialog, even though React's StrictMode (development) runs the effect twice: a
   // second request would meet the first one still running and answer "a cleanup is already running". The
@@ -74,10 +78,15 @@ export function CleanupDialog({ ids, onClose }: { ids: string[]; onClose: () => 
         .then((outcome) => {
           if (!open.current) return;
           if (outcome.status === 'error') setError(outcome.message);
+          else if (outcome.status === 'cancelled') onClose();
           else setAnalysis(outcome);
         })
         .catch(() => open.current && setError(t('library:cleanupFailed')))
-        .finally(() => open.current && setBusy(false));
+        .finally(() => {
+          if (!open.current) return;
+          setBusy(false);
+          setStopping(false);
+        });
     }
     return () => {
       open.current = false;
@@ -116,6 +125,13 @@ export function CleanupDialog({ ids, onClose }: { ids: string[]; onClose: () => 
       setError(t('library:cleanupFailed'));
     }
     setBusy(false);
+    setStopping(false);
+  };
+
+  const stop = async () => {
+    setStopping(true);
+    // False when the step ended meanwhile: its answer is on its way.
+    if (!(await window.tankobon.library.cancelCleanup().catch(() => false))) setStopping(false);
   };
 
   const finished = result !== null;
@@ -216,6 +232,7 @@ export function CleanupDialog({ ids, onClose }: { ids: string[]; onClose: () => 
 
         {result && (
           <>
+            {result.cancelled && <p className="text-sm">{t('library:cleanupStopped')}</p>}
             <p className="text-sm">
               {t('library:cleanupDone', {
                 books: result.cleaned,
@@ -235,6 +252,12 @@ export function CleanupDialog({ ids, onClose }: { ids: string[]; onClose: () => 
       </div>
 
       <div className="flex justify-end gap-2">
+        {busy && (
+          <Button variant="outline" onClick={() => void stop()} disabled={stopping}>
+            <CircleStop />
+            {stopping ? t('library:cleanupStopping') : t('library:cleanupStop')}
+          </Button>
+        )}
         {finished || nothingToClean || !analysis ? (
           <Button onClick={onClose} disabled={busy}>
             {t('common:close')}

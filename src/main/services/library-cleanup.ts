@@ -2,7 +2,9 @@
  * Cleaning the books: removing from their archives the files that are not images. Two steps so the
  * user decides with the facts in hand: `analyze()` lists what would go (nothing is touched) and
  * `apply()` rewrites the archives, minus the kinds of files the user chose to keep. Only CBZ can be
- * rewritten. Kept out of the IPC layer, which only calls it, so it runs under Vitest.
+ * rewritten. Either step can be stopped (`cancel()`) between two books, never inside one: a book
+ * being rewritten is finished, so its archive is never left half-replaced. Kept out of the IPC layer,
+ * which only calls it, so it runs under Vitest.
  * @module
  */
 import { randomUUID } from 'node:crypto';
@@ -37,13 +39,20 @@ export interface LibraryCleaner {
   /**
    * Lists the non-image files of the books `ids` (the whole library when empty), grouped by
    * extension, and remembers the result under the returned token. Reports progress book by book.
+   * Stopped by `cancel()`, it resolves with `cancelled` and keeps no plan.
    */
   analyze(ids: string[], onProgress: (progress: ScanProgress) => void): Promise<CleanupAnalysisResult>;
   /**
    * Removes the files of the analysis `token` from the archives, except the kinds whose extension is
-   * in `keptExtensions`. The token works once.
+   * in `keptExtensions`. The token works once. Stopped by `cancel()`, it resolves with `cancelled`:
+   * the books already rewritten stay so (and are counted, updated and notified), the others are untouched.
    */
   apply(token: string, keptExtensions: string[], onProgress: (progress: ScanProgress) => void): Promise<CleanupResult>;
+  /**
+   * Stops the analysis or the rewrite in progress before its next book (the book being read or
+   * rewritten is finished); false when neither is running.
+   */
+  cancel(): boolean;
 }
 
 /** Analyses kept for `apply()`; the oldest is forgotten past this. */
@@ -114,6 +123,8 @@ export function createLibraryCleaner(
 ): LibraryCleaner {
   const analyses = new Map<string, PlannedBook[]>();
   let running = false;
+  // The stop of the step in progress, null between runs.
+  let controller: AbortController | null = null;
 
   const progress = (onProgress: (progress: ScanProgress) => void, phase: ScanProgress['phase'], processed: number, total: number, currentFile: string) =>
     onProgress({ phase, processed, total, currentFile });
@@ -122,6 +133,7 @@ export function createLibraryCleaner(
     async analyze(ids, onProgress) {
       if (running) return { status: 'error', message: t('errors:library.cleanupRunning') };
       running = true;
+      const { signal } = (controller = new AbortController());
       try {
         const wanted = new Set(ids);
         const entries = repo.list().filter((entry) => wanted.size === 0 || wanted.has(entry.id));
@@ -130,6 +142,11 @@ export function createLibraryCleaner(
         let failed = 0;
         const failures: ScanFailure[] = [];
         for (const [index, entry] of entries.entries()) {
+          if (signal.aborted) {
+            // A partial plan is not offered: the books not analyzed would silently stay as they are.
+            progress(onProgress, 'done', index, entries.length, '');
+            return { status: 'cancelled' };
+          }
           progress(onProgress, 'importing', index, entries.length, entry.path);
           // Reading a cloud placeholder would download it.
           if (await isOnlineOnly(entry.path)) {
@@ -162,6 +179,7 @@ export function createLibraryCleaner(
         };
       } finally {
         running = false;
+        controller = null;
       }
     },
 
@@ -172,12 +190,19 @@ export function createLibraryCleaner(
       if (lock && !lock.tryStart('cleanup')) return { status: 'error', message: lock.busyMessage() };
       analyses.delete(token);
       running = true;
+      const { signal } = (controller = new AbortController());
       try {
         const kept = new Set(keptExtensions);
         const result = { cleaned: 0, filesRemoved: 0, bytesFreed: 0, failed: 0 };
         const failures: ScanFailure[] = [];
         const upserted = [];
+        let processed = books.length;
         for (const [index, book] of books.entries()) {
+          // Checked between two books only: `cleanArchive` replaces the original once the new archive is checked.
+          if (signal.aborted) {
+            processed = index;
+            break;
+          }
           const names = book.junk.filter((file) => !kept.has(junkExtension(file.name))).map((file) => file.name);
           progress(onProgress, 'importing', index, books.length, book.path);
           if (names.length === 0) continue;
@@ -195,13 +220,21 @@ export function createLibraryCleaner(
             reportFailure(failures, book.path, error);
           }
         }
-        progress(onProgress, 'done', books.length, books.length, '');
+        progress(onProgress, 'done', processed, books.length, '');
         if (upserted.length > 0) notify({ scope: 'library', upserted });
-        return { status: 'ok', ...result, failures };
+        // A stop asked during the last book came too late to leave anything out.
+        return { status: 'ok', ...result, failures, cancelled: processed < books.length };
       } finally {
         running = false;
+        controller = null;
         lock?.end();
       }
+    },
+
+    cancel() {
+      if (!controller || controller.signal.aborted) return false;
+      controller.abort();
+      return true;
     },
   };
 }

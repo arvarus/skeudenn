@@ -86,6 +86,7 @@ export const LIBRARY_CHANNELS = {
   organizeAll: 'library:organize-all',
   analyzeCleanup: 'library:analyze-cleanup',
   applyCleanup: 'library:apply-cleanup',
+  cancelCleanup: 'library:cancel-cleanup',
   countConvertible: 'library:count-convertible',
   convertCbr: 'library:convert-cbr',
   countDeflate64: 'library:count-deflate64',
@@ -325,6 +326,9 @@ export function registerLibraryIpc({
     (event, token, kept) =>
       cleaner.apply(token, kept, scanProgressTo(event)),
   );
+
+  // Any window may stop it, like the resynchronization: there is one cleanup at a time.
+  handle(LIBRARY_CHANNELS.cancelCleanup, args(), () => cleaner.cancel());
 
   handle(LIBRARY_CHANNELS.countConvertible, args(), () => converter.count());
 
