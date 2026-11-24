@@ -6,10 +6,10 @@ import { useTranslation } from 'react-i18next';
 import { CleanupDialog } from '@/components/cleanup-dialog';
 import { useConfirm } from '@/components/confirm-dialog';
 import { DuplicatesDialog } from '@/components/duplicates-dialog';
+import { RunProgress } from '@/components/run-progress';
 import { ScanFailuresDialog } from '@/components/scan-failures-dialog';
 import { SETTINGS_SELECT_CLASS, SettingsSection } from '@/components/settings-section';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { resyncStepLabel } from '@/lib/resync-step';
 import { isOrganizationOn } from '@/lib/settings-nav';
 import { useOrganizationOffer } from '@/hooks/use-organization-offer';
@@ -548,20 +548,6 @@ function OrganizationSettingsPage() {
  * The organized folder's tree: up to three levels, each a `<select>`. A tree the setting can't hold
  * yet (a letter grouping without a second level) stays a local draft until it is completed.
  */
-/** A run's progress bar under its button, with the count of books done and the file being handled. */
-function RunProgress({ progress, label }: { progress: ScanProgress; label: string }) {
-  const { t } = useTranslation('settings', { keyPrefix: 'library' });
-  return (
-    <div className="flex flex-col gap-1">
-      <Progress value={progress.processed} max={progress.total} label={label} />
-      <p className="truncate text-xs text-muted-foreground" title={progress.currentFile}>
-        {progress.total > 0 && t('runProgress', { processed: progress.processed, total: progress.total })}
-        {progress.currentFile && ` · ${progress.currentFile}`}
-      </p>
-    </div>
-  );
-}
-
 function StructureEditor({ disabled }: { disabled: boolean }) {
   const { t } = useTranslation('settings', { keyPrefix: 'library' });
   const { settings, update } = useSettings();

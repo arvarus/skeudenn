@@ -107,6 +107,8 @@ export interface LibraryApi {
   analyzeCleanup(ids: string[]): Promise<CleanupAnalysisResult>;
   /** Second step: rewrites the archives of the analysis `token` without those files, except the kinds whose extension (`.xml`, empty for none) is in `keptExtensions`. The original is replaced only once the new archive has been checked. The token works once. */
   applyCleanup(token: string, keptExtensions: string[]): Promise<CleanupResult>;
+  /** Stops the step of cleaning the books in progress (`analyzeCleanup` or `applyCleanup`) before its next book; the book being read or rewritten is finished. A stopped analysis resolves with `cancelled` and leaves no plan; a stopped rewrite resolves with `cancelled: true`, the books already cleaned staying so. False when no cleanup is running. */
+  cancelCleanup(): Promise<boolean>;
   /** How many CBR of the organized folder `convertCbr()` would convert, and what its `.deletedByTankobon` folder holds; an error when the organization is off or its folder unreachable. */
   countConvertible(): Promise<ConvertCountResult>;
   /** Writes each CBR of the organized folder as a CBZ beside it, points the book at it (progress, rating, tags and lists are kept) and moves the CBR to `.deletedByTankobon` at the root of the organized folder. Progress goes over `onScanProgress`. */
@@ -352,6 +354,7 @@ const api: TankobonApi = {
     organizeAll: () => ipcRenderer.invoke('library:organize-all'),
     analyzeCleanup: (ids) => ipcRenderer.invoke('library:analyze-cleanup', ids),
     applyCleanup: (token, keptExtensions) => ipcRenderer.invoke('library:apply-cleanup', token, keptExtensions),
+    cancelCleanup: () => ipcRenderer.invoke('library:cancel-cleanup'),
     countConvertible: () => ipcRenderer.invoke('library:count-convertible'),
     convertCbr: () => ipcRenderer.invoke('library:convert-cbr'),
     countDeflate64: () => ipcRenderer.invoke('library:count-deflate64'),
