@@ -30,10 +30,15 @@ export interface Deflate64Converter {
   /**
    * How many CBZ of the library use Deflate64. Opens each archive's directory only, reporting each through
    * `onProgress`; a book that can't be read is not counted. Holds the shared lock, and keeps what it found for
-   * the next `convert()`, so the library isn't checked twice.
+   * the next `convert()`, so the library isn't checked twice. Stopped by the lock's `cancel()` before its next
+   * book, it resolves with `cancelled` and keeps nothing: a partial list would leave books out of the conversion.
    */
   count(onProgress?: (progress: ScanProgress) => void): Promise<Deflate64CountResult>;
-  /** Rewrites them one at a time (those the last `count()` found, else it checks the library again), reporting each through `onProgress`. Holds the shared lock. */
+  /**
+   * Rewrites them one at a time (those the last `count()` found, else it checks the library again), reporting each
+   * through `onProgress`. Holds the shared lock, whose `cancel()` stops it before its next book (the one being
+   * rewritten is finished), with `cancelled` set.
+   */
   convert(onProgress?: (progress: ScanProgress) => void): Promise<ConvertDeflate64Result>;
 }
 
@@ -47,11 +52,18 @@ export function createDeflate64Converter(
   /** What the last `count()` found, used once by the next `convert()`. */
   let found: { id: string; path: string }[] | null = null;
 
-  /** The library's CBZ that use Deflate64 (`id` and path). Cloud placeholders are skipped: reading them would download them. */
-  const find = async (onProgress: (progress: ScanProgress) => void): Promise<{ id: string; path: string }[]> => {
+  /**
+   * The library's CBZ that use Deflate64 (`id` and path), or null when `signal` stopped the check before the end.
+   * Cloud placeholders are skipped: reading them would download them.
+   */
+  const find = async (
+    onProgress: (progress: ScanProgress) => void,
+    signal: AbortSignal,
+  ): Promise<{ id: string; path: string }[] | null> => {
     const books: { id: string; path: string }[] = [];
     const cbz = repo.list().filter((entry) => comicFormat(entry.path) === 'CBZ');
     for (const [index, entry] of cbz.entries()) {
+      if (signal.aborted) return null;
       onProgress({ phase: 'importing', processed: index, total: cbz.length, currentFile: entry.path });
       if (await isOnlineOnly(entry.path)) continue;
       if (await decoder.hasDeflate64(entry.path).catch(() => false)) books.push({ id: entry.id, path: entry.path });
@@ -61,10 +73,11 @@ export function createDeflate64Converter(
 
   return {
     async count(onProgress = () => undefined) {
-      if (!lock.tryStart('convert')) return { status: 'error', message: lock.busyMessage() };
+      const signal = lock.tryStart('convert');
+      if (!signal) return { status: 'error', message: lock.busyMessage() };
       try {
-        found = await find(onProgress);
-        return { status: 'ok', count: found.length };
+        found = await find(onProgress, signal);
+        return found === null ? { status: 'cancelled' } : { status: 'ok', count: found.length };
       } finally {
         onProgress({ phase: 'done', processed: 0, total: 0, currentFile: '' });
         lock.end();
@@ -72,14 +85,21 @@ export function createDeflate64Converter(
     },
 
     async convert(onProgress = () => undefined) {
-      if (!lock.tryStart('convert')) return { status: 'error', message: lock.busyMessage() };
-      const result = { converted: 0, failed: 0 };
+      const signal = lock.tryStart('convert');
+      if (!signal) return { status: 'error', message: lock.busyMessage() };
+      const result = { converted: 0, failed: 0, cancelled: false };
       try {
         // A book removed or moved since the count is left out.
         const kept = found?.filter((book) => repo.get(book.id)?.path === book.path);
         found = null;
-        const books = kept ?? (await find(onProgress));
+        const books = kept ?? (await find(onProgress, signal));
+        if (books === null) return { status: 'ok', ...result, cancelled: true };
         for (const [index, book] of books.entries()) {
+          // Checked between two books only: `convertDeflate64` replaces the original once the new archive is checked.
+          if (signal.aborted) {
+            result.cancelled = true;
+            break;
+          }
           onProgress({ phase: 'importing', processed: index, total: books.length, currentFile: book.path });
           try {
             const { fileCount } = await decoder.convertDeflate64(book.path);

@@ -11,7 +11,6 @@ import {
   type PickOrganizationFolderResult,
   type RelinkFolderResult,
   type RemoveEntryResult,
-  type RemoveEntriesResult,
   type ScanProgress,
   type ScanResult,
   type SetCoverResult,
@@ -26,6 +25,7 @@ import type { CbrConverter } from '../services/cbr-conversion';
 import type { Deflate64Converter } from '../services/deflate64-conversion';
 import type { FolderCleaner } from '../services/folder-cleanup';
 import type { LibraryCleaner } from '../services/library-cleanup';
+import type { LibraryRemover } from '../services/library-removal';
 import { NOTHING_ORGANIZED, type LibraryOrganizer, type Resynchronizer } from '../services/library-organization';
 import type { StartupOrganization } from './startup-organization';
 import { openErrorMessage } from '../services/open-error';
@@ -87,6 +87,7 @@ export const LIBRARY_CHANNELS = {
   analyzeCleanup: 'library:analyze-cleanup',
   applyCleanup: 'library:apply-cleanup',
   cancelCleanup: 'library:cancel-cleanup',
+  cancelRun: 'library:cancel-run',
   countConvertible: 'library:count-convertible',
   convertCbr: 'library:convert-cbr',
   countDeflate64: 'library:count-deflate64',
@@ -152,6 +153,8 @@ export interface LibraryIpcDependencies {
   deflate64: Deflate64Converter;
   /** The cleaning of the orphan folders. */
   folderCleaner: FolderCleaner;
+  /** The removal of a selection of books. */
+  remover: LibraryRemover;
   /** The user a long run is for is the one who started it, even if the app is switched to another meanwhile. */
   activeUser: () => string;
   /** What the organization did after the start-up resynchronization, until a window takes it. */
@@ -183,6 +186,7 @@ export function registerLibraryIpc({
   converter,
   deflate64,
   folderCleaner,
+  remover,
   activeUser,
   startupOrganization,
 }: LibraryIpcDependencies): void {
@@ -330,6 +334,14 @@ export function registerLibraryIpc({
   // Any window may stop it, like the resynchronization: there is one cleanup at a time.
   handle(LIBRARY_CHANNELS.cancelCleanup, args(), () => cleaner.cancel());
 
+  // Stops whatever run over the library files is going (any window may, as for the resynchronization): the one holding
+  // the shared lock, and the analysis of the books' cleanup, which only reads and so doesn't take the lock.
+  handle(LIBRARY_CHANNELS.cancelRun, args(), () => {
+    const lockedRun = organizer.lock.cancel();
+    const analysis = cleaner.cancel();
+    return lockedRun || analysis;
+  });
+
   handle(LIBRARY_CHANNELS.countConvertible, args(), () => converter.count());
 
   // Progress goes over the scan channel, like the organization of the whole library.
@@ -341,7 +353,7 @@ export function registerLibraryIpc({
 
   handle(LIBRARY_CHANNELS.convertDeflate64, args(), (event) => deflate64.convert(scanProgressTo(event)));
 
-  handle(LIBRARY_CHANNELS.emptyDeleted, args(), () => converter.emptyDeleted());
+  handle(LIBRARY_CHANNELS.emptyDeleted, args(), (event) => converter.emptyDeleted(scanProgressTo(event)));
 
   handle(LIBRARY_CHANNELS.countOrphanFolders, args(), () => folderCleaner.count());
 
@@ -435,43 +447,11 @@ export function registerLibraryIpc({
     return { status: 'ok' };
   });
 
+  // Progress goes over the scan channel, which both the library page and the settings page follow.
   handle(
     LIBRARY_CHANNELS.removeMany,
     args((ids) => expectIdArray(ids, 'ids'), booleanArg),
-    async (_event, ids, deleteFiles): Promise<RemoveEntriesResult> => {
-      const result: RemoveEntriesResult = { removed: 0, filesDeleted: 0, filesFailed: 0 };
-      const removed: string[] = [];
-      for (const id of new Set(ids)) {
-        const entry = repo.get(id);
-        if (!entry) continue;
-        repo.remove(id);
-        removed.push(id);
-        result.removed++;
-        await decoder.removeThumbnail(entry.path).catch(() => undefined);
-        if (!deleteFiles) {
-          // Parked, not left in place, so that the next resynchronization doesn't add it back.
-          try {
-            await parkComic(entry.path, settingsRepo.getAll().libraryOrganizationFolder);
-          } catch {
-            result.filesFailed++;
-          }
-          continue;
-        }
-        // To the trash, so a wrong choice can still be undone; the cover and the .nfo beside the comic go along.
-        try {
-          await shell.trashItem(entry.path);
-          result.filesDeleted++;
-          await trashSidecars(entry.path, (sidecar) => shell.trashItem(sidecar));
-        } catch {
-          result.filesFailed++;
-        }
-      }
-      if (removed.length > 0) {
-        notify({ scope: 'library', removed });
-        notify({ scope: 'readingLists' });
-      }
-      return result;
-    },
+    (event, ids, deleteFiles) => remover.removeMany(ids, deleteFiles, scanProgressTo(event)),
   );
 
   handle(LIBRARY_CHANNELS.updateProgress, args(idArg, pageIndexArg), (_event, id, currentPage) => {

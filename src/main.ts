@@ -1,4 +1,4 @@
-import { app, BrowserWindow, session } from 'electron';
+import { app, BrowserWindow, session, shell } from 'electron';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Worker } from 'node:worker_threads';
@@ -49,6 +49,7 @@ import { createDeflate64Converter } from './main/services/deflate64-conversion';
 import { createFolderCleaner } from './main/services/folder-cleanup';
 import { createLibraryCleaner } from './main/services/library-cleanup';
 import { createLibraryOrganizer, createResynchronizer } from './main/services/library-organization';
+import { createLibraryRemover } from './main/services/library-removal';
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
 if (started) {
@@ -209,6 +210,9 @@ app.whenReady().then(() => {
     converter: cbrConverter,
     deflate64: createDeflate64Converter(libraryRepo, decoder, broadcastDataChange, organizer.lock),
     folderCleaner: createFolderCleaner(settingsRepo, organizer.lock),
+    remover: createLibraryRemover(libraryRepo, settingsRepo, decoder, broadcastDataChange, organizer.lock, {
+      trash: (filePath) => shell.trashItem(filePath),
+    }),
     activeUser,
     startupOrganization,
   });

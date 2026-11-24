@@ -2,10 +2,10 @@ import { mkdir, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { applyLanguage } from '../../shared/i18n';
-import { DELETED_BY_TANKOBON_FOLDER } from '../../shared/library';
+import { DELETED_BY_TANKOBON_FOLDER, type ScanProgress } from '../../shared/library';
 import { migrate } from '../db/schema';
 import { SettingsRepository } from '../db/settings-repository';
 import { createFolderCleaner, findOrphanFolders } from './folder-cleanup';
@@ -63,7 +63,7 @@ describe('folder cleanup', () => {
     await file(`${DELETED_BY_TANKOBON_FOLDER}/Dead/older.nfo`);
     const cleaner = createFolderCleaner(settings, createLibraryRunLock());
     expect(await cleaner.count()).toMatchObject({ status: 'ok', count: 1 });
-    expect(await cleaner.clean()).toEqual({ status: 'ok', moved: 1, failed: 0 });
+    expect(await cleaner.clean()).toEqual({ status: 'ok', moved: 1, failed: 0, cancelled: false });
     expect((await readdir(root)).sort()).toEqual([DELETED_BY_TANKOBON_FOLDER, 'Alive']);
     expect((await readdir(join(root, DELETED_BY_TANKOBON_FOLDER))).sort()).toEqual(['Dead', 'Dead (2)']);
     expect(await cleaner.count()).toMatchObject({ count: 0 });
@@ -77,5 +77,21 @@ describe('folder cleanup', () => {
     lock.end();
     settings.set('libraryOrganization', 'off');
     expect(await cleaner.count()).toMatchObject({ status: 'error' });
+  });
+
+  it('stops before the next folder when the run is cancelled', async () => {
+    await file('Dead/book.nfo');
+    await file('Gone/book.nfo');
+    const lock = createLibraryRunLock();
+    const cleaner = createFolderCleaner(settings, lock);
+
+    const onProgress = vi.fn((p: ScanProgress) => {
+      if (p.phase === 'importing' && p.processed === 0) expect(lock.cancel()).toBe(true);
+    });
+    expect(await cleaner.clean(onProgress)).toEqual({ status: 'ok', moved: 1, failed: 0, cancelled: true });
+    expect(await readdir(join(root, DELETED_BY_TANKOBON_FOLDER))).toHaveLength(1);
+    expect(await cleaner.count()).toMatchObject({ count: 1 });
+    expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ phase: 'done' }));
+    expect(lock.tryStart('folders')).not.toBeNull();
   });
 });

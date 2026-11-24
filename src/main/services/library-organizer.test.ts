@@ -117,7 +117,7 @@ describe('organizeEntries', () => {
 
     const to = summary.moved[0]?.to;
     expect(to).toBe(path.join(target, `Tome 1 (${id})`, 'Tome 1.cbz'));
-    expect(summary).toEqual({ moved: [{ id, from, to }], failed: 0 });
+    expect(summary).toEqual({ moved: [{ id, from, to }], failed: 0, cancelled: false });
     expect(await exists(to)).toBe(true);
     expect(await exists(from)).toBe(false);
     expect(repo.get(id)).toMatchObject({ path: to, tags: ['Lu'] });
@@ -163,7 +163,7 @@ describe('organizeEntries', () => {
     const id = repo.idOfPath(from)!;
 
     expect(unorganizedIds(repo, flat(target))).toEqual([]);
-    expect(await organizeEntries(repo, flat(target), [id])).toEqual({ moved: [], failed: 1 });
+    expect(await organizeEntries(repo, flat(target), [id])).toEqual({ moved: [], failed: 1, cancelled: false });
     expect(await exists(from)).toBe(true);
   });
 
@@ -174,7 +174,7 @@ describe('organizeEntries', () => {
     const gone = repo.idOfPath('/nowhere/gone.cbz')!;
 
     const first = await organizeEntries(repo, flat(target), [gone, 'unknown-id']);
-    expect(first).toEqual({ moved: [], failed: 1 });
+    expect(first).toEqual({ moved: [], failed: 1, cancelled: false });
     expect(repo.get(gone)?.path).toBe('/nowhere/gone.cbz');
   });
 
@@ -188,7 +188,7 @@ describe('organizeEntries', () => {
     await organizeEntries(repo, flat(target), [id]);
     const again = await organizeEntries(repo, flat(target), [id]);
 
-    expect(again).toEqual({ moved: [], failed: 0 });
+    expect(again).toEqual({ moved: [], failed: 0, cancelled: false });
     expect(repo.get(id)?.path).toBe(path.join(target, `a (${id})`, 'a.cbz'));
     expect(await exists(path.join(target, 'dropped'))).toBe(false);
   });

@@ -177,6 +177,7 @@ export default {
     convertDeflate64Failed_one: '{{count}} could not be converted; it was left as it was',
     convertDeflate64Failed_other: '{{count}} could not be converted; they were left as they were',
     emptyDeleted: 'Empty the .deletedByTankobon folder…',
+    emptyDeletedRunning: 'Deleting…',
     emptyDeletedHint: 'Deletes for good the CBR kept in the .deletedByTankobon folder after their conversion.',
     trashAutoEmpty: "Empty it automatically",
     trashRetentionDays: "Delete after (days)",

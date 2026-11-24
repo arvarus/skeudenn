@@ -50,7 +50,8 @@ export interface LibraryCleaner {
   apply(token: string, keptExtensions: string[], onProgress: (progress: ScanProgress) => void): Promise<CleanupResult>;
   /**
    * Stops the analysis or the rewrite in progress before its next book (the book being read or
-   * rewritten is finished); false when neither is running.
+   * rewritten is finished); false when neither is running. The rewrite holds the shared lock, so
+   * `LibraryRunLock.cancel()` stops it too; the analysis, which only reads, doesn't take the lock.
    */
   cancel(): boolean;
 }
@@ -187,10 +188,15 @@ export function createLibraryCleaner(
       const books = analyses.get(token);
       if (!books) return { status: 'error', message: t('errors:library.cleanupExpired') };
       if (running) return { status: 'error', message: t('errors:library.cleanupRunning') };
-      if (lock && !lock.tryStart('cleanup')) return { status: 'error', message: lock.busyMessage() };
+      const lockSignal = lock?.tryStart('cleanup');
+      if (lock && !lockSignal) return { status: 'error', message: lock.busyMessage() };
       analyses.delete(token);
       running = true;
-      const { signal } = (controller = new AbortController());
+      const own = (controller = new AbortController());
+      const { signal } = own;
+      // `lock.cancel()` (`library:cancel-run`) stops the rewrite as `cancel()` does.
+      const stop = () => own.abort();
+      lockSignal?.addEventListener('abort', stop, { once: true });
       try {
         const kept = new Set(keptExtensions);
         const result = { cleaned: 0, filesRemoved: 0, bytesFreed: 0, failed: 0 };
@@ -227,6 +233,7 @@ export function createLibraryCleaner(
       } finally {
         running = false;
         controller = null;
+        lockSignal?.removeEventListener('abort', stop);
         lock?.end();
       }
     },

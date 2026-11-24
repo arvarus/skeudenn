@@ -5,6 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { applyLanguage } from '../../shared/i18n';
+import type { ScanProgress } from '../../shared/library';
 import { LibraryRepository } from '../db/library-repository';
 import { migrate } from '../db/schema';
 import { createDeflate64Converter, type Deflate64Decoder } from './deflate64-conversion';
@@ -59,17 +60,17 @@ describe('createDeflate64Converter', () => {
     const file = await addBook('a-d64.cbz');
     await addBook('b.cbz');
     const { converter, decoder, notify, lock } = setup();
-    expect(await converter.convert()).toEqual({ status: 'ok', converted: 1, failed: 0 });
+    expect(await converter.convert()).toEqual({ status: 'ok', converted: 1, failed: 0, cancelled: false });
     expect(decoder.convertDeflate64).toHaveBeenCalledWith(file);
     expect(repo.get(repo.idOfPath(file)!)?.fileCount).toBe(7);
     expect(notify).toHaveBeenCalledWith({ scope: 'library' });
-    expect(lock.tryStart('convert')).toBe(true);
+    expect(lock.tryStart('convert')).not.toBeNull();
   });
 
   it('counts a failed rewrite and leaves the entry alone', async () => {
     const file = await addBook('a-d64.cbz');
     const { converter, notify } = setup([file]);
-    expect(await converter.convert()).toEqual({ status: 'ok', converted: 0, failed: 1 });
+    expect(await converter.convert()).toEqual({ status: 'ok', converted: 0, failed: 1, cancelled: false });
     expect(repo.get(repo.idOfPath(file)!)?.fileCount).toBe(4);
     expect(notify).not.toHaveBeenCalled();
   });
@@ -104,7 +105,7 @@ describe('createDeflate64Converter', () => {
     expect((await converter.count()).status).toBe('error');
     lock.end();
     await converter.count();
-    expect(lock.tryStart('convert')).toBe(true);
+    expect(lock.tryStart('convert')).not.toBeNull();
   });
 
   it('converts what the count found without checking the library again', async () => {
@@ -112,7 +113,7 @@ describe('createDeflate64Converter', () => {
     await addBook('b.cbz');
     const { converter, decoder } = setup();
     await converter.count();
-    expect(await converter.convert()).toEqual({ status: 'ok', converted: 1, failed: 0 });
+    expect(await converter.convert()).toEqual({ status: 'ok', converted: 1, failed: 0, cancelled: false });
     expect(decoder.hasDeflate64).toHaveBeenCalledTimes(2);
   });
 
@@ -121,7 +122,52 @@ describe('createDeflate64Converter', () => {
     const { converter, decoder } = setup();
     await converter.count();
     repo.remove(repo.idOfPath(file)!);
-    expect(await converter.convert()).toEqual({ status: 'ok', converted: 0, failed: 0 });
+    expect(await converter.convert()).toEqual({ status: 'ok', converted: 0, failed: 0, cancelled: false });
+    expect(decoder.convertDeflate64).not.toHaveBeenCalled();
+  });
+
+  it('gives no partial count when the check is cancelled, and checks the library again for the conversion', async () => {
+    await addBook('a-d64.cbz');
+    await addBook('b-d64.cbz');
+    const { converter, decoder, lock } = setup();
+
+    const onProgress = vi.fn((p: ScanProgress) => {
+      if (p.phase === 'importing' && p.processed === 0) expect(lock.cancel()).toBe(true);
+    });
+    expect(await converter.count(onProgress)).toEqual({ status: 'cancelled' });
+    expect(decoder.hasDeflate64).toHaveBeenCalledTimes(1);
+    expect(lock.tryStart('convert')).not.toBeNull();
+    lock.end();
+
+    expect(await converter.convert()).toEqual({ status: 'ok', converted: 2, failed: 0, cancelled: false });
+    expect(decoder.hasDeflate64).toHaveBeenCalledTimes(3);
+  });
+
+  it('stops a conversion before the next book when the run is cancelled', async () => {
+    await addBook('a-d64.cbz');
+    await addBook('b-d64.cbz');
+    const { converter, decoder, notify, lock } = setup();
+    await converter.count();
+
+    const onProgress = vi.fn((p: ScanProgress) => {
+      if (p.phase === 'importing' && p.processed === 0) expect(lock.cancel()).toBe(true);
+    });
+    expect(await converter.convert(onProgress)).toEqual({ status: 'ok', converted: 1, failed: 0, cancelled: true });
+    expect(decoder.convertDeflate64).toHaveBeenCalledTimes(1);
+    expect(notify).toHaveBeenCalledWith({ scope: 'library' });
+    expect(lock.cancel()).toBe(false);
+    expect(lock.tryStart('convert')).not.toBeNull();
+  });
+
+  it('stops a conversion that is still looking for the books', async () => {
+    await addBook('a-d64.cbz');
+    await addBook('b-d64.cbz');
+    const { converter, decoder, lock } = setup();
+
+    const onProgress = vi.fn((p: ScanProgress) => {
+      if (p.phase === 'importing' && p.processed === 0) lock.cancel();
+    });
+    expect(await converter.convert(onProgress)).toEqual({ status: 'ok', converted: 0, failed: 0, cancelled: true });
     expect(decoder.convertDeflate64).not.toHaveBeenCalled();
   });
 });

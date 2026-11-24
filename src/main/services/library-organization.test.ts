@@ -49,13 +49,30 @@ async function exists(filePath: string): Promise<boolean> {
 describe('createLibraryRunLock', () => {
   it('lets one run at a time and says which one holds it', () => {
     const lock = createLibraryRunLock();
-    expect(lock.tryStart('resync')).toBe(true);
-    expect(lock.tryStart('organize')).toBe(false);
+    expect(lock.tryStart('resync')).not.toBeNull();
+    expect(lock.tryStart('organize')).toBeNull();
     expect(lock.busyMessage()).toBe(createBusyMessage('resync'));
 
     lock.end();
-    expect(lock.tryStart('organize')).toBe(true);
+    expect(lock.tryStart('organize')).not.toBeNull();
     expect(lock.busyMessage()).not.toBe(createBusyMessage('resync'));
+  });
+
+  it('gives each run its own signal, aborted once by cancel()', () => {
+    const lock = createLibraryRunLock();
+    expect(lock.cancel()).toBe(false);
+
+    const first = lock.tryStart('convert')!;
+    expect(first.aborted).toBe(false);
+    expect(lock.cancel()).toBe(true);
+    expect(first.aborted).toBe(true);
+    expect(lock.cancel()).toBe(false);
+
+    lock.end();
+    expect(lock.cancel()).toBe(false);
+    const second = lock.tryStart('remove')!;
+    expect(second.aborted).toBe(false);
+    expect(lock.busyMessage()).not.toBe(createBusyMessage('convert'));
   });
 });
 
@@ -172,7 +189,7 @@ describe('library organization and resynchronization', () => {
       const added = register(path.join(source, 'a.cbz'));
       const { pending } = await organizer.afterAdd([added]);
 
-      expect(await organizer.organize(pending!.token)).toEqual({ status: 'ok', moved: 1, failed: 0 });
+      expect(await organizer.organize(pending!.token)).toEqual({ status: 'ok', moved: 1, failed: 0, cancelled: false });
       expect(repo.get(added.id)?.path).toBe(path.join(root, `a (${added.id})`, 'a.cbz'));
       expect((await organizer.organize(pending!.token)).status).toBe('error');
     });
@@ -224,9 +241,30 @@ describe('library organization and resynchronization', () => {
 
       expect(await organizer.countUnorganized()).toEqual({ status: 'ok', count: 2, folder: root });
       const progress = vi.fn();
-      expect(await organizer.organizeAll(progress)).toEqual({ status: 'ok', moved: 2, failed: 0 });
+      expect(await organizer.organizeAll(progress)).toEqual({ status: 'ok', moved: 2, failed: 0, cancelled: false });
       expect(progress).toHaveBeenLastCalledWith(expect.objectContaining({ phase: 'done' }));
       expect(await organizer.countUnorganized()).toMatchObject({ count: 0 });
+    });
+
+    it('stops before the next comic when the run is cancelled, keeping and announcing the moves done', async () => {
+      const source = await folderWith(['a.cbz', 'b.cbz', 'c.cbz']);
+      const root = await folderWith([]);
+      configure('ask', root);
+      const entries = ['a.cbz', 'b.cbz', 'c.cbz'].map((name) => register(path.join(source, name)));
+
+      expect(organizer.lock.cancel()).toBe(false);
+      // Asked while the first comic is handled: that one is finished, the others stay where they are.
+      const progress = vi.fn((p: ScanProgress) => {
+        if (p.phase === 'importing' && p.processed === 0) expect(organizer.lock.cancel()).toBe(true);
+      });
+      expect(await organizer.organizeAll(progress)).toEqual({ status: 'ok', moved: 1, failed: 0, cancelled: true });
+      expect(entries.filter((entry) => repo.get(entry.id)?.path !== entry.path)).toHaveLength(1);
+      expect(notify).toHaveBeenCalledWith({ scope: 'library' });
+      expect(progress).toHaveBeenLastCalledWith(expect.objectContaining({ phase: 'done' }));
+      expect(await organizer.countUnorganized()).toMatchObject({ count: 2 });
+      // The lock is free again, and the next run is not stopped by the old request.
+      expect(organizer.lock.cancel()).toBe(false);
+      expect(await organizer.organizeAll()).toEqual({ status: 'ok', moved: 2, failed: 0, cancelled: false });
     });
 
     it('refuses an offer while another run holds the lock, and keeps it for later', async () => {
@@ -236,23 +274,23 @@ describe('library organization and resynchronization', () => {
       const outcome = await organizer.afterAdd([register(path.join(source, 'a.cbz'))]);
       const token = outcome.pending!.token;
 
-      expect(organizer.lock.tryStart('add')).toBe(true);
+      expect(organizer.lock.tryStart('add')).not.toBeNull();
       expect((await organizer.organize(token)).status).toBe('error');
       organizer.lock.end();
 
-      expect(await organizer.organize(token)).toEqual({ status: 'ok', moved: 1, failed: 0 });
-      expect(organizer.lock.tryStart('add')).toBe(true);
+      expect(await organizer.organize(token)).toEqual({ status: 'ok', moved: 1, failed: 0, cancelled: false });
+      expect(organizer.lock.tryStart('add')).not.toBeNull();
     });
 
     it('refuse to start while a resynchronization holds the lock, and release it afterwards', async () => {
       configure('ask', await folderWith([]));
-      expect(organizer.lock.tryStart('resync')).toBe(true);
+      expect(organizer.lock.tryStart('resync')).not.toBeNull();
       const refused = await organizer.organizeAll();
       expect(refused.status).toBe('error');
 
       organizer.lock.end();
       expect((await organizer.organizeAll()).status).toBe('ok');
-      expect(organizer.lock.tryStart('resync')).toBe(true);
+      expect(organizer.lock.tryStart('resync')).not.toBeNull();
     });
   });
 
@@ -359,7 +397,7 @@ describe('library organization and resynchronization', () => {
       expect(notify).toHaveBeenCalledWith({ scope: 'library' });
       // Nothing left to stop, and the next run is free to start and complete.
       expect(resync.cancel()).toBe(false);
-      expect(organizer.lock.tryStart('add')).toBe(true);
+      expect(organizer.lock.tryStart('add')).not.toBeNull();
       organizer.lock.end();
     });
 
@@ -417,7 +455,7 @@ describe('library organization and resynchronization', () => {
 
       organizer.lock.end();
       expect((await resynchronizer().run()).status).toBe('ok');
-      expect(organizer.lock.tryStart('organize')).toBe(true);
+      expect(organizer.lock.tryStart('organize')).not.toBeNull();
     });
 
     it('hands the comics it added to the organizer, which moves them with "always"', async () => {

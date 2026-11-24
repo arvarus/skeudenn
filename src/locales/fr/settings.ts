@@ -179,6 +179,7 @@ const settings: Translation<typeof en> = {
     convertDeflate64Failed_one: '{{count}} n’a pas pu être converti ; il est resté tel quel',
     convertDeflate64Failed_other: '{{count}} n’ont pas pu être convertis ; ils sont restés tels quels',
     emptyDeleted: 'Vider le dossier .deletedByTankobon…',
+    emptyDeletedRunning: 'Suppression…',
     emptyDeletedHint: 'Supprime définitivement les CBR conservés dans le dossier .deletedByTankobon après leur conversion.',
     trashAutoEmpty: "Vider automatiquement",
     trashRetentionDays: "Supprimer après (jours)",

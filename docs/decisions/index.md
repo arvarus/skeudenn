@@ -33,6 +33,7 @@ An ADR records one structural decision: the context, what was decided, and what 
 | [0026](./0026-bedetheque-series-search.md) | Bédéthèque: finding the album from the series name | Accepted |
 | [0027](./0027-cheaper-library-reloads.md) | Cheaper library reloads: deltas and projections before SQL search | Proposed |
 | [0028](./0028-separate-background-decoder-process.md) | A second decoder process for background work, the reader keeps its own | Proposed |
+| [0030](./0030-stopping-library-runs-through-the-lock.md) | Stopping every run over the library files through the run lock | Accepted |
 
 These first four ADRs were written after the fact, from the code and its comments, then checked by the maintainer.
 

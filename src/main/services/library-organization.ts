@@ -42,18 +42,27 @@ export interface LibraryDecoder {
 export type LibraryNotifier = (change: DataChange) => void;
 
 /** What can hold the {@link LibraryRunLock}. */
-export type LibraryRun = 'resync' | 'organize' | 'add' | 'cleanup' | 'convert' | 'folders';
+export type LibraryRun = 'resync' | 'organize' | 'add' | 'cleanup' | 'convert' | 'folders' | 'remove';
 
 /**
  * Lets one long run over the library files at a time (a resynchronization, adding a file or a folder,
- * organizing, cleaning the books): moving or rewriting files while a walk registers them could register
- * a file twice, or recreate one that just moved.
+ * organizing, cleaning or converting the books, removing a selection): moving or rewriting files while a
+ * walk registers them could register a file twice, or recreate one that just moved.
+ *
+ * It is also how a run is stopped: each run gets its own `AbortSignal` from {@link LibraryRunLock.tryStart}
+ * and checks it between two items (a book, a folder), never inside one, so a move, rewrite or conversion
+ * always finishes; {@link LibraryRunLock.cancel} aborts it, whichever run holds the lock.
  */
 export interface LibraryRunLock {
-  /** Takes the lock for `run`; false when another run holds it. */
-  tryStart(run: LibraryRun): boolean;
-  /** Releases the lock. */
+  /**
+   * Takes the lock for `run` and returns the signal that {@link cancel} aborts, which the run checks between
+   * two items; null when another run holds the lock.
+   */
+  tryStart(run: LibraryRun): AbortSignal | null;
+  /** Releases the lock (and forgets the run's signal). */
   end(): void;
+  /** Asks the run holding the lock to stop before its next item; false when no run holds it or it was already asked. */
+  cancel(): boolean;
   /** The translated refusal for a run that couldn't start. */
   busyMessage(): string;
 }
@@ -61,19 +70,28 @@ export interface LibraryRunLock {
 /** A free {@link LibraryRunLock}; one is shared by the organizer and the resynchronizer. */
 export function createLibraryRunLock(): LibraryRunLock {
   let holder: LibraryRun | null = null;
+  let controller: AbortController | null = null;
   return {
     tryStart(run) {
-      if (holder) return false;
+      if (holder) return null;
       holder = run;
-      return true;
+      controller = new AbortController();
+      return controller.signal;
     },
     end() {
       holder = null;
+      controller = null;
+    },
+    cancel() {
+      if (!controller || controller.signal.aborted) return false;
+      controller.abort();
+      return true;
     },
     busyMessage() {
       if (holder === 'resync') return t('errors:library.resyncRunning');
       if (holder === 'folders') return t('errors:library.foldersRunning');
       if (holder === 'convert') return t('errors:library.convertRunning');
+      if (holder === 'remove') return t('errors:library.removeRunning');
       return holder === 'cleanup' ? t('errors:library.cleanupRunning') : t('errors:library.organizeRunning');
     },
   };
@@ -91,13 +109,14 @@ export interface LibraryOrganizer {
    * moves those to move now and keeps the others behind a token for `organize()`.
    */
   afterAdd(added: { id: string; path: string }[]): Promise<OrganizationOutcome>;
-  /** Moves the comics an earlier `afterAdd()` offered, as the user accepted. A token works once. */
+  /** Moves the comics an earlier `afterAdd()` offered, as the user accepted. A token works once. Holds the `lock`, which can stop it like `organizeAll()`. */
   organize(token: string): Promise<OrganizeResult>;
   /** How many library comics aren't in their place in the organized folder yet (an error when the organization is off or its folder unreachable). */
   countUnorganized(): Promise<UnorganizedCountResult>;
   /**
    * Moves every library comic not in its place yet into the organized folder, one at a time,
-   * reporting each through `onProgress`. Holds the `lock`, like a resynchronization.
+   * reporting each through `onProgress`. Holds the `lock`, like a resynchronization; `lock.cancel()`
+   * stops it before its next comic, with `cancelled` set (the comics moved stay moved and are announced).
    */
   organizeAll(onProgress?: (progress: ScanProgress) => void): Promise<OrganizeResult>;
   /** The lock shared with the resynchronizer. */
@@ -149,14 +168,15 @@ export function createLibraryOrganizer(
     target: OrganizationTarget,
     ids: string[],
     onProgress?: (processed: number, total: number, file: string) => void,
+    signal?: AbortSignal,
   ) => {
-    const summary = await organizeEntries(repo, target, ids, onProgress);
+    const summary = await organizeEntries(repo, target, ids, onProgress, signal);
     if (summary.moved.length > 0) {
       notify({ scope: 'library' });
       // Covers are cached by path: the old ones are useless, the new ones come back on demand.
       await Promise.all(summary.moved.map((entry) => decoder.removeThumbnail(entry.from).catch(() => undefined)));
     }
-    return { moved: summary.moved.length, failed: summary.failed };
+    return { moved: summary.moved.length, failed: summary.failed, cancelled: summary.cancelled };
   };
 
   return {
@@ -173,6 +193,7 @@ export function createLibraryOrganizer(
         // An unplugged drive: nothing moves, and offering would only fail again.
         return { moved: 0, failed: plan.now.length + plan.offer.length, pending: null };
       }
+      // Part of an addition or a resynchronization, which decided before this point whether to go on: not stopped here.
       const { moved, failed } = await move({ root, structure, fileName, articles }, plan.now);
       if (plan.offer.length === 0) return { moved, failed, pending: null };
 
@@ -191,10 +212,11 @@ export function createLibraryOrganizer(
       const usable = await usableRoot();
       if (!('target' in usable)) return usable;
       // The offer is kept when another run holds the lock: the user can accept it again.
-      if (!lock.tryStart('organize')) return { status: 'error', message: lock.busyMessage() };
+      const signal = lock.tryStart('organize');
+      if (!signal) return { status: 'error', message: lock.busyMessage() };
       try {
         offers.delete(token);
-        return { status: 'ok', ...(await move(usable.target, ids)) };
+        return { status: 'ok', ...(await move(usable.target, ids, undefined, signal)) };
       } finally {
         lock.end();
       }
@@ -209,11 +231,15 @@ export function createLibraryOrganizer(
     async organizeAll(onProgress = () => undefined) {
       const usable = await usableRoot();
       if (!('target' in usable)) return usable;
-      if (!lock.tryStart('organize')) return { status: 'error', message: lock.busyMessage() };
+      const signal = lock.tryStart('organize');
+      if (!signal) return { status: 'error', message: lock.busyMessage() };
       try {
         const ids = unorganizedIds(repo, usable.target);
-        const result = await move(usable.target, ids, (processed, total, currentFile) =>
-          onProgress({ phase: 'importing', processed, total, currentFile }),
+        const result = await move(
+          usable.target,
+          ids,
+          (processed, total, currentFile) => onProgress({ phase: 'importing', processed, total, currentFile }),
+          signal,
         );
         return { status: 'ok', ...result };
       } finally {
@@ -235,8 +261,8 @@ export interface Resynchronizer {
    */
   run(onProgress?: (progress: ScanProgress) => void): Promise<ResyncResult>;
   /**
-   * Stops the run in progress between two files; it then resolves with `cancelled`, keeping what it
-   * did. False when no resynchronization is running.
+   * Stops the run in progress between two files (through the shared lock, see `LibraryRunLock.cancel()`);
+   * it then resolves with `cancelled`, keeping what it did. False when no resynchronization is running.
    */
   cancel(): boolean;
   /**
@@ -258,15 +284,15 @@ export function createResynchronizer(
   // Who the run is for: the date and the organization are the user's who started it, not whoever is active at the end.
   activeUser: () => string = () => '',
 ): Resynchronizer {
-  // The run in progress, to stop it; null between runs.
-  let running: AbortController | null = null;
+  // Whether a resynchronization holds the lock, so that `cancel()` stops only a resynchronization.
+  let running = false;
   let latest: ScanProgress | null = null;
   return {
     async run(onProgress = () => undefined) {
-      if (!organizer.lock.tryStart('resync')) return { status: 'error', message: organizer.lock.busyMessage() };
+      const signal = organizer.lock.tryStart('resync');
+      if (!signal) return { status: 'error', message: organizer.lock.busyMessage() };
       const startedBy = activeUser();
-      const controller = new AbortController();
-      running = controller;
+      running = true;
       const report = (progress: ScanProgress) => {
         latest = progress.phase === 'done' ? null : progress;
         onProgress(progress);
@@ -285,7 +311,7 @@ export function createResynchronizer(
             !(await isOnlineOnly(filePath)) &&
             (await decoder.thumbnail(filePath)) !== null,
           settings.getAll().libraryWriteNfo,
-          controller.signal,
+          signal,
         );
         // The user switched meanwhile: the organized folder and the date are now another user's settings.
         // A stopped run is not a resynchronization: no date, and nothing moved after the user asked to stop.
@@ -319,7 +345,7 @@ export function createResynchronizer(
       } catch (error) {
         return { status: 'error', message: error instanceof Error ? error.message : String(error) };
       } finally {
-        running = null;
+        running = false;
         latest = null;
         organizer.lock.end();
       }
@@ -330,9 +356,8 @@ export function createResynchronizer(
     },
 
     cancel() {
-      if (!running || running.signal.aborted) return false;
-      running.abort();
-      return true;
+      // Stopped through the lock, like every other run: `library:cancel-run` reaches it too.
+      return running && organizer.lock.cancel();
     },
   };
 }

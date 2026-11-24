@@ -166,6 +166,13 @@ function LibraryPage() {
         entries.map((entry) => entry.id),
         checked,
       );
+      // Refused while another run (a folder scan…) holds the lock: its bar stays.
+      if (result.status === 'error') {
+        setScanStatus(result.message);
+        return;
+      }
+      // Its progress went over the scan channel: the bar is for a folder scan, not a removal.
+      setScan(null);
       clearSelection();
       setScanStatus(
         result.filesFailed > 0

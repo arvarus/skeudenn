@@ -193,7 +193,7 @@ describe('createLibraryCleaner', () => {
     await cleaner.apply(analysis.token, [], noProgress);
     expect(decoder.cleanArchive).toHaveBeenCalled();
     // Released after the run.
-    expect(lock.tryStart('add')).toBe(true);
+    expect(lock.tryStart('add')).not.toBeNull();
     await rm(dir, { recursive: true, force: true });
   });
 
@@ -293,9 +293,40 @@ describe('createLibraryCleaner', () => {
       expect(notify).toHaveBeenCalledWith({ scope: 'library', upserted: [expect.objectContaining({ path: cleanedPath })] });
       expect(cleaner.cancel()).toBe(false);
       // The library lock is released, and the plan was used up.
-      expect(lock.tryStart('add')).toBe(true);
+      expect(lock.tryStart('add')).not.toBeNull();
       lock.end();
       expect(await cleaner.apply(analysis.token, [], noProgress)).toMatchObject({ status: 'error' });
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('stops a rewrite through the shared lock (library:cancel-run) like through cancel()', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'tankobon-cleanup-stop-lock-'));
+    try {
+      const repo = repository();
+      const files = ['1.cbz', '2.cbz'].map((name) => join(dir, name));
+      for (const file of files) {
+        await writeFile(file, 'x');
+        repo.register(file, file, 10, 5, 100);
+      }
+      const lock = createLibraryRunLock();
+      const decoder: CleanupDecoder = {
+        listJunk: vi.fn(async () => [{ name: 'Thumbs.db', size: 10 }]),
+        cleanArchive: vi.fn(async () => {
+          expect(lock.cancel()).toBe(true);
+          return { fileCount: 4 };
+        }),
+      };
+      const cleaner = createLibraryCleaner(repo, decoder, vi.fn(), lock);
+      const analysis = await cleaner.analyze([], noProgress);
+      if (analysis.status !== 'ok') throw new Error('analysis failed');
+
+      expect(await cleaner.apply(analysis.token, [], noProgress)).toMatchObject({ status: 'ok', cleaned: 1, cancelled: true });
+      expect(decoder.cleanArchive).toHaveBeenCalledTimes(1);
+      expect(cleaner.cancel()).toBe(false);
+      expect(lock.cancel()).toBe(false);
+      expect(lock.tryStart('add')).not.toBeNull();
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
