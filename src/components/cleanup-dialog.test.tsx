@@ -1,41 +1,45 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { StrictMode } from 'react';
-import { I18nextProvider } from 'react-i18next';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { act, cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
+import { StrictMode, type ReactElement } from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { applyLanguage, i18n } from '@/shared/i18n';
 import type { ScanProgress } from '@/shared/library';
-import { renderWithTankobon } from '@/test/tankobon';
+import { renderWithTankobon, type FakeTankobon } from '@/test/tankobon';
 import { CleanupDialog } from './cleanup-dialog';
 
-beforeAll(() => applyLanguage('fr'));
 afterEach(cleanup);
 
-describe('CleanupDialog', () => {
-  // StrictMode runs the mount effect twice in development; the main process refuses a second analysis while
-  // the first one runs, so asking twice showed "a cleanup is already running" on a dialog that had just opened.
-  it('asks for the analysis once, even when the effect runs twice, and shows its result', async () => {
-    let calls = 0;
-    const analyzeCleanup = vi.fn(async () => {
-      calls += 1;
-      if (calls > 1) return { status: 'error' as const, message: 'Un nettoyage est déjà en cours.' };
-      return { status: 'ok' as const, token: 't', groups: [], scanned: 3, booksWithJunk: 0, skipped: 0, failed: 0, failures: [] };
-    });
-    Object.assign(window, { tankobon: { library: { analyzeCleanup, onScanProgress: () => () => undefined } } });
+/** Opens the dialog and starts its analysis. */
+function analyze(ui: ReactElement, fake: FakeTankobon) {
+  renderWithTankobon(ui, fake);
+  fireEvent.click(screen.getByRole('button', { name: 'Analyser' }));
+}
 
-    render(
+describe('CleanupDialog', () => {
+  it('describes the cleaning and only analyzes when "Analyser" is pressed, once', async () => {
+    const analyzeCleanup = vi.fn(async () => ({
+      status: 'ok' as const,
+      token: 't',
+      groups: [],
+      scanned: 3,
+      booksWithJunk: 0,
+      skipped: 0,
+      failed: 0,
+      failures: [],
+    }));
+    renderWithTankobon(
       <StrictMode>
-        <I18nextProvider i18n={i18n}>
-          <CleanupDialog ids={[]} onClose={vi.fn()} />
-        </I18nextProvider>
+        <CleanupDialog ids={[]} onClose={vi.fn()} />
       </StrictMode>,
+      { library: { analyzeCleanup } },
     );
 
-    await waitFor(() => expect(screen.queryByText(/déjà en cours/)).toBeNull());
-    await waitFor(() => expect(screen.queryByText(/Analyse des archives/)).toBeNull());
+    expect(screen.getByText(/ne sont pas des images/)).toBeTruthy();
+    expect(analyzeCleanup).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Analyser' }));
+    expect(await screen.findByText(/Rien à nettoyer/)).toBeTruthy();
     expect(analyzeCleanup).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText(/déjà en cours/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Analyser' })).toBeNull();
   });
 });
 
@@ -52,21 +56,21 @@ describe('CleanupDialog failures', () => {
   };
 
   it('says so when the analysis call fails', async () => {
-    renderWithTankobon(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
+    analyze(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
       library: { analyzeCleanup: vi.fn(async () => Promise.reject(new Error('refused'))) },
     });
     expect(await screen.findByText('Le nettoyage a échoué.')).toBeTruthy();
   });
 
   it('shows the message of an analysis the main process refused', async () => {
-    renderWithTankobon(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
+    analyze(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
       library: { analyzeCleanup: vi.fn(async () => ({ status: 'error' as const, message: 'Un nettoyage est déjà en cours.' })) },
     });
     expect(await screen.findByText('Un nettoyage est déjà en cours.')).toBeTruthy();
   });
 
   it('stays on the choice, usable again, when the cleaning call fails', async () => {
-    renderWithTankobon(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
+    analyze(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
       library: {
         analyzeCleanup: vi.fn(async () => analysis),
         applyCleanup: vi.fn(async () => Promise.reject(new Error('refused'))),
@@ -79,7 +83,7 @@ describe('CleanupDialog failures', () => {
 
   it('reports the books that could not be rewritten and unfolds them with the reason', async () => {
     const failures = [{ path: '/lib/bad.cbz', reason: 'Unknown compression method: 9' }];
-    renderWithTankobon(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
+    analyze(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
       library: {
         analyzeCleanup: vi.fn(async () => analysis),
         applyCleanup: vi.fn(async () => ({ status: 'ok' as const, cleaned: 0, filesRemoved: 0, bytesFreed: 0, failed: 1, failures, cancelled: false })),
@@ -95,7 +99,7 @@ describe('CleanupDialog failures', () => {
 
   it('lists the books the analysis could not read', async () => {
     const failures = [{ path: '/lib/broken.cbz', reason: 'Bad archive' }];
-    renderWithTankobon(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
+    analyze(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
       library: { analyzeCleanup: vi.fn(async () => ({ ...analysis, groups: [], booksWithJunk: 0, failed: 1, failures })) },
     });
     fireEvent.click(await screen.findByRole('button', { name: /Afficher le détail/ }));
@@ -104,7 +108,7 @@ describe('CleanupDialog failures', () => {
   });
 
   it('unfolds the books and files of a kind', async () => {
-    renderWithTankobon(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
+    analyze(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
       library: { analyzeCleanup: vi.fn(async () => analysis) },
     });
     expect(screen.queryByText('book.cbz')).toBeNull();
@@ -133,20 +137,23 @@ describe('CleanupDialog stop', () => {
     return { promise, resolve };
   }
 
-  it('stops the analysis and closes, offering no partial plan', async () => {
+  it('stops the analysis and reports that nothing was changed, offering no partial plan', async () => {
     const pending = deferred<{ status: 'cancelled' }>();
     const cancelCleanup = vi.fn(async () => {
       pending.resolve({ status: 'cancelled' });
       return true;
     });
     const onClose = vi.fn();
-    renderWithTankobon(<CleanupDialog ids={[]} onClose={onClose} />, {
+    analyze(<CleanupDialog ids={[]} onClose={onClose} />, {
       library: { analyzeCleanup: vi.fn(() => pending.promise), cancelCleanup },
     });
     fireEvent.click(await screen.findByRole('button', { name: /Arrêter/ }));
-    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(await screen.findByText(/Arrêté avant la fin/)).toBeTruthy();
+    expect(screen.getByText(/Rien n’a été modifié/)).toBeTruthy();
     expect(cancelCleanup).toHaveBeenCalledTimes(1);
+    expect(onClose).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: /Supprimer/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Analyser' })).toBeNull();
   });
 
   it('stops the rewrite and shows what was done until then', async () => {
@@ -163,7 +170,7 @@ describe('CleanupDialog stop', () => {
       pending.resolve({ status: 'ok', cleaned: 1, filesRemoved: 2, bytesFreed: 20, failed: 0, failures: [], cancelled: true });
       return true;
     });
-    renderWithTankobon(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
+    analyze(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
       library: { analyzeCleanup: vi.fn(async () => analysis), applyCleanup: vi.fn(() => pending.promise), cancelCleanup },
     });
     expect(screen.queryByRole('button', { name: /Arrêter/ })).toBeTruthy();
@@ -204,7 +211,7 @@ describe('CleanupDialog progress', () => {
 
   it('shows the count and the name of the archive being analyzed, then drops it when the analysis ends', async () => {
     const run = harness<typeof analysis>();
-    renderWithTankobon(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
+    analyze(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
       library: { analyzeCleanup: vi.fn(() => run.promise), onScanProgress: run.onScanProgress },
     });
     await waitFor(() => expect(run.onScanProgress).toHaveBeenCalled());
@@ -226,7 +233,7 @@ describe('CleanupDialog progress', () => {
 
   it("ignores a resynchronization's progress", async () => {
     const run = harness<typeof analysis>();
-    renderWithTankobon(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
+    analyze(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
       library: { analyzeCleanup: vi.fn(() => run.promise), onScanProgress: run.onScanProgress },
     });
     await waitFor(() => expect(run.onScanProgress).toHaveBeenCalled());
@@ -244,7 +251,7 @@ describe('CleanupDialog progress', () => {
 
   it('shows the progress of the rewrite too', async () => {
     const run = harness<{ status: 'ok'; cleaned: number; filesRemoved: number; bytesFreed: number; failed: number; failures: never[]; cancelled: boolean }>();
-    renderWithTankobon(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
+    analyze(<CleanupDialog ids={[]} onClose={vi.fn()} />, {
       library: { analyzeCleanup: vi.fn(async () => analysis), applyCleanup: vi.fn(() => run.promise), onScanProgress: run.onScanProgress },
     });
     fireEvent.click(await screen.findByRole('button', { name: /Supprimer 2 fichiers/ }));
