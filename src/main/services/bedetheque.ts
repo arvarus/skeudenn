@@ -8,6 +8,7 @@ import { t } from '../../shared/i18n';
 import type { CreditInput, CreditRole } from '../../shared/library';
 import { isBedethequeAlbumUrl, type MetadataCandidate, type MetadataQuery } from '../../shared/metadata';
 import { splitPersonName } from '../../shared/title-parsing';
+import { firstBetween, firstSequence, scanSequences, stripTags } from './html-scan';
 import { getHtml, getJson, type HttpOptions } from './http-json';
 import { lookupLog } from './lookup-log';
 import { createPromiseCache } from './promise-cache';
@@ -40,7 +41,22 @@ function decodeEntities(text: string): string {
 
 /** The text of an HTML fragment: tags dropped, entities decoded, whitespace collapsed. */
 function textOf(html: string): string {
-  return decodeEntities(html.replace(/<[^>]*>/g, '')).replace(/\s+/g, ' ').trim();
+  return decodeEntities(stripTags(html)).replace(/\s+/g, ' ').trim();
+}
+
+// The page is read in linear time (see `html-scan.ts`): an element's content is found in steps, and a
+// tag's attributes exclude `<` so that an attempt from an unclosed `<` stops at the next one.
+
+/** A link whose quoted attribute values are skipped as a whole: a placeholder's `title` holds a raw "<N&B>". */
+const LINK_OPEN = /<a\b(?:"[^"]*"|[^"<>])*>/i;
+/** Any link, its attributes captured. */
+const LINK_TAG = /<a\b([^<>]*)>/i;
+/** An `<article>` opening tag, its attributes captured. */
+const ARTICLE_OPEN = /<article\b([^<>]*)>/i;
+
+/** Whether an `<article>` opening tag is the detail of an edition (class `bdt-edition--detail`). */
+function isEditionDetail(opening: RegExpExecArray): boolean {
+  return /\bbdt-edition--detail\b/i.test(opening[1]);
 }
 
 /** The `content` of the first `<meta itemprop="…">` in `html`. */
@@ -55,7 +71,7 @@ function metaItemprop(html: string, prop: string): string | null {
  * it is only used when that day is spelled out.
  */
 function releaseDate(album: string): string | null {
-  const deposit = /<li title="Dépôt légal">([\s\S]*?)<\/li>/i.exec(album)?.[1];
+  const deposit = firstBetween(album, /<li title="Dépôt légal">/i, /<\/li>/i);
   if (!deposit) {
     return null;
   }
@@ -63,7 +79,7 @@ function releaseDate(album: string): string | null {
   if (published && /^\d{4}-\d{2}-\d{2}$/.test(published) && /\(\s*\d{1,2}(er)? \S+ \d{4}\s*\)/.test(textOf(deposit))) {
     return published;
   }
-  const shown = textOf(/<b>([\s\S]*?)<\/b>/i.exec(deposit)?.[1] ?? '');
+  const shown = textOf(firstBetween(deposit, /<b>/i, /<\/b>/i) ?? '');
   const monthYear = /^(\d{2})\/(\d{4})$/.exec(shown);
   if (monthYear) {
     return `${monthYear[2]}-${monthYear[1]}`;
@@ -76,13 +92,14 @@ function releaseDate(album: string): string | null {
  * people and are dropped; a person credited twice for the same role is kept once.
  */
 function credits(album: string): CreditInput[] {
-  const list = /<div class="[^"]*\bliste-auteurs\b[^"]*">([\s\S]*?)<\/div>/i.exec(album)?.[1] ?? '';
+  const list =
+    firstSequence(album, [/<div class="([^"]*)">/i, /<\/div>/i], (opening) => /\bliste-auteurs\b/i.test(opening[1]))
+      ?.gaps[0] ?? '';
   const result: CreditInput[] = [];
   const seen = new Set<string>();
-  // Attribute values are skipped as a whole: a placeholder's `title` holds a raw "<N&B>".
-  for (const match of list.matchAll(/<a\b(?:"[^"]*"|[^">])*>([\s\S]*?)<\/a>\s*<small>([\s\S]*?)<\/small>/gi)) {
-    const name = textOf(match[1]);
-    const role = ROLES[textOf(match[2]).replace(/[()]/g, '').trim().toLowerCase()];
+  for (const { gaps } of scanSequences(list, [LINK_OPEN, /<\/a>\s*<small>/i, /<\/small>/i])) {
+    const name = textOf(gaps[0]);
+    const role = ROLES[textOf(gaps[1]).replace(/[()]/g, '').trim().toLowerCase()];
     if (!role || !name || name.startsWith('<')) {
       continue;
     }
@@ -102,7 +119,7 @@ function credits(album: string): CreditInput[] {
  * the page has no album block.
  */
 export function parseBedethequeAlbum(html: string, url: string): MetadataCandidate {
-  const album = /<section class="bdt-ah">([\s\S]*?)<\/section>/i.exec(html)?.[1];
+  const album = firstBetween(html, /<section class="bdt-ah">/i, /<\/section>/i);
   if (!album) {
     const fromSeries = parseSeriesPageAlbum(html, url);
     if (fromSeries) {
@@ -111,10 +128,10 @@ export function parseBedethequeAlbum(html: string, url: string): MetadataCandida
     throw new Error(t('errors:metadata.notAlbumPage', { source: SOURCE }));
   }
 
-  const series = textOf(/<h1>([\s\S]*?)<\/h1>/i.exec(album)?.[1] ?? '') || null;
+  const series = textOf(firstBetween(album, /<h1>/i, /<\/h1>/i) ?? '') || null;
   // "6<span class="bdt-numa"></span>. Sibylline et les cravates noires": the number, an optional
   // letter ("12a"), then the title. A one-shot has no number.
-  const subtitle = textOf(/<h2 class="bdt-ah-sub">([\s\S]*?)<\/h2>/i.exec(album)?.[1] ?? '');
+  const subtitle = textOf(firstBetween(album, /<h2 class="bdt-ah-sub">/i, /<\/h2>/i) ?? '');
   const numbered = /^([^\s.]+)\s*\.\s*(.*)$/.exec(subtitle);
   const volume = numbered ? numbered[1] : null;
   // A one-shot has no subtitle: its title is the series' name.
@@ -141,21 +158,21 @@ export function parseBedethequeAlbum(html: string, url: string): MetadataCandida
  * such article. The language isn't spelled as a code there, so it is left out.
  */
 function parseSeriesPageAlbum(html: string, url: string): MetadataCandidate | null {
-  const article = /<article\b[^>]*\bbdt-edition--detail\b[^>]*>([\s\S]*?)<\/article>/i.exec(html)?.[1];
+  const article = firstSequence(html, [ARTICLE_OPEN, /<\/article>/i], isEditionDetail)?.gaps[0];
   if (!article) {
     return null;
   }
   const sheet = new Map<string, string[]>();
-  for (const field of article.matchAll(/<dt>([\s\S]*?)<\/dt>\s*<dd\b[^>]*>([\s\S]*?)<\/dd>/gi)) {
-    const label = textOf(field[1]).toLowerCase();
-    sheet.set(label, [...(sheet.get(label) ?? []), field[2]]);
+  for (const { gaps } of scanSequences(article, [/<dt>/i, /<\/dt>\s*<dd\b[^<>]*>/i, /<\/dd>/i])) {
+    const label = textOf(gaps[0]).toLowerCase();
+    sheet.set(label, [...(sheet.get(label) ?? []), gaps[1]]);
   }
   const result: CreditInput[] = [];
   const seen = new Set<string>();
   for (const [label, role] of Object.entries(ROLES)) {
     for (const value of sheet.get(label) ?? []) {
-      for (const person of value.matchAll(/<a\b(?:"[^"]*"|[^">])*>([\s\S]*?)<\/a>/gi)) {
-        const name = textOf(person[1]);
+      for (const { gaps } of scanSequences(value, [LINK_OPEN, /<\/a>/i])) {
+        const name = textOf(gaps[0]);
         const key = `${name}|${role}`.toLowerCase();
         if (name && !name.startsWith('<') && !seen.has(key)) {
           seen.add(key);
@@ -166,14 +183,16 @@ function parseSeriesPageAlbum(html: string, url: string): MetadataCandidate | nu
   }
   const deposit = textOf(sheet.get('dépôt légal')?.[0] ?? '');
   const monthYear = /^(\d{2})\/(\d{4})/.exec(deposit);
-  const title = textOf(/<span itemprop="name">([\s\S]*?)<\/span>\s*<\/a>/i.exec(article)?.[1] ?? '');
+  const title = textOf(firstBetween(article, /<span itemprop="name">/i, /<\/span>\s*<\/a>/i) ?? '');
   return {
     source: 'bedetheque',
     sourceId: /-(\d+)\.html$/i.exec(new URL(url).pathname)?.[1] ?? url,
     sourceUrl: url,
     coverUrl: /<img\s+itemprop="image"\s+src="([^"]+)"/i.exec(article)?.[1] ?? null,
     title: title || null,
-    series: textOf(/<section class="bdt-ah bdt-ah--serie">[\s\S]*?<h1>[\s\S]*?<a\b[^>]*>([\s\S]*?)<\/a>/i.exec(html)?.[1] ?? '') || null,
+    series:
+      textOf(firstSequence(html, [/<section class="bdt-ah bdt-ah--serie">/i, /<h1>/i, LINK_TAG, /<\/a>/i])?.gaps[2] ?? '') ||
+      null,
     volume: null,
     releaseDate: monthYear ? `${monthYear[2]}-${monthYear[1]}` : /^\d{4}$/.test(deposit) ? deposit : null,
     language: null,
@@ -261,17 +280,52 @@ export function parseSeriesSearch(body: unknown): BedethequeSeries[] {
   return series;
 }
 
-/** The leading articles the site moves to the end of a name in parentheses: `Cahiers d'Esther (Les)`. */
-const TRAILING_ARTICLE = /^(.*?)\s*\(\s*(le|la|les|l'|l’|un|une|des|the|el|los|las|il|lo|gli|der|die|das)\s*\)\s*$/i;
+/**
+ * The parenthesis a name ends with (spaces may follow it): the index of its first `(` (the first one
+ * after the previous `)`), of its last `(` and of its `)`; null when the name doesn't end with `)`
+ * or no `(` opens it. Found with plain searches: the names come from the site, and a pattern such as
+ * `\([^)]*\)\s*$` is quadratic on a name full of `(` or of spaces.
+ */
+function finalParenthesis(label: string): { first: number; last: number; close: number } | null {
+  const close = label.trimEnd().length - 1;
+  if (close < 1 || label[close] !== ')') {
+    return null;
+  }
+  const previous = label.lastIndexOf(')', close - 1);
+  const last = label.lastIndexOf('(', close);
+  if (last <= previous) {
+    return null;
+  }
+  return { first: label.indexOf('(', previous + 1), last, close };
+}
 
-/** A series name with such a trailing article put back in front: `Les Cahiers d'Esther`. */
+/** The leading articles the site moves to the end of a name in parentheses: `Cahiers d'Esther (Les)`. */
+const TRAILING_ARTICLE = /^\s*(le|la|les|l'|l’|un|une|des|the|el|los|las|il|lo|gli|der|die|das)\s*$/i;
+
+/**
+ * A series name with such a trailing article put back in front: `Les Cahiers d'Esther`. Only for a
+ * name on a single line (`.` matches no line break).
+ */
 function withLeadingArticle(label: string): string {
-  const match = TRAILING_ARTICLE.exec(label);
-  if (!match) {
+  const parenthesis = finalParenthesis(label);
+  const article = parenthesis && TRAILING_ARTICLE.exec(label.slice(parenthesis.last + 1, parenthesis.close))?.[1];
+  const name = parenthesis ? label.slice(0, parenthesis.last).trimEnd() : '';
+  if (!article || !/^.*$/.test(name)) {
     return label;
   }
-  const article = match[2];
-  return /['’]$/.test(article) ? `${article}${match[1]}` : `${article} ${match[1]}`;
+  return /['’]$/.test(article) ? `${article}${name}` : `${article} ${name}`;
+}
+
+/** Whether a name ends with a parenthesis naming a translation: `Blacksad (en allemand)`. */
+function isTranslationName(label: string): boolean {
+  const parenthesis = finalParenthesis(label);
+  return parenthesis !== null && /\(\s*en\s/i.test(label.slice(parenthesis.first, parenthesis.close));
+}
+
+/** A name without the parenthesis it ends with: `Tutti Frutti (Stakhano)` → `Tutti Frutti `. */
+function withoutFinalParenthesis(label: string): string {
+  const parenthesis = finalParenthesis(label);
+  return parenthesis ? label.slice(0, parenthesis.first) : label;
 }
 
 /** A normalized name without its spaces, to compare names whose initials are spaced differently. */
@@ -287,11 +341,11 @@ function rankSeries(candidates: BedethequeSeries[], text: string): { series: Bed
     return [];
   }
   const compactWanted = compact(wanted);
-  const isTranslation = (series: BedethequeSeries) => /\(\s*en\s[^)]*\)\s*$/i.test(series.label);
+  const isTranslation = (series: BedethequeSeries) => isTranslationName(series.label);
   const rank = (series: BedethequeSeries): number => {
     const label = withLeadingArticle(series.label);
     const name = normalizeName(label);
-    const bare = normalizeName(label.replace(/\([^)]*\)\s*$/, ''));
+    const bare = normalizeName(withoutFinalParenthesis(label));
     // Initials may or may not be spaced out: `A.D Grand-Rivière` and `AD Grand-Rivière` are one name.
     if (name === wanted || compact(name) === compactWanted) return 0;
     if (!isTranslation(series) && (bare === wanted || compact(bare) === compactWanted)) return 1;
@@ -354,22 +408,23 @@ function listDate(text: string): string | null {
  * special issue, `is-int` for an omnibus; the group headings are skipped.
  */
 export function parseSeriesAlbums(html: string): SeriesAlbum[] {
-  const list = /<ul class="bdt-box-albums-liste">([\s\S]*?)<\/ul>/i.exec(html)?.[1];
+  const list = firstBetween(html, /<ul class="bdt-box-albums-liste">/i, /<\/ul>/i);
   if (!list) {
     return parseCoverAlbums(html);
   }
   const albums: SeriesAlbum[] = [];
-  for (const item of list.matchAll(/<li\b([^>]*)>([\s\S]*?)<\/li>/gi)) {
-    const classes = /class="([^"]*)"/i.exec(item[1])?.[1].split(/\s+/) ?? [];
-    const url = /<a\s+href="([^"]+)"/i.exec(item[2])?.[1];
+  for (const { matches, gaps } of scanSequences(list, [/<li\b([^<>]*)>/i, /<\/li>/i])) {
+    const [attributes, content] = [matches[0][1], gaps[0]];
+    const classes = /class="([^"]*)"/i.exec(attributes)?.[1].split(/\s+/) ?? [];
+    const url = /<a\s+href="([^"]+)"/i.exec(content)?.[1];
     if (classes.includes('bdt-box-albums-grp') || !url || !isBedethequeAlbumUrl(url)) {
       continue;
     }
     albums.push({
       url,
-      number: decodeEntities(/<span class="bdt-box-albums-num" title="([^"]*)"/i.exec(item[2])?.[1] ?? '').trim(),
-      title: textOf(/<span class="bdt-box-albums-titre">([\s\S]*?)<\/span>/i.exec(item[2])?.[1] ?? ''),
-      releaseDate: listDate(textOf(/<span class="bdt-box-albums-dl">([\s\S]*?)<\/span>/i.exec(item[2])?.[1] ?? '')),
+      number: decodeEntities(/<span class="bdt-box-albums-num" title="([^"]*)"/i.exec(content)?.[1] ?? '').trim(),
+      title: textOf(firstBetween(content, /<span class="bdt-box-albums-titre">/i, /<\/span>/i) ?? ''),
+      releaseDate: listDate(textOf(firstBetween(content, /<span class="bdt-box-albums-dl">/i, /<\/span>/i) ?? '')),
       kind: classes.includes('is-hs') ? 'hs' : classes.includes('is-int') ? 'int' : 'album',
     });
   }
@@ -382,23 +437,24 @@ export function parseSeriesAlbums(html: string): SeriesAlbum[] {
  * with its name). Such an album has no number and no date (the album page gives it).
  */
 function parseCoverAlbums(html: string): SeriesAlbum[] {
-  const block = /<div class="bdt-sh-tomes\b[^"]*">([\s\S]*?)<\/div>/i.exec(html)?.[1] ?? '';
+  const block = firstBetween(html, /<div class="bdt-sh-tomes\b[^"]*">/i, /<\/div>/i) ?? '';
   const albums: SeriesAlbum[] = [];
   // Some one-shots' pages have no such block, only the "Détail des albums" article, whose heading links the album.
-  for (const article of html.matchAll(/<article\b[^>]*\bbdt-edition--detail\b[^>]*>([\s\S]*?)<h3>([\s\S]*?)<\/h3>/gi)) {
-    const link = /<a\b[^>]*\bitemprop="url"[^>]*>/i.exec(article[2])?.[0];
+  for (const { gaps } of scanSequences(html, [ARTICLE_OPEN, /<h3>/i, /<\/h3>/i], isEditionDetail)) {
+    const heading = gaps[1];
+    const link = firstSequence(heading, [LINK_TAG], (opening) => /\bitemprop="url"/i.test(opening[1]))?.matches[0][0];
     const url = link ? /href="([^"]+)"/i.exec(link)?.[1] : undefined;
     if (url && isBedethequeAlbumUrl(url) && !albums.some((album) => album.url === url)) {
       albums.push({
         url,
         number: '',
-        title: textOf(/<span itemprop="name">([\s\S]*?)<\/span>\s*<\/a>/i.exec(article[2])?.[1] ?? ''),
+        title: textOf(firstBetween(heading, /<span itemprop="name">/i, /<\/span>\s*<\/a>/i) ?? ''),
         releaseDate: null,
         kind: 'album',
       });
     }
   }
-  for (const link of block.matchAll(/<a\b([^>]*)>/gi)) {
+  for (const link of block.matchAll(/<a\b([^<>]*)>/gi)) {
     const url = /href="([^"]+)"/i.exec(link[1])?.[1];
     if (url && isBedethequeAlbumUrl(url) && !albums.some((album) => album.url === url)) {
       albums.push({
@@ -466,11 +522,21 @@ function listCandidate(album: SeriesAlbum, series: string): MetadataCandidate {
 /** The markers of a series page that the parsers look for, to say what a page without albums looks like. */
 const PAGE_MARKERS = ['bdt-box-albums-liste', 'bdt-sh-tomes', 'bdt-edition--detail', 'bdt-ah', 'bdt-ah--serie', 'class="bdt-', 'captcha', 'cloudflare'];
 
+/**
+ * Whether a link's address looks like an album page's: `BD-`, then anything, then `-<digits>.html` at
+ * the end (what `/BD-[^"]*-\d+\.html$/i` says, without its quadratic backtracking over many `BD-`).
+ */
+function isAlbumLike(href: string): boolean {
+  const end = /-\d+\.html$/i.exec(href);
+  const start = /BD-/i.exec(href);
+  return end !== null && start !== null && start.index + 3 <= end.index;
+}
+
 /** A one-line description of a page for the log: its size, title, and which known markers it holds. */
 function describePage(html: string): string {
-  const title = textOf(/<title>([\s\S]*?)<\/title>/i.exec(html)?.[1] ?? '').slice(0, 120);
+  const title = textOf(firstBetween(html, /<title>/i, /<\/title>/i) ?? '').slice(0, 120);
   const found = PAGE_MARKERS.filter((marker) => html.toLowerCase().includes(marker));
-  const albumLinks = (html.match(/href="[^"]*BD-[^"]*-\d+\.html"/gi) ?? []).length;
+  const albumLinks = [...html.matchAll(/href="([^"]*)"/gi)].filter((link) => isAlbumLike(link[1])).length;
   return `${html.length} characters, title "${title}", markers [${found.join(', ')}], ${albumLinks} album-like links`;
 }
 

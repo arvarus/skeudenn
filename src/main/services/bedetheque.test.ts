@@ -800,3 +800,94 @@ describe('searchBedetheque: a light touch on the site', () => {
     expect(calls).toHaveLength(3);
   });
 });
+
+describe('hostile or broken pages', () => {
+  // A page is untrusted and up to 5 MB, parsed synchronously in the main process: every pattern must be
+  // linear. Each page below holds about 1 MB of what made a former pattern quadratic (minutes, not seconds).
+  const ALBUM_URL = 'https://www.bedetheque.com/BD-x-1.html';
+
+  /** About 1 MB of `piece`, repeated. */
+  function flood(piece: string): string {
+    return piece.repeat(Math.ceil(1_000_000 / piece.length));
+  }
+
+  /** Runs `parse` and checks that it took well under a second; a refused page is fine. */
+  function expectFast(parse: () => unknown): void {
+    const started = performance.now();
+    try {
+      parse();
+    } catch {
+      // Not an album page: what matters here is the time.
+    }
+    expect(performance.now() - started).toBeLessThan(1000);
+  }
+
+  const ALBUM_PAGES: [string, string][] = [
+    ['a heading full of "<"', `<section class="bdt-ah"><h1>${flood('<')}</h1></section>`],
+    ['a subtitle full of unclosed links', `<section class="bdt-ah"><h2 class="bdt-ah-sub">${flood('<a ')}</h2></section>`],
+    ['credits whose links have no role', `<section class="bdt-ah"><div class="liste-auteurs">${flood('<a></a> <small>')}</div></section>`],
+    ['credits full of unclosed links', `<section class="bdt-ah"><div class="liste-auteurs">${flood('<a title="x" ')}</div></section>`],
+    ['an unclosed legal deposit, again and again', `<section class="bdt-ah">${flood('<li title="Dépôt légal"><b>')}</section>`],
+    ['unclosed album sections', flood('<section class="bdt-ah"><h1>')],
+    ['unclosed edition articles', flood('<article bdt-edition--detail ')],
+    ['an edition sheet with no closing dd', `<article class="bdt-edition--detail">${flood('<dt></dt><dd>')}</article>`],
+    ['a sheet value full of unclosed links', `<article class="bdt-edition--detail"><dt>Scénario</dt><dd>${flood('<a ')}</dd></article>`],
+    ['a series heading with unclosed links', `<section class="bdt-ah bdt-ah--serie"><h1>${flood('<a ')}`],
+  ];
+
+  it.each(ALBUM_PAGES)('parseBedethequeAlbum: %s', (_, html) => {
+    expectFast(() => parseBedethequeAlbum(html, ALBUM_URL));
+  });
+
+  const SERIES_PAGES: [string, string][] = [
+    ['unclosed edition articles', flood('<article bdt-edition--detail ')],
+    ['edition headings with unclosed url links', `<article class="bdt-edition--detail"><h3>${flood('<a itemprop="url" ')}</h3></article>`],
+    ['an album list of unclosed items', `<ul class="bdt-box-albums-liste">${flood('<li ')}</ul>`],
+    ['an album list of items with no end', `<ul class="bdt-box-albums-liste">${flood('<li><span class="bdt-box-albums-titre">')}</ul>`],
+    ['a cover block full of unclosed links', `<div class="bdt-sh-tomes">${flood('<a ')}</div>`],
+  ];
+
+  it.each(SERIES_PAGES)('parseSeriesAlbums: %s', (_, html) => {
+    expectFast(() => parseSeriesAlbums(html));
+  });
+
+  it.each([
+    ['full of "("', `Blacksad ${flood('(')}`],
+    ['full of "(en "', `Blacksad ${flood('(en ')}`],
+    ['with a run of spaces', `Blacksad${flood(' ')}x (Les)`],
+  ])('pickSeriesAll: a label %s', (_, label) => {
+    expectFast(() => pickSeriesAll(parseSeriesSearch([{ id: 'S1', label }]), 'Blacksad'));
+  });
+
+  it('describes a series page with no album, full of album-like links, in linear time', async () => {
+    const lines: string[] = [];
+    setLookupLogSink((line) => lines.push(line));
+    const page = `<title>Blacksad</title>${flood('href="BD-')}`;
+    const fetch = vi.fn(async (input: string | URL | Request) =>
+      String(input).startsWith('https://www.bdgest.com/') ? Response.json(SEARCH_BLACKSAD) : new Response(page),
+    );
+    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Tankobon/test', timeoutMs: 5000 };
+    const started = performance.now();
+    await searchBedetheque({ text: 'blacksad', volume: '1' }, http);
+    expect(performance.now() - started).toBeLessThan(1000);
+    expect(lines.join('\n')).toMatch(/no album found: \d+ characters, title "Blacksad", markers \[\], 0 album-like links/);
+  });
+});
+
+describe('the description of a page without albums', () => {
+  it('counts the links to album pages', async () => {
+    const lines: string[] = [];
+    setLookupLogSink((line) => lines.push(line));
+    const page = `<title>Blacksad</title>
+<a href="https://www.bedetheque.com/BD-Blacksad-Tome-1-21.html">1</a>
+<a href="/BD--7.html">2</a>
+<a href="https://www.bedetheque.com/BD-7.html">not an album</a>
+<a href="https://www.bedetheque.com/serie-500-BD-Blacksad.html">not an album</a>`;
+    const fetch = vi.fn(async (input: string | URL | Request) =>
+      String(input).startsWith('https://www.bdgest.com/') ? Response.json(SEARCH_BLACKSAD) : new Response(page),
+    );
+    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Tankobon/test', timeoutMs: 1000 };
+    await searchBedetheque({ text: 'blacksad', volume: '1' }, http);
+    expect(lines.join('\n')).toContain('title "Blacksad", markers [], 2 album-like links');
+  });
+});

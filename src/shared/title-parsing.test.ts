@@ -51,3 +51,14 @@ describe('formatPersonName', () => {
     expect(formatPersonName({ firstName: '', lastName: 'Hergé' })).toBe('Hergé');
   });
 });
+
+describe('splitSeriesTitle: long runs of separators', () => {
+  it('trims them in linear time', () => {
+    const run = ', '.repeat(500_000);
+    const started = performance.now();
+    const split = splitSeriesTitle(`a${run}b T1 c${run}d`);
+    expect(performance.now() - started).toBeLessThan(1000);
+    expect(split.volume).toBe('1');
+    expect(split.series).toBe(`a${run}b`.replace(/\s+/g, ' '));
+  });
+});

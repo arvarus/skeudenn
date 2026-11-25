@@ -9,10 +9,19 @@ import type { PersonName } from './library';
 const VOLUME_MARKER = /(?:\b(?:tome|t|vol(?:ume)?|no)\.?|n°|#)\s*(\d+(?:[.,]\d+)?[a-z]?)\b/i;
 
 /** Separators commonly found between a series, its volume and the book title. */
-const SEPARATORS = /^[\s,:;.–—-]+|[\s,:;.–—-]+$/g;
+const SEPARATOR = /[\s,:;.–—-]/;
 
+/**
+ * The value without the separators it starts or ends with, spaces collapsed. The ends are walked
+ * character by character: a pattern such as `[…]+$` is quadratic on a long run of separators that
+ * doesn't reach the end, and the titles come from scraped pages.
+ */
 function clean(value: string): string {
-  return value.replace(SEPARATORS, '').replace(/\s+/g, ' ').trim();
+  let start = 0;
+  let end = value.length;
+  while (start < end && SEPARATOR.test(value[start])) start += 1;
+  while (end > start && SEPARATOR.test(value[end - 1])) end -= 1;
+  return value.slice(start, end).replace(/\s+/g, ' ').trim();
 }
 
 /** "03" → "3", "12.5" → "12.5", "000" → "0". */
