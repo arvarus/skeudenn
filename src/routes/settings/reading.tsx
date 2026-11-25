@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
+import { SettingCheckbox } from '@/components/setting-checkbox';
 import { SETTINGS_SELECT_CLASS, SettingsSection } from '@/components/settings-section';
 import { useSettings } from '@/hooks/use-settings';
 
@@ -69,15 +70,12 @@ function ReadingSettingsPage() {
       </SettingsSection>
 
       <SettingsSection title={t('autoAdd')}>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={settings.addOpenedBooksToLibrary}
-            onChange={(event) => update('addOpenedBooksToLibrary', event.target.checked)}
-          />
-          {t('autoAddLabel')}
-        </label>
-        <p className="text-sm text-muted-foreground">{t('autoAddHint')}</p>
+        <SettingCheckbox
+          label={t('autoAddLabel')}
+          hint={t('autoAddHint')}
+          checked={settings.addOpenedBooksToLibrary}
+          onChange={(checked) => update('addOpenedBooksToLibrary', checked)}
+        />
       </SettingsSection>
     </>
   );
