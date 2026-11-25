@@ -24,6 +24,7 @@ import { useOrganizationOffer } from '@/hooks/use-organization-offer';
 import { useSettings } from '@/hooks/use-settings';
 import { useActiveUser } from '@/hooks/use-users';
 import { appData } from '@/lib/app-data';
+import { folderScanParts } from '@/lib/folder-scan';
 import type { LibraryFilters } from '@/lib/library-filter';
 import { rememberedFilters, rememberFilters } from '@/lib/library-filters-memory';
 import { gridLines } from '@/lib/library-groups';
@@ -111,17 +112,11 @@ function LibraryPage() {
       setScanStatus(result.message);
       return;
     }
-    const parts = [t('scanAdded', { count: result.added, directory: result.directory })];
-    if (result.skipped > 0) parts.push(t('scanSkipped', { count: result.skipped }));
-    if (result.failed > 0) {
-      parts.push(t('scanFailed', { count: result.failed }));
-      setFailures({ list: result.failures, total: result.failed });
-    }
-    if (result.total === 0) {
-      setScanStatus(t('scanNoneFound', { directory: result.directory }));
-      return;
-    }
+    // A stopped scan says so first; it organized nothing, so there is nothing to offer.
+    const parts = folderScanParts(result);
+    if (result.failed > 0) setFailures({ list: result.failures, total: result.failed });
     setScanStatus(parts.join(' · '));
+    if (result.total === 0) return;
     parts.push(...(await offerOrganization(result.organization)));
     setScanStatus(parts.join(' · '));
   };

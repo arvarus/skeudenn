@@ -25,6 +25,8 @@ const library: Translation<typeof en> = {
   scanFailed_one: '{{count}} illisible',
   scanFailed_other: '{{count}} illisibles',
   scanNoneFound: 'Aucune BD trouvée dans {{directory}}',
+  // The folder addition was stopped from its progress bar: the comics found later were not looked at.
+  scanStopped: 'Analyse arrêtée avant la fin',
   scanning: 'Recherche des BD…',
   scanProgress: "Progression de l'analyse",
   scanClose: 'Fermer',
