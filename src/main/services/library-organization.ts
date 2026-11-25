@@ -43,12 +43,13 @@ export interface LibraryDecoder {
 export type LibraryNotifier = (change: DataChange) => void;
 
 /** What can hold the {@link LibraryRunLock}. */
-export type LibraryRun = 'resync' | 'organize' | 'add' | 'cleanup' | 'convert' | 'folders' | 'remove';
+export type LibraryRun = 'resync' | 'organize' | 'add' | 'cleanup' | 'convert' | 'folders' | 'remove' | 'data';
 
 /**
  * Lets one long run over the library files at a time (a resynchronization, adding a file or a folder,
- * organizing, cleaning or converting the books, removing a selection): moving or rewriting files while a
- * walk registers them could register a file twice, or recreate one that just moved.
+ * organizing, cleaning or converting the books, removing a selection, clearing or importing the library's
+ * data): moving or rewriting files while a walk registers them could register a file twice, or recreate one
+ * that just moved, and a walk running while the library is cleared would add back the books just removed.
  *
  * It is also how a run is stopped: each run gets its own `AbortSignal` from {@link LibraryRunLock.tryStart}
  * and checks it between two items (a book, a folder), never inside one, so a move, rewrite or conversion
@@ -93,6 +94,7 @@ export function createLibraryRunLock(): LibraryRunLock {
       if (holder === 'folders') return t('errors:library.foldersRunning');
       if (holder === 'convert') return t('errors:library.convertRunning');
       if (holder === 'remove') return t('errors:library.removeRunning');
+      if (holder === 'data') return t('errors:library.dataRunning');
       return holder === 'cleanup' ? t('errors:library.cleanupRunning') : t('errors:library.organizeRunning');
     },
   };

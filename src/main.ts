@@ -220,7 +220,16 @@ app.whenReady().then(() => {
   registerStatsIpc(statsRepo);
   registerSettingsIpc(settingsRepo, broadcastDataChange, decoder);
   registerUserIpc(userRepo, settingsRepo, broadcastDataChange);
-  registerDataIpc(db, libraryRepo, settingsRepo, readingListRepo, decoder, broadcastDataChange, imageScanner);
+  registerDataIpc({
+    db,
+    libraryRepo,
+    settingsRepo,
+    readingListRepo,
+    decoder,
+    notify: broadcastDataChange,
+    imageScanner,
+    lock: organizer.lock,
+  });
   // The comics the OS asks to open are opened by token, like those picked in the reader's dialog.
   const pickedFiles = new PickedFiles();
   const launchFiles = new LaunchFiles(pickedFiles, announceLaunchFile);
