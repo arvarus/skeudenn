@@ -56,10 +56,14 @@ export function ContinuousPage({ comicId, index, onActive, onRetry, actualSize, 
     );
     const keepObserver = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting || !hasImage.current) return;
+        if (entry.isIntersecting) return;
+        // Always stop loading, even when the fetch is still running: the observer only fires on a
+        // transition, so an answer arriving now would otherwise keep its image until the page came back
+        // and left again. The fetch effect's cleanup drops that answer.
+        setShouldLoad(false);
+        if (!hasImage.current) return;
         hasImage.current = false;
         setReleasedHeight(el.offsetHeight > 0 ? el.offsetHeight : null);
-        setShouldLoad(false);
         setUrl(null);
         setLoaded(false);
       },
