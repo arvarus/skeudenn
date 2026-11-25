@@ -4,6 +4,7 @@ import {
   directionalControls,
   disabledControls,
   pageTurnForKey,
+  scrollEdgeAfterMove,
   scrollEdgeAfterTurn,
   type PageTurnKeyEvent,
 } from './reader-navigation';
@@ -42,6 +43,22 @@ describe('scrollEdgeAfterTurn', () => {
 
   it('lands on the bottom when going back', () => {
     expect(scrollEdgeAfterTurn(4, 3)).toBe('bottom');
+  });
+});
+
+describe('scrollEdgeAfterMove', () => {
+  it('follows the turn within a book', () => {
+    expect(scrollEdgeAfterMove({ bookId: 'a', page: 3 }, { bookId: 'a', page: 4 })).toBe('top');
+    expect(scrollEdgeAfterMove({ bookId: 'a', page: 4 }, { bookId: 'a', page: 3 })).toBe('bottom');
+  });
+
+  it('asks for nothing when the reader did not move', () => {
+    expect(scrollEdgeAfterMove({ bookId: 'a', page: 3 }, { bookId: 'a', page: 3 })).toBeNull();
+  });
+
+  it('opens another book at the top, even at an earlier page than the previous book', () => {
+    expect(scrollEdgeAfterMove({ bookId: 'a', page: 12 }, { bookId: 'b', page: 2 })).toBe('top');
+    expect(scrollEdgeAfterMove({ bookId: 'a', page: 12 }, { bookId: 'b', page: 12 })).toBe('top');
   });
 });
 

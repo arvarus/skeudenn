@@ -59,7 +59,10 @@ export function useImageUpscaler(src: string | null, enabled: boolean, pageKey: 
     const cacheKey = pageKey ?? src;
     const cached = cache.get(cacheKey);
     if (cached) {
+      // A run for another page may have been in flight: its cleanup stopped it from clearing the
+      // flag itself, so it is cleared here or the spinner would stay on.
       setUpscaledUrl(cached);
+      setIsUpscaling(false);
       setError(null);
       return;
     }
