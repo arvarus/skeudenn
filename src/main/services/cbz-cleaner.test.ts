@@ -3,8 +3,11 @@ import { mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promise
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pipeline } from 'node:stream/promises';
+import { crc32, deflateRawSync } from 'node:zlib';
 import { ZipFile } from 'yazl';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+
+import { applyLanguage } from '../../shared/i18n';
 
 import { CbzArchive } from './cbz-archive';
 import { listJunkEntries, removeEntries } from './cbz-cleaner';
@@ -35,6 +38,61 @@ async function corruptFirstEntry(file: string): Promise<void> {
   bytes.fill(0xff, data, data + 4);
   await writeFile(file, bytes);
 }
+
+/**
+ * Builds a zip holding a stored page and `bomb.txt`, deflated from `inflated` bytes but declaring only
+ * 1 000 in the central directory, with the "data descriptor" flag a streaming writer sets (local
+ * header's CRC and sizes left at 0): node-stream-zip then doesn't check the size it inflates to.
+ */
+function buildBombZip(inflated: number): Buffer {
+  const page = Buffer.alloc(100, 1);
+  const bomb = deflateRawSync(Buffer.alloc(inflated));
+  const entries = [
+    { name: Buffer.from('001.jpg'), data: page, flags: 0, method: 0, crc: crc32(page), size: page.length },
+    { name: Buffer.from('bomb.txt'), data: bomb, flags: 0x08, method: 8, crc: 0, size: 1000 },
+  ];
+  const locals: Buffer[] = [];
+  const centrals: Buffer[] = [];
+  let offset = 0;
+  for (const entry of entries) {
+    const local = Buffer.alloc(30);
+    local.writeUInt32LE(0x04034b50, 0);
+    local.writeUInt16LE(20, 4);
+    local.writeUInt16LE(entry.flags, 6);
+    local.writeUInt16LE(entry.method, 8);
+    if (entry.flags === 0) {
+      local.writeUInt32LE(entry.crc, 14);
+      local.writeUInt32LE(entry.data.length, 18);
+      local.writeUInt32LE(entry.size, 22);
+    }
+    local.writeUInt16LE(entry.name.length, 26);
+    locals.push(local, entry.name, entry.data);
+    const central = Buffer.alloc(46);
+    central.writeUInt32LE(0x02014b50, 0);
+    central.writeUInt16LE(20, 4);
+    central.writeUInt16LE(20, 6);
+    central.writeUInt16LE(entry.flags, 8);
+    central.writeUInt16LE(entry.method, 10);
+    central.writeUInt32LE(entry.crc, 16);
+    central.writeUInt32LE(entry.data.length, 20);
+    central.writeUInt32LE(entry.size, 24);
+    central.writeUInt16LE(entry.name.length, 28);
+    central.writeUInt32LE(offset, 42);
+    centrals.push(central, entry.name);
+    offset += local.length + entry.name.length + entry.data.length;
+  }
+  const centralDir = Buffer.concat(centrals);
+  const end = Buffer.alloc(22);
+  end.writeUInt32LE(0x06054b50, 0);
+  end.writeUInt16LE(entries.length, 8);
+  end.writeUInt16LE(entries.length, 10);
+  end.writeUInt32LE(centralDir.length, 12);
+  end.writeUInt32LE(offset, 16);
+  return Buffer.concat([...locals, centralDir, end]);
+}
+
+// The user-facing messages are checked in French; English is the interface's default.
+beforeAll(() => applyLanguage('fr'));
 
 describe('cbz-cleaner', () => {
   let dir: string;
@@ -106,5 +164,27 @@ describe('cbz-cleaner', () => {
     await expect(removeEntries(file, ['Thumbs.db'])).rejects.toThrow();
     expect((await readFile(file)).equals(before)).toBe(true);
     expect(await readdir(dir)).toEqual(['book.cbz']);
+  });
+
+  it('refuses up front a kept entry declaring more than the ceiling, leaving the original untouched', async () => {
+    const before = await readFile(file);
+    await expect(removeEntries(file, ['Thumbs.db'], 4_000)).rejects.toThrow(/^Fichier trop volumineux dans l’archive : 00[12]\.jpg$/);
+    expect((await readFile(file)).equals(before)).toBe(true);
+    expect(await readdir(dir)).toEqual(['book.cbz']);
+  });
+
+  it('stops copying a kept entry that inflates past the ceiling whatever size it declares', async () => {
+    const bomb = join(dir, 'bomb.cbz');
+    await writeFile(bomb, buildBombZip(2 * 1024 * 1024));
+    const before = await readFile(bomb);
+    await expect(removeEntries(bomb, [], 1024 * 1024)).rejects.toThrow('Fichier trop volumineux dans l’archive : bomb.txt');
+    expect((await readFile(bomb)).equals(before)).toBe(true);
+    expect((await readdir(dir)).sort()).toEqual(['bomb.cbz', 'book.cbz']);
+  });
+
+  it('copies an entry that inflates to exactly the ceiling', async () => {
+    const bomb = join(dir, 'bomb.cbz');
+    await writeFile(bomb, buildBombZip(1024 * 1024));
+    await expect(removeEntries(bomb, [], 1024 * 1024)).resolves.toEqual({ fileCount: 2 });
   });
 });

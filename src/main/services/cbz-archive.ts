@@ -7,6 +7,7 @@ import type { Readable } from 'node:stream';
 
 import type { ComicPage } from '../../shared/comic';
 import { t } from '../../shared/i18n';
+import { boundedStream } from './bounded-stream';
 import { checkedPage } from './image-size';
 import { imageMimeType, isPageEntry, MAX_ENTRY_SIZE, sortPages, type ComicArchive } from './comic-archive';
 
@@ -87,16 +88,11 @@ export class CbzArchive implements ComicArchive {
     // Typed as a web stream by node-stream-zip; it is a Node `Readable`.
     const stream = (await this.zip.stream(entryName)) as unknown as Readable;
     const chunks: Buffer[] = [];
-    let total = 0;
+    const bounded = boundedStream(stream, MAX_ENTRY_SIZE, () => new Error(t('errors:archive.entryTooLarge', { entry: entryName })));
     try {
-      for await (const chunk of stream as AsyncIterable<Buffer>) {
-        total += chunk.length;
-        if (total > MAX_ENTRY_SIZE) {
-          throw new Error(t('errors:archive.entryTooLarge', { entry: entryName }));
-        }
-        chunks.push(chunk);
-      }
+      for await (const chunk of bounded as AsyncIterable<Buffer>) chunks.push(chunk);
     } finally {
+      bounded.destroy();
       stream.destroy();
     }
     return Buffer.concat(chunks);

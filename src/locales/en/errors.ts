@@ -12,6 +12,7 @@ export default {
     extractFailed: 'Could not extract the page: {{entry}}',
     closed: 'Archive closed: {{path}}',
     entryTooLarge: 'Page too large to be read: {{entry}}',
+    fileEntryTooLarge: 'File too large in the archive: {{entry}}',
     fileTooLarge: "File too large to be opened: {{path}} ({{size}} MB, at most {{limit}} MB)",
     imageTooLarge: 'Image too large to be displayed: {{entry}} ({{width}} × {{height}} px)',
     fileNotFound: 'File not found: it has been moved or deleted.',
