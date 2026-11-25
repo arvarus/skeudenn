@@ -6,7 +6,7 @@
  */
 
 /** The permissions the app's page uses; anything else is refused. */
-export const ALLOWED_PERMISSIONS: readonly string[] = ['fullscreen', 'clipboard-sanitized-write'];
+const ALLOWED_PERMISSIONS: readonly string[] = ['fullscreen', 'clipboard-sanitized-write'];
 
 /** Whether the window may be granted `permission` (a name from Electron's permission request). */
 export function isPermissionAllowed(permission: string): boolean {
