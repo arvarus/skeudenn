@@ -10,6 +10,7 @@ import type { CreditInput } from '../../shared/library';
 import { type MetadataCandidate, type MetadataSource, METADATA_SOURCE_LABELS, pageSourceOf } from '../../shared/metadata';
 import { validReleaseDate } from '../../shared/release-date';
 import { splitPersonName, splitSeriesTitle } from '../../shared/title-parsing';
+import { scanSequences } from './html-scan';
 import { getHtml, type HttpOptions } from './http-json';
 
 const NAMED_ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ' };
@@ -24,13 +25,41 @@ function decodeEntities(text: string): string {
   });
 }
 
-/** The first `<meta property|name|itemprop="key" content="…">` of the page, in either attribute order. */
+/**
+ * A `<meta>` tag up to its end: its attributes, quoted values skipped as a whole (they may hold `<`
+ * or `>`). The unquoted part excludes `<`, so the pattern runs in linear time on a page full of
+ * unclosed tags (see `html-scan.ts`).
+ */
+const META_TAG = /<meta\b((?:"[^"]*"|'[^']*'|[^"'<>])*)/gi;
+const CONTENT_ATTRIBUTE = /\bcontent=(?:"([^"]*)"|'([^']*)')/i;
+
+/**
+ * The first `<meta property|name|itemprop="key" content="…">` of the page, in either attribute order
+ * (one with the key first wins over an earlier one with the content first). Each tag is read on its
+ * own, each pattern searched once in it, so that the time stays linear in the page's length.
+ */
 function metaContent(html: string, key: string): string | null {
   const escaped = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const attr = `(?:property|name|itemprop)=["']${escaped}["']`;
-  const forward = new RegExp(`<meta\\b[^>]*?${attr}[^>]*?\\bcontent=(?:"([^"]*)"|'([^']*)')`, 'i').exec(html);
-  const backward = new RegExp(`<meta\\b[^>]*?\\bcontent=(?:"([^"]*)"|'([^']*)')[^>]*?${attr}`, 'i').exec(html);
-  const match = forward ?? backward;
+  const attr = new RegExp(`(?:property|name|itemprop)=["']${escaped}["']`, 'i');
+  let backward: RegExpExecArray | null = null;
+  let match: RegExpExecArray | null = null;
+  for (const tag of html.matchAll(META_TAG)) {
+    const attributes = tag[1];
+    const named = attr.exec(attributes);
+    if (named) {
+      // Key first: the first content after it.
+      match = CONTENT_ATTRIBUTE.exec(attributes.slice(named.index + named[0].length));
+      if (match) break;
+    }
+    if (!backward) {
+      // Content first: the key after the first content.
+      const content = CONTENT_ATTRIBUTE.exec(attributes);
+      if (content && attr.test(attributes.slice(content.index + content[0].length))) {
+        backward = content;
+      }
+    }
+  }
+  match ??= backward;
   const value = match ? (match[1] ?? match[2] ?? '') : '';
   return decodeEntities(value).replace(/\s+/g, ' ').trim() || null;
 }
@@ -48,9 +77,10 @@ function jsonLdNodes(html: string): Json[] {
       visit((value as Json)['@graph']);
     }
   };
-  for (const match of html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+  const isJsonLd = (opening: RegExpExecArray) => /type=["']application\/ld\+json["']/i.test(opening[1]);
+  for (const { gaps } of scanSequences(html, [/<script\b([^<>]*)>/i, /<\/script>/i], isJsonLd)) {
     try {
-      visit(JSON.parse(match[1]));
+      visit(JSON.parse(gaps[0]));
     } catch {
       // A damaged block is ignored: the other blocks and the meta tags may still be good.
     }

@@ -81,3 +81,41 @@ describe('fetchStructuredPage', () => {
     await expect(fetchStructuredPage(NAUTILJON, http('', 404))).rejects.toThrow(/Nautiljon/);
   });
 });
+
+describe('parseStructuredPage: hostile or broken pages', () => {
+  // A page is untrusted and up to 5 MB, parsed synchronously in the main process: every pattern must be
+  // linear. Each page below holds about 1 MB of what made a former pattern quadratic (minutes, not seconds).
+
+  /** About 1 MB of `piece`, repeated. */
+  function flood(piece: string): string {
+    return piece.repeat(Math.ceil(1_000_000 / piece.length));
+  }
+
+  it.each([
+    ['full of "<"', flood('<')],
+    ['full of unclosed scripts', flood('<script ')],
+    ['full of unclosed JSON-LD scripts', flood('<script type="application/ld+json" ')],
+    ['full of JSON-LD scripts with no end', flood('<script type="application/ld+json">')],
+    ['full of unclosed meta tags', flood('<meta ')],
+    ['full of unclosed meta tags naming the key', flood('<meta property="og:title" ')],
+    ['full of unclosed meta tags with a content', flood('<meta content="x" ')],
+    ['full of meta tags with quotes left open', flood(`<meta content="x' property='og:title`)],
+    ['whose title is full of separators', `<meta property="og:title" content="a${flood(', ')}b T1 c${flood(' -')}d">`],
+  ])('reads a page %s in linear time', (_, html) => {
+    const started = performance.now();
+    try {
+      parseStructuredPage(html, BDFUGUE, 'bdfugue');
+    } catch {
+      // No title: what matters here is the time.
+    }
+    expect(performance.now() - started).toBeLessThan(1000);
+  });
+
+  it('still reads the meta tags whose quoted values hold "<" or ">"', () => {
+    const html = `<meta content="Tome 2 <b>" name="x"><meta property="og:title" content="A > B - Tome 2"><meta content="fr_FR" property="og:locale">`;
+    const candidate = parseStructuredPage(html, BDFUGUE, 'bdfugue');
+    expect(candidate.series).toBe('A > B');
+    expect(candidate.volume).toBe('2');
+    expect(candidate.language).toBe('fr');
+  });
+});
