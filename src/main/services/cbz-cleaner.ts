@@ -10,8 +10,9 @@ import { pipeline } from 'node:stream/promises';
 import { ZipFile } from 'yazl';
 
 import { t } from '../../shared/i18n';
+import { boundedStream } from './bounded-stream';
 import { CbzArchive, openZip } from './cbz-archive';
-import { isPageEntry } from './comic-archive';
+import { isPageEntry, MAX_ENTRY_SIZE } from './comic-archive';
 
 /** A file of an archive that is not a page. */
 export interface JunkEntry {
@@ -51,8 +52,17 @@ export async function listJunkEntries(filePath: string): Promise<JunkEntry[]> {
  * it, so a failure at any point leaves the original untouched. A name that is no longer in the
  * archive, or that is a page, aborts the rewrite: the archive is not what was analyzed. Directory
  * entries are dropped (readers don't need them). Pages are stored as they are (already compressed).
+ *
+ * No kept entry may inflate past `maxEntrySize` (`MAX_ENTRY_SIZE` by default; a parameter for the
+ * tests): one declaring more is refused before anything is written, and one that inflates past it
+ * anyway (the declared size can lie) stops the copy, so a ZIP bomb neither fills the disk nor keeps
+ * the decoder busy. Either way the temporary file is removed and the original kept.
  */
-export async function removeEntries(filePath: string, names: readonly string[]): Promise<CleanedArchive> {
+export async function removeEntries(
+  filePath: string,
+  names: readonly string[],
+  maxEntrySize: number = MAX_ENTRY_SIZE,
+): Promise<CleanedArchive> {
   const remove = new Set(names);
   const temporary = `${filePath}.cleaning.tmp`;
   const zip = openZip(filePath);
@@ -65,6 +75,9 @@ export async function removeEntries(filePath: string, names: readonly string[]):
       }
     }
     const kept = files.filter((entry) => !remove.has(entry.name));
+    const tooLarge = (name: string) => new Error(t('errors:archive.fileEntryTooLarge', { entry: name }));
+    const declaredTooLarge = kept.find((entry) => entry.size > maxEntrySize);
+    if (declaredTooLarge) throw tooLarge(declaredTooLarge.name);
 
     const out = new ZipFile();
     const written = pipeline(out.outputStream, createWriteStream(temporary));
@@ -79,9 +92,11 @@ export async function removeEntries(filePath: string, names: readonly string[]):
         (callback) => {
           zip.stream(entry.name).then(
             (stream) => {
-              // yazl doesn't listen to the streams it is given: a corrupted entry fails here.
-              stream.on('error', (error) => out.emit('error', error));
-              callback(null, stream as unknown as NodeJS.ReadableStream);
+              // Typed as a web stream by node-stream-zip; it is a Node `Readable`.
+              const bounded = boundedStream(stream as unknown as Readable, maxEntrySize, () => tooLarge(entry.name));
+              // yazl doesn't listen to the streams it is given: a corrupted or oversized entry fails here.
+              bounded.on('error', (error) => out.emit('error', error));
+              callback(null, bounded);
             },
             (error: unknown) => callback(error, undefined as never),
           );
