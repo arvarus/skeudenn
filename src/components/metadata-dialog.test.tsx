@@ -39,7 +39,8 @@ function open(metadata: FakeTankobon['metadata']) {
 
 /** Types the link of a page and reads it, which leads straight to the review. */
 function readPage() {
-  fireEvent.click(screen.getByRole('tab', { name: /Depuis un lien/ }));
+  // Radix selects a tab on mouse down (or on focus), not on click.
+  fireEvent.mouseDown(screen.getByRole('tab', { name: /Depuis un lien/ }));
   fireEvent.change(screen.getByLabelText(/Lien de la fiche/), { target: { value: PAGE_URL } });
   fireEvent.click(screen.getByRole('button', { name: /Lire la fiche/ }));
 }
@@ -97,6 +98,39 @@ describe('MetadataDialog', () => {
     expect(onClose).not.toHaveBeenCalled();
     fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('switches modes as tabs, each controlling its panel, with the arrow keys', async () => {
+    open({});
+    const list = screen.getByRole('tablist');
+    expect(list.getAttribute('aria-label')).toBe('Méthode de recherche');
+    const [api, site] = screen.getAllByRole('tab');
+    expect(api.textContent).toMatch(/Recherche par API/);
+    expect(site.textContent).toMatch(/Depuis un lien/);
+
+    const panelOf = (tab: HTMLElement) => document.getElementById(tab.getAttribute('aria-controls') ?? '');
+    expect(api.getAttribute('aria-selected')).toBe('true');
+    expect(site.getAttribute('aria-selected')).toBe('false');
+    const panel = screen.getByRole('tabpanel');
+    expect(panelOf(api)).toBe(panel);
+    expect(panel.getAttribute('aria-labelledby')).toBe(api.id);
+    expect(panel.querySelector('input[aria-label="Titre ou série"]')).toBeTruthy();
+
+    // Automatic activation: moving the focus with an arrow key selects the tab (Radix focuses on the next tick).
+    api.focus();
+    fireEvent.keyDown(api, { key: 'ArrowRight' });
+    await waitFor(() => expect(document.activeElement).toBe(site));
+    expect(site.getAttribute('aria-selected')).toBe('true');
+    expect(api.getAttribute('aria-selected')).toBe('false');
+    const sitePanel = screen.getByRole('tabpanel');
+    expect(panelOf(site)).toBe(sitePanel);
+    expect(sitePanel.querySelector('input[aria-label^="Lien de la fiche"]')).toBeTruthy();
+    expect(screen.queryByLabelText(/Titre ou série/i, { selector: 'input' })).toBeNull();
+
+    fireEvent.keyDown(site, { key: 'ArrowLeft' });
+    await waitFor(() => expect(document.activeElement).toBe(api));
+    expect(api.getAttribute('aria-selected')).toBe('true');
+    expect(panelOf(api)).toBe(screen.getByRole('tabpanel'));
   });
 
   // Same here: the button stayed disabled for good and the rejection went unhandled.

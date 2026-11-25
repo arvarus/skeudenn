@@ -2,6 +2,7 @@ import { ArrowLeft, ChevronDown, ChevronRight, Globe, Loader2, Search, SkipForwa
 import { useEffect, useReducer, useRef, useState } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
+import { Tabs } from 'radix-ui';
 
 import { BookCover } from '@/components/book-cover';
 import { Button } from '@/components/ui/button';
@@ -249,27 +250,25 @@ export function MetadataDialog({
 
         {/* Two views: the search (options and results), then the review of the picked result, which goes back to the results. */}
         {step.kind !== 'review' && (
-          <>
-          <div role="tablist" className="flex gap-1">
+          // The two modes are tabs (arrow keys move between them and select), each controlling its panel of options.
+          <Tabs.Root
+            value={mode}
+            onValueChange={(value) => {
+              setMode(value as Mode);
+              dispatch({ type: 'reset' });
+            }}
+            className="flex flex-col gap-4"
+          >
+          <Tabs.List aria-label={t('modeLabel')} className="flex gap-1">
             {(['api', 'site'] as const).map((value) => (
-              <Button
-                key={value}
-                role="tab"
-                aria-selected={mode === value}
-                type="button"
-                size="sm"
-                variant={mode === value ? 'secondary' : 'ghost'}
-                disabled={step.kind === 'searching'}
-                onClick={() => {
-                  setMode(value);
-                  dispatch({ type: 'reset' });
-                }}
-              >
-                {value === 'api' ? <Search /> : <Globe />}
-                {t(value === 'api' ? 'modeApi' : 'modeSite')}
-              </Button>
+              <Tabs.Trigger key={value} value={value} disabled={step.kind === 'searching'} asChild>
+                <Button size="sm" variant={mode === value ? 'secondary' : 'ghost'}>
+                  {value === 'api' ? <Search /> : <Globe />}
+                  {t(value === 'api' ? 'modeApi' : 'modeSite')}
+                </Button>
+              </Tabs.Trigger>
             ))}
-          </div>
+          </Tabs.List>
 
           <form
             className="flex flex-col gap-3"
@@ -278,8 +277,7 @@ export function MetadataDialog({
               if (canSearch && step.kind !== 'searching') void runSearch();
             }}
           >
-            {mode === 'api' ? (
-              <>
+            <Tabs.Content value="api" className="flex flex-col gap-3 outline-none data-[state=inactive]:hidden">
                 <div className="flex flex-wrap items-center gap-2">
                   <input
                     ref={queryInput}
@@ -393,9 +391,8 @@ export function MetadataDialog({
                     {METADATA_SOURCE_LABELS.bedetheque}
                   </label>
                 </fieldset>
-              </>
-            ) : (
-              <div className="flex flex-col gap-1">
+            </Tabs.Content>
+            <Tabs.Content value="site" className="flex flex-col gap-1 outline-none data-[state=inactive]:hidden">
                 <input
                   ref={pageUrlInput}
                   aria-label={t('pageUrlLabel')}
@@ -405,8 +402,7 @@ export function MetadataDialog({
                   onChange={(event) => setPageUrl(event.target.value)}
                 />
                 <p className="text-xs text-muted-foreground">{t('pageSitesHint')}</p>
-              </div>
-            )}
+            </Tabs.Content>
             <div className="flex justify-end gap-2">
               {step.kind === 'searching' ? (
                 <Button type="button" size="sm" variant="outline" onClick={stop}>
@@ -421,7 +417,7 @@ export function MetadataDialog({
               )}
             </div>
           </form>
-          </>
+          </Tabs.Root>
         )}
 
         <div>
