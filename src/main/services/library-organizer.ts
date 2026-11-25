@@ -3,8 +3,9 @@
  * either one subfolder per comic or the tree of levels the user chose (`AppSettings.libraryStructure`).
  * @module
  */
+import { randomBytes } from 'node:crypto';
 import { constants } from 'node:fs';
-import { copyFile, mkdir, rename, rmdir, unlink } from 'node:fs/promises';
+import { copyFile, mkdir, readdir, rename, rmdir, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 
 import { moveArticleToEnd } from '../../shared/articles';
@@ -17,7 +18,7 @@ import type { LibraryRepository } from '../db/library-repository';
 import { coverSidecarPath } from './cover-sidecar';
 import { nfoPathFor } from './nfo';
 import { isInside } from '../path-containment';
-import { pathExists } from './organized-folder';
+import { isDirectory, pathExists } from './organized-folder';
 
 /**
  * Longest file or folder name, in UTF-8 bytes: 255 on Linux (ext4…) and macOS (APFS). Windows (NTFS)
@@ -231,15 +232,62 @@ function isInPlace(target: OrganizationTarget, entry: OrganizedEntry): boolean {
   return organizedPaths(target, entry).includes(entry.path);
 }
 
+/** `text` as a case-insensitive file system compares it, near enough: Unicode-composed, then lower-cased. */
+function foldCase(text: string): string {
+  return text.normalize('NFC').toLowerCase();
+}
+
+/** The error a move refuses an existing destination with. */
+function alreadyExists(to: string): Error {
+  return Object.assign(new Error(`${to} already exists`), { code: 'EEXIST' });
+}
+
 /**
- * Moves a file, creating the destination's folder. Refuses to overwrite an existing destination. A
+ * Whether `from` and `to`, two paths that differ only by letter case, name the same file or folder:
+ * true on a case-insensitive file system (NTFS, APFS by default), where both resolve to one entry
+ * (same device and inode, read as bigints for Windows' 64-bit file ids). Two hard links are never
+ * taken for one: their names differ by more than case.
+ */
+async function isSameEntry(from: string, to: string): Promise<boolean> {
+  if (foldCase(path.resolve(from)) !== foldCase(path.resolve(to))) return false;
+  try {
+    const [a, b] = await Promise.all([stat(from, { bigint: true }), stat(to, { bigint: true })]);
+    return a.dev === b.dev && a.ino === b.ino;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Renames `from` to `to`, two names of one entry that differ only by letter case, in two steps
+ * through a temporary name in the same folder, since a case-insensitive file system may take a
+ * direct rename for a no-op. If the second step fails, the entry goes back to `from`.
+ */
+async function renameCase(from: string, to: string): Promise<void> {
+  const temporary = path.join(path.dirname(from), `.tankobon-case-${randomBytes(6).toString('hex')}`);
+  await rename(from, temporary);
+  try {
+    // Still there: `to` was another entry after all (a case-sensitive folder), never overwritten.
+    if (await pathExists(to)) throw alreadyExists(to);
+    await rename(temporary, to);
+  } catch (error) {
+    await rename(temporary, from).catch(() => undefined);
+    throw error;
+  }
+}
+
+/**
+ * Moves a file, creating the destination's folder. Refuses to overwrite an existing destination,
+ * unless it is the file itself under another letter case (a case-insensitive file system): the file
+ * is then renamed to the new case, in two steps (see `renameCase()`). A
  * move to another drive (`EXDEV`, which `rename` can't do) copies then deletes the original; if
  * the original can't be deleted (a file in use on Windows), the copy is deleted and the move fails,
  * so the file is never left in two places.
  */
 export async function moveFile(from: string, to: string): Promise<void> {
   if (await pathExists(to)) {
-    throw Object.assign(new Error(`${to} already exists`), { code: 'EEXIST' });
+    if (await isSameEntry(from, to)) return renameCase(from, to);
+    throw alreadyExists(to);
   }
   const folder = path.dirname(to);
   // The first folder that has to be created, if any: the top of what a failure removes. Not the path
@@ -294,6 +342,11 @@ export interface OrganizeSummary {
   failed: number;
   /** True when `signal` stopped the run before every comic was handled; those left stay where they were. */
   cancelled: boolean;
+  /**
+   * Other comics whose path changed because a folder holding them was renamed to a new letter case
+   * (see {@link organizeEntries}); their files didn't move otherwise.
+   */
+  relocated: MovedEntry[];
 }
 
 /**
@@ -310,6 +363,62 @@ async function removeEmptyFolders(root: string, folder: string): Promise<void> {
     }
     current = path.dirname(current);
   }
+}
+
+/**
+ * Points the entries under `from`, a folder just renamed to `to`, at their file's new path, and returns
+ * those moved but `exceptId`'s, which the caller moves next. The stored paths are compared ignoring
+ * case, like the file system that told the two names apart only by it.
+ */
+function repointEntries(repo: LibraryRepository, from: string, to: string, exceptId: string): MovedEntry[] {
+  const prefix = foldCase(from);
+  const moved: MovedEntry[] = [];
+  for (const entry of repo.list()) {
+    const rest = entry.path.slice(from.length);
+    if (!rest.startsWith(path.sep) || foldCase(entry.path.slice(0, from.length)) !== prefix) continue;
+    const next = to + rest;
+    if (next === entry.path || !repo.updatePath(entry.id, next)) continue;
+    if (entry.id !== exceptId) moved.push({ id: entry.id, from: entry.path, to: next });
+  }
+  return moved;
+}
+
+/**
+ * Gives the existing folders of `folder`, below `root`, the letter case `folder` spells them with: on a
+ * case-insensitive file system, `<root>/tintin` is where `<root>/Tintin` goes, and would otherwise keep
+ * its old name. Each such folder is renamed (see `renameCase()`) and the library entries under it are
+ * repointed; those other than `movingId`'s are returned. A folder that can't be renamed keeps its case,
+ * which only costs the looks: the paths still resolve.
+ */
+async function matchFolderCase(
+  repo: LibraryRepository,
+  root: string,
+  folder: string,
+  movingId: string,
+): Promise<MovedEntry[]> {
+  const relocated: MovedEntry[] = [];
+  if (!isInside(root, folder)) return relocated;
+  let parent = root;
+  for (const name of path.relative(root, folder).split(path.sep)) {
+    const wanted = path.join(parent, name);
+    // The folders below don't exist either: the move creates them with the right case.
+    if (!(await isDirectory(wanted))) break;
+    const names = await readdir(parent).catch(() => [name]);
+    const actual = names.includes(name) ? undefined : names.find((other) => foldCase(other) === foldCase(name));
+    if (actual !== undefined) {
+      const from = path.join(parent, actual);
+      if (await isSameEntry(from, wanted)) {
+        try {
+          await renameCase(from, wanted);
+          relocated.push(...repointEntries(repo, from, wanted, movingId));
+        } catch {
+          // Left with its old case.
+        }
+      }
+    }
+    parent = wanted;
+  }
+  return relocated;
 }
 
 /** Moves `from` to the first of `candidates` free in the library and on disk; the path used, or null. */
@@ -329,7 +438,9 @@ async function moveToFirstFree(repo: LibraryRepository, from: string, candidates
 /**
  * Moves each entry's file to its {@link organizedPaths} under the target and points the entry at it,
  * one after the other. An entry already in place, or no longer in the library, is skipped. A failure
- * only costs that comic. When a comic leaves a subfolder of the organized folder (one dropped there by
+ * only costs that comic. A destination that differs from the comic's place only by letter case (a
+ * case-insensitive file system) is reached by renaming: its folders first, the entries of the other
+ * comics they hold being repointed (`relocated`), then the file. When a comic leaves a subfolder of the organized folder (one dropped there by
  * hand, or the place of an older structure), that subfolder and its parents are deleted if they are
  * now empty; nothing outside the organized folder is ever deleted. An aborted `signal` stops the run
  * before its next comic (the one being moved is finished), with `cancelled` set.
@@ -341,7 +452,7 @@ export async function organizeEntries(
   onProgress: (processed: number, total: number, currentFile: string) => void = () => undefined,
   signal?: AbortSignal,
 ): Promise<OrganizeSummary> {
-  const summary: OrganizeSummary = { moved: [], failed: 0, cancelled: false };
+  const summary: OrganizeSummary = { moved: [], failed: 0, cancelled: false, relocated: [] };
   for (const [index, id] of ids.entries()) {
     if (signal?.aborted) {
       summary.cancelled = true;
@@ -355,7 +466,15 @@ export async function organizeEntries(
       summary.failed += 1;
       continue;
     }
-    const to = await moveToFirstFree(repo, entry.path, organizedPaths(target, entry));
+    const candidates = organizedPaths(target, entry);
+    summary.relocated.push(...(await matchFolderCase(repo, target.root, path.dirname(candidates[0]), id)));
+    // Renaming the folders was enough when the file's own name already had the right case.
+    const repointed = repo.get(id)?.path;
+    if (repointed !== undefined && repointed !== entry.path && candidates.includes(repointed)) {
+      summary.moved.push({ id, from: entry.path, to: repointed });
+      continue;
+    }
+    const to = await moveToFirstFree(repo, entry.path, candidates);
     if (to === null) {
       summary.failed += 1;
       continue;
