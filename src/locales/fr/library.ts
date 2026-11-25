@@ -78,7 +78,7 @@ const library: Translation<typeof en> = {
   removeManyFilesFailed_one: "{{count}} fichier n'a pas pu être mis à la corbeille ; son livre a quand même été retiré de la bibliothèque",
   removeManyFilesFailed_other: "{{count}} fichiers n'ont pas pu être mis à la corbeille ; leurs livres ont quand même été retirés de la bibliothèque",
   removeManyFailed: "Les livres n'ont pas pu être retirés.",
-  confirmRemove: "Retirer « {{title}} » de la bibliothèque ? Sa note, ses étiquettes et ses infos seront perdues ; le fichier est déplacé dans le dossier .deletedByTankobon.",
+  confirmRemove: 'Retirer « {{title}} » de la bibliothèque ? Sa note, ses étiquettes et ses infos seront perdues ; le fichier est déplacé dans le dossier .deletedByTankobon.',
   rating: '{{rating}} / 5',
   notRated: 'Non noté',
   rate_one: 'Noter {{count}} étoile',

@@ -16,7 +16,7 @@ Every text file uses LF. `.editorconfig` tells editors so, and `.gitattributes` 
 | `npm install` | Installs dependencies. |
 | `npm start` | `electron-forge start`: runs the app from the sources, with HMR on the renderer. Also regenerates `src/routeTree.gen.ts`. |
 | `npm run dev` | The same, in [development mode](#development-mode): the app also restarts by itself when main-process code changes, and opens DevTools. |
-| `npm run lint` | ESLint (flat config: `typescript-eslint`, `import-x`, `react-hooks`, `react-refresh`). |
+| `npm run lint` | ESLint (flat config: `typescript-eslint`, `import-x`, `react-hooks`, `react-refresh`), which also enforces single quotes (`quotes`: double quotes only for a string that holds a single quote, template literals allowed; JSX attributes keep their double quotes). `npx eslint . --fix` rewrites the quotes. |
 | `npm run typecheck` | `tsc --noEmit`. |
 | `npm test` | Vitest, once (`node` environment; a test that renders a component or a hook opts into jsdom, see [Testing components and hooks](#testing-components-and-hooks)). |
 | `npm run test:e2e` | Playwright smoke tests of the packaged app (run `npm run package` first; on a headless Linux, prefix with `xvfb-run`). See [Smoke tests](#smoke-tests-of-the-packaged-app). |

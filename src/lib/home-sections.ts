@@ -10,9 +10,9 @@ import {
   HOME_SECTION_MIN_COUNT,
   HOME_SECTIONS,
   type HomeSectionSetting,
-} from "@/shared/settings";
+} from '@/shared/settings';
 
-import { moveItem } from "./reading-list";
+import { moveItem } from './reading-list';
 
 /** A {@link HomeSectionSetting} with every option filled in. */
 export type ResolvedHomeSection = Required<HomeSectionSetting>;
@@ -62,8 +62,8 @@ export function visibleHomeSections(
 /** The resolved list with the block `id`'s options replaced by `patch` (`count` clamped). */
 export function setHomeSectionOptions(
   stored: readonly HomeSectionSetting[],
-  id: HomeSectionSetting["id"],
-  patch: Partial<Pick<HomeSectionSetting, "count" | "hideWhenEmpty" | "layout">>,
+  id: HomeSectionSetting['id'],
+  patch: Partial<Pick<HomeSectionSetting, 'count' | 'hideWhenEmpty' | 'layout'>>,
 ): ResolvedHomeSection[] {
   return resolveHomeSections(stored).map((section) =>
     section.id === id
@@ -89,7 +89,7 @@ export function moveHomeSection(
 /** The resolved list with the block `id` shown or hidden. */
 export function setHomeSectionVisible(
   stored: readonly HomeSectionSetting[],
-  id: HomeSectionSetting["id"],
+  id: HomeSectionSetting['id'],
   visible: boolean,
 ): HomeSectionSetting[] {
   return resolveHomeSections(stored).map((section) =>
