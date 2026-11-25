@@ -37,7 +37,7 @@ interface Pending {
 }
 
 /** How long the calls that open a file may take before the decoder process is abandoned (ADR 0018). */
-export const OPEN_TIMEOUT_MS = 60_000;
+const OPEN_TIMEOUT_MS = 60_000;
 
 /** The calls bounded by a timeout: the ones that parse a whole file on untrusted input. */
 const TIMED_METHODS: ReadonlySet<DecoderMethod> = new Set<DecoderMethod>(['open', 'inspect', 'measure', 'listJunk']);

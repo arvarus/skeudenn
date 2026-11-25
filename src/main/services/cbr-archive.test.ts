@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CbrArchive } from './cbr-archive';
 import { MAX_ENTRY_SIZE } from './comic-archive';
-import { buildRar } from './rar-fixture';
+import { buildRar } from '../../test/rar-fixture';
 
 // cbr-archive.ts loads unrar.wasm from next to the bundled main.js; under Vitest, serve the
 // package's own copy instead.

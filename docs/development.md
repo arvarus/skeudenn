@@ -77,6 +77,7 @@ The unit tests pass on Linux, macOS and Windows, and CI runs them on Windows too
 - **Real files go in a temporary folder** (`mkdtemp(path.join(tmpdir(), …))`), removed after the test.
 - **No `:`, `*`, `?`, `"`, `<`, `>`, `|` in a file name**, nor a trailing dot or space: Windows refuses them (a `:` even names an alternate data stream). When the case under test needs such a name, create it only off Windows (`process.platform === 'win32'`) and keep the assertion.
 - **Symbolic links may be unavailable**: creating one on Windows needs administrator rights or Developer Mode. Skip the test at run time when `symlink()` fails with `EPERM` or `EACCES` (`ctx.skip()`, see `src/main/services/nfo.test.ts`), never silently pass it.
+- **No tool writes RAR**: a CBR test builds its archive with `buildRar()` (`src/test/rar-fixture.ts`, stored entries only). Like the other helpers of `src/test/`, it is outside the TypeDoc scope and never run by Vitest, which only picks `*.test.*` files.
 - **Heavy tests get their own timeout** (the last argument of `it()`): the suite runs files in parallel, and a test that takes one second alone can pass the default 5 s under load on a slower machine.
 
 ## Testing components and hooks

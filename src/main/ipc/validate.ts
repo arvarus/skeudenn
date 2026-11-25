@@ -10,9 +10,9 @@ import { CREDIT_ROLES, type CreditInput, type CreditRole, type MetadataUpdate } 
 import { METADATA_API_SOURCES, type MetadataQuery } from '../../shared/metadata';
 
 /** Longest string accepted for a free-form field (a title, a tag, a search text), in characters. */
-export const MAX_TEXT_LENGTH = 10_000;
+const MAX_TEXT_LENGTH = 10_000;
 /** Longest list accepted (tags, credits, ids of a reorder). */
-export const MAX_LIST_LENGTH = 1_000;
+const MAX_LIST_LENGTH = 1_000;
 /** Most library entry ids accepted in one call (a bulk action over a whole library of 20 000 books and more). */
 export const MAX_LIBRARY_IDS = 100_000;
 /** Longest library entry id accepted, in characters (ids are UUIDs). */
@@ -167,7 +167,7 @@ export const idArg: ArgParser<string> = (value) => expectNonEmptyString(value, '
 export const pageIndexArg: ArgParser<number> = (value) => expectInteger(value, 'index', 0, MAX_PAGE_INDEX);
 
 /** Upper bound of a page index: no archive has more pages, and it keeps absurd numbers out of the database. */
-export const MAX_PAGE_INDEX = 1_000_000;
+const MAX_PAGE_INDEX = 1_000_000;
 
 /** Binary data (an image) of at most `max` bytes. */
 export function expectBytes(value: unknown, name: string, max: number): Uint8Array {

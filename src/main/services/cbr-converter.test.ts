@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { applyLanguage } from '../../shared/i18n';
 import { convertCbrToCbz } from './cbr-converter';
 import { CbzArchive } from './cbz-archive';
-import { buildRar } from './rar-fixture';
+import { buildRar } from '../../test/rar-fixture';
 
 applyLanguage('fr');
 
