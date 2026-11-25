@@ -2,6 +2,7 @@ import { app } from 'electron';
 
 import type { BackupInfo, BackupList, BackupResult, DatabaseLocation, DatabaseLocationResult, RestoreBackupResult } from '../../shared/data';
 import { t } from '../../shared/i18n';
+import { errorText } from '../../shared/errors';
 import {
   backupDirectory,
   cancelRestore,
@@ -136,6 +137,6 @@ export async function runBackup(
     notify({ scope: 'settings', values: { lastBackupAt: backup.createdAt } });
     return { status: 'created', backup };
   } catch (error) {
-    return { status: 'error', message: t('errors:backup.failed', { message: error instanceof Error ? error.message : String(error) }) };
+    return { status: 'error', message: t('errors:backup.failed', { message: errorText(error) }) };
   }
 }

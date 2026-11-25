@@ -10,6 +10,7 @@ import {
   type UserResult,
   type UsersState,
 } from '../../shared/users';
+import { errorText } from '../../shared/errors';
 import type { SettingsRepository } from '../db/settings-repository';
 import type { UserRepository } from '../db/user-repository';
 import { applyMainLanguage } from '../language';
@@ -80,7 +81,7 @@ export function registerUserIpc(users: UserRepository, settings: SettingsReposit
     } catch (error) {
       return {
         status: 'error',
-        message: t('errors:users.avatarUnreadable', { message: error instanceof Error ? error.message : String(error) }),
+        message: t('errors:users.avatarUnreadable', { message: errorText(error) }),
       };
     }
   });

@@ -13,6 +13,7 @@ import {
   pageSourceOf,
 } from '../../shared/metadata';
 import type { AppSettings } from '../../shared/settings';
+import { errorText } from '../../shared/errors';
 import { fetchBedethequeAlbum, searchBedetheque } from './bedetheque';
 import { fetchStructuredPage } from './structured-page';
 import { ComicVineClient } from './comic-vine';
@@ -85,7 +86,7 @@ export async function searchMetadata(
   const results = await Promise.allSettled(clients.map((client) => client.search({ text, volume })));
   const candidates = results.flatMap((result) => (result.status === 'fulfilled' ? result.value.map(withValidDate) : []));
   const errors = results.flatMap((result) =>
-    result.status === 'rejected' ? [result.reason instanceof Error ? result.reason.message : String(result.reason)] : [],
+    result.status === 'rejected' ? [errorText(result.reason)] : [],
   );
   if (errors.length === clients.length) {
     return { status: 'error', message: errors.join('\n') };
@@ -102,6 +103,6 @@ export async function fetchMetadataPage(url: string, http: HttpOptions): Promise
     const candidate = pageSourceOf(url) === 'bedetheque' ? await fetchBedethequeAlbum(url, http) : await fetchStructuredPage(url, http);
     return { status: 'ok', candidate: withValidDate(candidate) };
   } catch (error) {
-    return { status: 'error', message: error instanceof Error ? error.message : String(error) };
+    return { status: 'error', message: errorText(error) };
   }
 }

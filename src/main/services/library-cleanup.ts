@@ -21,6 +21,7 @@ import {
   type ScanFailure,
   type ScanProgress,
 } from '../../shared/library';
+import { errorText } from '../../shared/errors';
 import type { LibraryRepository } from '../db/library-repository';
 import type { CleanedArchive, JunkEntry } from './cbz-cleaner';
 import { isOnlineOnly } from './cloud-files';
@@ -110,7 +111,7 @@ export function groupJunk(books: readonly PlannedBook[]): CleanupGroup[] {
 /** Notes why the book at `filePath` failed, up to `MAX_REPORTED_FAILURES` books. */
 function reportFailure(failures: ScanFailure[], filePath: string, error: unknown): void {
   if (failures.length < MAX_REPORTED_FAILURES) {
-    failures.push({ path: filePath, reason: error instanceof Error ? error.message : String(error) });
+    failures.push({ path: filePath, reason: errorText(error) });
   }
 }
 

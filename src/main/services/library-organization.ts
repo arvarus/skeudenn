@@ -17,6 +17,7 @@ import type {
   UnorganizedCountResult,
 } from '../../shared/library';
 import type { LibraryOrganization } from '../../shared/settings';
+import { errorText } from '../../shared/errors';
 import type { LibraryFolderRepository } from '../db/library-folder-repository';
 import type { LibraryRepository } from '../db/library-repository';
 import type { SettingsRepository } from '../db/settings-repository';
@@ -358,7 +359,7 @@ export function createResynchronizer(
           organization,
         };
       } catch (error) {
-        return { status: 'error', message: error instanceof Error ? error.message : String(error) };
+        return { status: 'error', message: errorText(error) };
       } finally {
         running = false;
         latest = null;

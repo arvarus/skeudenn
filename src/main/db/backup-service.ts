@@ -9,6 +9,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 import type { BackupInfo } from '../../shared/data';
 import { t } from '../../shared/i18n';
+import { errorText } from '../../shared/errors';
 import { configureConnection } from './schema';
 
 /** Directory holding the copies, beside the database file. */
@@ -129,7 +130,7 @@ export function scheduleRestore(userDataDir: string, databaseDirectory: string, 
     writeFileSync(path.join(userDataDir, PENDING_RESTORE_FILE), JSON.stringify({ name }), 'utf-8');
     return null;
   } catch (error) {
-    return t('errors:backup.failed', { message: error instanceof Error ? error.message : String(error) });
+    return t('errors:backup.failed', { message: errorText(error) });
   }
 }
 

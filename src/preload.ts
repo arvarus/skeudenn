@@ -323,6 +323,18 @@ export interface TankobonApi {
   users: UsersApi;
 }
 
+/**
+ * Listens to a main → renderer push channel and returns the function that stops listening. The
+ * Electron event is dropped: the renderer only ever receives the payload.
+ */
+function subscribe<T = void>(channel: string, listener: (payload: T) => void): () => void {
+  const handler = (_event: Electron.IpcRendererEvent, payload: T) => listener(payload);
+  ipcRenderer.on(channel, handler);
+  return () => {
+    ipcRenderer.removeListener(channel, handler);
+  };
+}
+
 // Mirror of the CHANNELS constants in main/ipc/*.ts (preload cannot import main code). The method
 // descriptions live on the interfaces above, where TypeDoc and the IPC reference read them.
 const api: TankobonApi = {
@@ -332,13 +344,7 @@ const api: TankobonApi = {
     openLink: (link) => ipcRenderer.invoke('app:open-link', link),
     checkUpdate: () => ipcRenderer.invoke('app:check-update'),
     takeLaunchFile: () => ipcRenderer.invoke('app:take-launch-file'),
-    onLaunchFile: (listener) => {
-      const handler = () => listener();
-      ipcRenderer.on('app:launch-file', handler);
-      return () => {
-        ipcRenderer.removeListener('app:launch-file', handler);
-      };
-    },
+    onLaunchFile: (listener) => subscribe('app:launch-file', listener),
   },
   comic: {
     pickFile: (addToLibrary) => ipcRenderer.invoke('comic:pick-file', addToLibrary),
@@ -365,21 +371,9 @@ const api: TankobonApi = {
     emptyDeleted: () => ipcRenderer.invoke('library:empty-deleted'),
     countOrphanFolders: () => ipcRenderer.invoke('library:count-orphan-folders'),
     cleanFolders: () => ipcRenderer.invoke('library:clean-folders'),
-    onScanProgress: (listener) => {
-      const handler = (_event: Electron.IpcRendererEvent, progress: ScanProgress) => listener(progress);
-      ipcRenderer.on('library:scan-progress', handler);
-      return () => {
-        ipcRenderer.removeListener('library:scan-progress', handler);
-      };
-    },
+    onScanProgress: (listener) => subscribe<ScanProgress>('library:scan-progress', listener),
     imageScanStatus: () => ipcRenderer.invoke('library:image-scan-status'),
-    onImageScanProgress: (listener) => {
-      const handler = (_event: Electron.IpcRendererEvent, progress: ImageScanProgress) => listener(progress);
-      ipcRenderer.on('library:image-scan-progress', handler);
-      return () => {
-        ipcRenderer.removeListener('library:image-scan-progress', handler);
-      };
-    },
+    onImageScanProgress: (listener) => subscribe<ImageScanProgress>('library:image-scan-progress', listener),
     listFolders: () => ipcRenderer.invoke('library:list-folders'),
     removeFolder: (folder) => ipcRenderer.invoke('library:remove-folder', folder),
     listUnlinkedFolders: () => ipcRenderer.invoke('library:list-unlinked-folders'),
@@ -388,13 +382,7 @@ const api: TankobonApi = {
     cancelResync: () => ipcRenderer.invoke('library:cancel-resync'),
     resyncStatus: () => ipcRenderer.invoke('library:resync-status'),
     takeStartupOrganization: () => ipcRenderer.invoke('library:take-startup-organization'),
-    onStartupOrganization: (listener) => {
-      const handler = () => listener();
-      ipcRenderer.on('library:startup-organization', handler);
-      return () => {
-        ipcRenderer.removeListener('library:startup-organization', handler);
-      };
-    },
+    onStartupOrganization: (listener) => subscribe('library:startup-organization', listener),
     remove: (id, deleteFile = false) => ipcRenderer.invoke('library:remove', id, deleteFile),
     removeMany: (ids, deleteFiles) => ipcRenderer.invoke('library:remove-many', ids, deleteFiles),
     updateProgress: (id, currentPage) => ipcRenderer.invoke('library:update-progress', id, currentPage),
@@ -432,13 +420,7 @@ const api: TankobonApi = {
     import: () => ipcRenderer.invoke('data:import'),
     clearLibrary: () => ipcRenderer.invoke('data:clear-library'),
     clearCache: () => ipcRenderer.invoke('data:clear-cache'),
-    onChanged: (listener) => {
-      const handler = (_event: Electron.IpcRendererEvent, change: DataChange) => listener(change);
-      ipcRenderer.on('data:changed', handler);
-      return () => {
-        ipcRenderer.removeListener('data:changed', handler);
-      };
-    },
+    onChanged: (listener) => subscribe<DataChange>('data:changed', listener),
   },
   database: {
     getLocation: () => ipcRenderer.invoke('database:get-location'),

@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import type Upscaler from 'upscaler';
 
 import { createLruCache } from '@/lib/lru-cache';
+import { errorText } from '@/shared/errors';
 
 // TensorFlow.js and the model are only pulled in (as a separate chunk) the first time
 // upscaling actually runs, so opening the reader never pays for this unless it's used.
@@ -97,7 +98,7 @@ export function useImageUpscaler(src: string | null, enabled: boolean, pageKey: 
       .catch((err: unknown) => {
         // Best-effort enhancement: fall back to the original image on failure.
         console.error('Image upscaling failed:', err);
-        if (!cancelled) setError(err instanceof Error ? err.message : String(err));
+        if (!cancelled) setError(errorText(err));
       })
       .finally(() => {
         if (!cancelled) setIsUpscaling(false);

@@ -3,6 +3,7 @@
  * @module
  */
 import { isNewerVersion, type UpdateCheckResult } from '../../shared/app';
+import { errorText } from '../../shared/errors';
 import { getJson, type HttpOptions } from './http-json';
 
 /** GitHub's API endpoint for the repository's latest release (never a draft or a pre-release). */
@@ -21,6 +22,6 @@ export async function checkForUpdate(currentVersion: string, options: HttpOption
     }
     return { status: 'up-to-date' };
   } catch (error) {
-    return { status: 'error', message: error instanceof Error ? error.message : String(error) };
+    return { status: 'error', message: errorText(error) };
   }
 }
