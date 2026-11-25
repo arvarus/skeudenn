@@ -16,6 +16,7 @@ import type {
   ScanProgress,
   UnorganizedCountResult,
 } from '../../shared/library';
+import type { LibraryOrganization } from '../../shared/settings';
 import type { LibraryFolderRepository } from '../db/library-folder-repository';
 import type { LibraryRepository } from '../db/library-repository';
 import type { SettingsRepository } from '../db/settings-repository';
@@ -141,7 +142,12 @@ export function createLibraryOrganizer(
   const offers = new Map<string, string[]>();
   const lock = createLibraryRunLock();
 
-  const current = () => {
+  /**
+   * The organization mode and the target every run of this organizer moves comics to, from the
+   * settings of the moment. One object for all of them, so a new `OrganizationTarget` field can't
+   * be left out of one run.
+   */
+  const current = (): { mode: LibraryOrganization; target: OrganizationTarget } => {
     const {
       libraryOrganization: mode,
       libraryOrganizationFolder: root,
@@ -152,16 +158,17 @@ export function createLibraryOrganizer(
       libraryVolumePrefix: volumePrefix,
       libraryVolumePrefixNumericOnly: prefixNumericOnly,
     } = settings.getAll();
-    return { mode, root, structure, fileName, articles: ignoreArticles ? libraryArticles : [], volumePrefix, prefixNumericOnly };
+    return {
+      mode,
+      target: { root, structure, fileName, articles: ignoreArticles ? libraryArticles : [], volumePrefix, prefixNumericOnly },
+    };
   };
 
   /** The organized folder when the organization is on and its folder is there, else the error to return. */
   const usableRoot = async (): Promise<{ target: OrganizationTarget } | { status: 'error'; message: string }> => {
-    const { mode, root, structure, fileName, articles, volumePrefix, prefixNumericOnly } = current();
-    const problem = await organizedFolderProblem(mode, root);
-    return problem === null
-      ? { target: { root, structure, fileName, articles, volumePrefix, prefixNumericOnly } }
-      : { status: 'error', message: problem };
+    const { mode, target } = current();
+    const problem = await organizedFolderProblem(mode, target.root);
+    return problem === null ? { target } : { status: 'error', message: problem };
   };
 
   const move = async (
@@ -181,12 +188,16 @@ export function createLibraryOrganizer(
 
   return {
     watchedFolders(folders) {
-      const { mode, root } = current();
+      const {
+        mode,
+        target: { root },
+      } = current();
       return mode === 'off' || root === '' || folders.includes(root) ? folders : [...folders, root];
     },
 
     async afterAdd(added) {
-      const { mode, root, structure, fileName, articles } = current();
+      const { mode, target } = current();
+      const { root } = target;
       const plan = planOrganization(mode, root, added);
       if (plan.now.length === 0 && plan.offer.length === 0) return NOTHING_ORGANIZED;
       if (!(await isDirectory(root))) {
@@ -194,7 +205,7 @@ export function createLibraryOrganizer(
         return { moved: 0, failed: plan.now.length + plan.offer.length, pending: null };
       }
       // Part of an addition or a resynchronization, which decided before this point whether to go on: not stopped here.
-      const { moved, failed } = await move({ root, structure, fileName, articles }, plan.now);
+      const { moved, failed } = await move(target, plan.now);
       if (plan.offer.length === 0) return { moved, failed, pending: null };
 
       const token = randomUUID();
