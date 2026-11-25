@@ -1,5 +1,5 @@
 import { ArrowLeft, ChevronDown, ChevronRight, Globe, Loader2, Search, SkipForward, Square, X } from 'lucide-react';
-import { useEffect, useReducer, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import type { TFunction } from 'i18next';
 import { useTranslation } from 'react-i18next';
 import { Tabs } from 'radix-ui';
@@ -188,8 +188,10 @@ export function MetadataDialog({
 
   // On the review, Enter saves, wherever the focus is (a field, or nowhere after a click on a result);
   // a focused button, link or list keeps its own Enter, and a dialog opened over this one is left alone.
+  // A layout effect, so the listener is there as soon as the review is: a passive effect runs a task later,
+  // and an Enter pressed in between (or fired by a test right after the review appears) was lost.
   const reviewToApply = step.kind === 'review' && !applying ? step.review : null;
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!reviewToApply) return;
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target instanceof Element ? event.target : null;
