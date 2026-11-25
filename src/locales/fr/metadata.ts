@@ -33,6 +33,7 @@ const metadata: Translation<typeof en> = {
   role: 'Rôle',
   currentTag: 'actuel',
   proposedTag: 'proposé',
+  modeLabel: 'Méthode de recherche',
   modeApi: 'Recherche par API',
   modeSite: 'Depuis un lien',
   sourcesLabel: 'Rechercher dans :',

@@ -31,6 +31,7 @@ export default {
   role: 'Role',
   currentTag: 'current',
   proposedTag: 'proposed',
+  modeLabel: 'Lookup method',
   modeApi: 'Search in APIs',
   modeSite: 'From a page link',
   sourcesLabel: 'Search in:',
