@@ -498,10 +498,16 @@ export const SETTING_VALIDATORS: SettingValidators = {
 };
 
 /**
- * Settings only the main process writes: `settings:set` refuses them. The organized folder is one,
- * since the app moves files into it: the renderer never names a path (it goes through a folder dialog).
+ * Settings only the main process writes: `settings:set` refuses them and the JSON import keeps their
+ * local value. The organized folder is one, since the app moves files into it: the renderer never
+ * names a path (it goes through a folder dialog). So is `lastScanFolder`, which the folder dialog
+ * `stat`s: a network path there would make Windows send the user's credentials to that host.
  */
-export const MAIN_PROCESS_SETTINGS: readonly (keyof AppSettings)[] = ['libraryOrganizationFolder', 'lastBackupAt'];
+export const MAIN_PROCESS_SETTINGS: readonly (keyof AppSettings)[] = [
+  'libraryOrganizationFolder',
+  'lastBackupAt',
+  'lastScanFolder',
+];
 
 /** Whether `key` names a setting of {@link AppSettings}. */
 export function isSettingKey(key: unknown): key is keyof AppSettings {

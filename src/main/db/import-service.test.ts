@@ -255,9 +255,11 @@ describe('applyImport', () => {
   });
 
   // The organized folder is where the app moves files, and `settings:set` refuses it: an edited export must not set it.
+  // Nor the last scanned folder, which the folder dialog stats: a network path would send the user's credentials.
   it('keeps the settings only the main process writes', () => {
     settingsRepo.set('libraryOrganizationFolder', '/comics/organized');
     settingsRepo.set('lastBackupAt', '2026-01-01T00:00:00.000Z');
+    settingsRepo.set('lastScanFolder', '/comics/incoming');
 
     applyImport(
       db,
@@ -272,6 +274,7 @@ describe('applyImport', () => {
             libraryOrganization: 'always',
             libraryOrganizationFolder: '/home/someone',
             lastBackupAt: '2030-01-01T00:00:00.000Z',
+            lastScanFolder: '\\\\attacker\\share',
             readerBackground: '#ffffff',
           },
         }),
@@ -283,6 +286,7 @@ describe('applyImport', () => {
       readerBackground: '#ffffff',
       libraryOrganizationFolder: '/comics/organized',
       lastBackupAt: '2026-01-01T00:00:00.000Z',
+      lastScanFolder: '/comics/incoming',
     });
   });
 
