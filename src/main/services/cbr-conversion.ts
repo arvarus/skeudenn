@@ -11,7 +11,6 @@ import path from 'node:path';
 
 import { comicFormat } from '../../shared/comic';
 import {
-  DELETED_BY_TANKOBON_FOLDER,
   type ConvertCbrResult,
   type ConvertCountResult,
   type EmptyDeletedResult,
@@ -25,7 +24,7 @@ import { coverSidecarPath } from './cover-sidecar';
 import { moveFile } from './library-organizer';
 import type { LibraryNotifier, LibraryRunLock } from './library-organization';
 import { nfoPathFor } from './nfo';
-import { firstFreeName, markParked, organizedFolderProblem } from './organized-folder';
+import { firstFreeName, markParked, organizedFolderProblem, requireTrashFolder, usableTrashFolder } from './organized-folder';
 
 /** The part of the decoder process the conversion calls. */
 export interface ConversionDecoder {
@@ -98,7 +97,8 @@ export function createCbrConverter(
 
   /**
    * Deletes the items of the trash whose parking time `shouldDelete` accepts, one at a time, and the folder itself once
-   * it is empty; an aborted `signal` stops it before its next item.
+   * it is empty; an aborted `signal` stops it before its next item. A trash that is a link or a junction
+   * (`usableTrashFolder()`) is left alone: nothing is deleted.
    */
   const deleteFromTrash = async (
     root: string,
@@ -106,9 +106,10 @@ export function createCbrConverter(
     signal: AbortSignal,
     onProgress: (progress: ScanProgress) => void,
   ): Promise<EmptyDeletedResult> => {
-    const folder = path.join(root, DELETED_BY_TANKOBON_FOLDER);
-    const names = await readdir(folder).catch(() => [] as string[]);
     const result = { deleted: 0, bytesFreed: 0, failed: 0, cancelled: false };
+    const folder = await usableTrashFolder(root);
+    if (folder === null) return { status: 'ok', ...result };
+    const names = await readdir(folder).catch(() => [] as string[]);
     for (const [index, name] of names.entries()) {
       if (signal.aborted) {
         result.cancelled = true;
@@ -140,7 +141,9 @@ export function createCbrConverter(
     async count() {
       const usable = await usableRoot();
       if (!('root' in usable)) return usable;
-      const deleted = await folderContents(path.join(usable.root, DELETED_BY_TANKOBON_FOLDER));
+      // A trash that is a link or a junction is not read: it counts as empty.
+      const trash = await usableTrashFolder(usable.root);
+      const deleted = trash === null ? { names: [], bytes: 0 } : await folderContents(trash);
       return {
         status: 'ok',
         count: convertibleIds(usable.root).length,
@@ -156,7 +159,6 @@ export function createCbrConverter(
       const signal = lock.tryStart('convert');
       if (!signal) return { status: 'error', message: lock.busyMessage() };
       const { root } = usable;
-      const trash = path.join(root, DELETED_BY_TANKOBON_FOLDER);
       const result = { converted: 0, failed: 0, cancelled: false };
       try {
         const ids = convertibleIds(root);
@@ -175,6 +177,8 @@ export function createCbrConverter(
           // Once the entry names the CBZ, that file is the book: a later hiccup must not delete it.
           let committed = false;
           try {
+            // Checked for each book, before converting: a trash that is a link or a junction fails the book, nothing is moved through it.
+            const trash = await requireTrashFolder(root);
             to = await firstFreeName(path.dirname(from), stem, '.cbz', (candidate) => !repo.hasPath(candidate));
             const { fileCount } = await decoder.convertCbr(from, to);
             // The CBR leaves the library folders for good only once the CBZ exists and was checked.

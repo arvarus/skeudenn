@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { DELETED_BY_TANKOBON_FOLDER } from '../../shared/library';
+import { FOLDER_LINK_KINDS, linkFolderOrSkip } from '../test-links';
 import { parkComic, parkingFolder } from './park-comic';
 
 describe('parkComic', () => {
@@ -39,5 +40,36 @@ describe('parkComic', () => {
 
   it('accepts a comic already gone', async () => {
     await expect(parkComic(join(dir, 'missing.cbz'), dir)).resolves.toBeUndefined();
+  });
+
+  describe.for(FOLDER_LINK_KINDS)('with a .deletedByTankobon that is a link (%s) to a folder outside', (kind) => {
+    let outside: string;
+    beforeEach(async () => {
+      outside = await mkdtemp(join(tmpdir(), 'tankobon-park-outside-'));
+    });
+    afterEach(() => rm(outside, { recursive: true, force: true }));
+
+    it('refuses to park in the organized folder, the comic staying where it was', async ({ skip }) => {
+      await linkFolderOrSkip(outside, join(dir, DELETED_BY_TANKOBON_FOLDER), kind, skip);
+      const book = join(dir, 'Serie', 'Tome 1.cbz');
+      await mkdir(join(dir, 'Serie'));
+      await writeFile(book, 'b');
+      await writeFile(join(dir, 'Serie', 'Tome 1.nfo'), 'n');
+
+      await expect(parkComic(book, dir)).rejects.toThrow(DELETED_BY_TANKOBON_FOLDER);
+
+      expect((await readdir(join(dir, 'Serie'))).sort()).toEqual(['Tome 1.cbz', 'Tome 1.nfo']);
+      expect(await readdir(outside)).toEqual([]);
+    });
+
+    it('refuses to park beside a comic outside the organized folder', async ({ skip }) => {
+      await linkFolderOrSkip(outside, join(dir, DELETED_BY_TANKOBON_FOLDER), kind, skip);
+      await writeFile(join(dir, 'a.cbz'), 'a');
+
+      await expect(parkComic(join(dir, 'a.cbz'), '')).rejects.toThrow(DELETED_BY_TANKOBON_FOLDER);
+
+      expect(await readdir(outside)).toEqual([]);
+      expect(await readdir(dir)).toContain('a.cbz');
+    });
   });
 });

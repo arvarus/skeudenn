@@ -53,6 +53,7 @@ export default {
     organizeRunning: 'Another operation on the library files (adding, resynchronization or organization) is already running.',
     parkFailed: 'The book was removed from the library, but its file could not be moved to the .deletedByTankobon folder: {{message}}',
     trashFailed: 'The book was removed from the library, but its file could not be moved to the trash: {{message}}',
+    trashFolderLinked: 'The folder {{folder}} is a link or lies outside its folder: nothing is moved into it or deleted from it.',
   },
   import: {
     notJson: 'Unreadable file: this is not valid JSON.',

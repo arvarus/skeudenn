@@ -54,6 +54,7 @@ const errors: Translation<typeof en> = {
     organizeRunning: 'Une autre opération sur les fichiers de la bibliothèque (ajout, resynchronisation ou organisation) est déjà en cours.',
     parkFailed: "Le livre a été retiré de la bibliothèque, mais son fichier n'a pas pu être déplacé dans le dossier .deletedByTankobon : {{message}}",
     trashFailed: "Le livre a été retiré de la bibliothèque, mais son fichier n'a pas pu être mis à la corbeille : {{message}}",
+    trashFolderLinked: "Le dossier {{folder}} est un lien ou se trouve hors de son dossier : rien n'y est déplacé ni supprimé.",
   },
   import: {
     notJson: "Fichier illisible : ce n'est pas du JSON valide.",
