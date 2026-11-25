@@ -34,7 +34,7 @@ npm run make         # platform installers
 
 Single test file or test name: `npx vitest run src/main/db/library-repository.test.ts`, `npx vitest run -t "clamps the current page"`.
 
-CI (`.github/workflows/ci.yml`) runs `lint`, `typecheck`, `test` and `docs:build` as parallel jobs on pushes to `master` and on pull requests; `e2e.yml` runs the smoke tests nightly and on demand. See `docs/development.md` for the other workflows and the `npm audit` situation.
+CI (`.github/workflows/ci.yml`) runs `lint`, `typecheck`, `test` and `docs:build` as parallel jobs on pushes to `master` and on pull requests, `test` on both Ubuntu and Windows (keep tests portable: see "Portable tests" in `docs/development.md`); `e2e.yml` runs the smoke tests nightly and on demand. See `docs/development.md` for the other workflows and the `npm audit` situation.
 
 ## Conventions
 

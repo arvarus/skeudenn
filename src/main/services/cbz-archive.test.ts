@@ -111,7 +111,8 @@ describe('CbzArchive', () => {
     const archive = await CbzArchive.open(bomb);
     await expect(archive.readPage(0)).rejects.toThrow('trop volumineuse');
     await archive.close();
-  });
+    // Compressing then inflating 200 MB takes about a second alone, several when the whole suite runs in parallel.
+  }, 30_000);
 
   it('refuses a page declaring a huge image before it is decoded', async () => {
     const header = Buffer.alloc(33);
