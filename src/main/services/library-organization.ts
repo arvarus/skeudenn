@@ -180,10 +180,12 @@ export function createLibraryOrganizer(
     signal?: AbortSignal,
   ) => {
     const summary = await organizeEntries(repo, target, ids, onProgress, signal);
-    if (summary.moved.length > 0) {
+    // The comics of a folder renamed to a new letter case changed path too.
+    const changed = [...summary.moved, ...summary.relocated];
+    if (changed.length > 0) {
       notify({ scope: 'library' });
       // Covers are cached by path: the old ones are useless, the new ones come back on demand.
-      await Promise.all(summary.moved.map((entry) => decoder.removeThumbnail(entry.from).catch(() => undefined)));
+      await Promise.all(changed.map((entry) => decoder.removeThumbnail(entry.from).catch(() => undefined)));
     }
     return { moved: summary.moved.length, failed: summary.failed, cancelled: summary.cancelled };
   };

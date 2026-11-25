@@ -1,4 +1,5 @@
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -40,6 +41,17 @@ async function tree(files: string[]): Promise<string> {
   }
   return root;
 }
+
+/** Whether the temporary directory's file system ignores letter case (NTFS, APFS by default): `A` finds `a`. */
+const caseInsensitive = (() => {
+  const probe = mkdtempSync(path.join(tmpdir(), 'tankobon-case-'));
+  try {
+    writeFileSync(path.join(probe, 'a'), '');
+    return existsSync(path.join(probe, 'A'));
+  } finally {
+    rmSync(probe, { recursive: true, force: true });
+  }
+})();
 
 async function exists(filePath: string): Promise<boolean> {
   return stat(filePath).then(
@@ -110,6 +122,103 @@ describe('moveFile', () => {
     expect(await exists(path.join(root, 'kept', 'a'))).toBe(false);
     expect(await exists(path.join(root, 'kept', 'other.cbz'))).toBe(true);
   });
+
+  it.skipIf(!caseInsensitive)('renames a file to another letter case in two steps', async () => {
+    const root = await tree(['tintin.cbz']);
+    await moveFile(path.join(root, 'tintin.cbz'), path.join(root, 'Tintin.cbz'));
+    expect(await readdir(root)).toEqual(['Tintin.cbz']);
+    expect(await readFile(path.join(root, 'Tintin.cbz'), 'utf8')).toBe('tintin.cbz');
+  });
+
+  it.skipIf(caseInsensitive)('keeps refusing an existing file that differs only by case on a case-sensitive system', async () => {
+    const root = await tree(['tintin.cbz', 'Tintin.cbz']);
+    await expect(moveFile(path.join(root, 'tintin.cbz'), path.join(root, 'Tintin.cbz'))).rejects.toThrow();
+    expect((await readdir(root)).sort()).toEqual(['Tintin.cbz', 'tintin.cbz']);
+  });
+});
+
+describe.skipIf(!caseInsensitive)('organizeEntries on a case-insensitive file system', () => {
+  /** Registers `files` (relative to `root`) and organizes them under `target`; their ids. */
+  async function organized(
+    root: string,
+    target: Parameters<typeof organizeEntries>[1],
+    repo: LibraryRepository,
+    books: { file: string; series: string; volume: string }[],
+  ): Promise<string[]> {
+    const ids = books.map(({ file, series, volume }) => {
+      const from = path.join(root, file);
+      repo.register(from, file, 1, 1, 1);
+      const id = repo.idOfPath(from)!;
+      repo.updateMetadata(id, { series, volume });
+      return id;
+    });
+    const summary = await organizeEntries(repo, target, ids);
+    expect(summary.failed).toBe(0);
+    return ids;
+  }
+
+  it('gives a comic of the default layout the new case of its series, folder and file', async () => {
+    const source = await tree(['a.cbz']);
+    const root = await tree([]);
+    const repo = repository();
+    const target = { root, structure: [], fileName: '{series}' };
+    const [id] = await organized(source, target, repo, [{ file: 'a.cbz', series: 'tintin', volume: '1' }]);
+    expect(await readdir(root)).toEqual([`tintin (${id})`]);
+
+    repo.updateMetadata(id!, { series: 'Tintin' });
+    expect(unorganizedIds(repo, target)).toEqual([id]);
+    const summary = await organizeEntries(repo, target, [id!]);
+
+    const to = path.join(root, `Tintin (${id})`, 'Tintin.cbz');
+    expect(summary).toMatchObject({ failed: 0, moved: [{ id, to }] });
+    expect(await readdir(root)).toEqual([`Tintin (${id})`]);
+    expect(await readdir(path.dirname(to))).toEqual(['Tintin.cbz']);
+    expect(repo.get(id!)?.path).toBe(to);
+    expect(unorganizedIds(repo, target)).toEqual([]);
+  });
+
+  it('renames a level folder to the new case and repoints the other comics it holds', async () => {
+    const source = await tree(['a.cbz', 'b.cbz']);
+    const root = await tree([]);
+    const repo = repository();
+    const target = { root, structure: ['series' as const], fileName: '{series} {volume}' };
+    const [first, second] = await organized(source, target, repo, [
+      { file: 'a.cbz', series: 'tintin', volume: '1' },
+      { file: 'b.cbz', series: 'tintin', volume: '2' },
+    ]);
+    repo.updateMetadata(first!, { series: 'Tintin' });
+    repo.updateMetadata(second!, { series: 'Tintin' });
+
+    const summary = await organizeEntries(repo, target, [first!]);
+
+    expect(summary).toMatchObject({
+      failed: 0,
+      moved: [{ id: first, to: path.join(root, 'Tintin', 'Tintin 1.cbz') }],
+      relocated: [{ id: second, to: path.join(root, 'Tintin', 'tintin 2.cbz') }],
+    });
+    expect(await readdir(root)).toEqual(['Tintin']);
+    expect(repo.get(second!)?.path).toBe(path.join(root, 'Tintin', 'tintin 2.cbz'));
+
+    expect(await organizeEntries(repo, target, unorganizedIds(repo, target))).toMatchObject({ failed: 0 });
+    expect((await readdir(path.join(root, 'Tintin'))).sort()).toEqual(['Tintin 1.cbz', 'Tintin 2.cbz']);
+    expect(unorganizedIds(repo, target)).toEqual([]);
+  });
+
+  it('only renames the folder when the file name already has the right case', async () => {
+    const source = await tree(['Tome.cbz']);
+    const root = await tree([]);
+    const repo = repository();
+    const target = { root, structure: ['series' as const], fileName: '' };
+    const [id] = await organized(source, target, repo, [{ file: 'Tome.cbz', series: 'tintin', volume: '1' }]);
+
+    repo.updateMetadata(id!, { series: 'Tintin' });
+    const summary = await organizeEntries(repo, target, [id!]);
+
+    const to = path.join(root, 'Tintin', 'Tome.cbz');
+    expect(summary).toMatchObject({ failed: 0, moved: [{ id, to }], relocated: [] });
+    expect(await readdir(path.join(root, 'Tintin'))).toEqual(['Tome.cbz']);
+    expect(unorganizedIds(repo, target)).toEqual([]);
+  });
 });
 
 describe('organizeEntries', () => {
@@ -126,7 +235,7 @@ describe('organizeEntries', () => {
 
     const to = summary.moved[0]?.to;
     expect(to).toBe(path.join(target, `Tome 1 (${id})`, 'Tome 1.cbz'));
-    expect(summary).toEqual({ moved: [{ id, from, to }], failed: 0, cancelled: false });
+    expect(summary).toEqual({ moved: [{ id, from, to }], failed: 0, cancelled: false, relocated: [] });
     expect(await exists(to)).toBe(true);
     expect(await exists(from)).toBe(false);
     expect(repo.get(id)).toMatchObject({ path: to, tags: ['Lu'] });
@@ -172,7 +281,7 @@ describe('organizeEntries', () => {
     const id = repo.idOfPath(from)!;
 
     expect(unorganizedIds(repo, flat(target))).toEqual([]);
-    expect(await organizeEntries(repo, flat(target), [id])).toEqual({ moved: [], failed: 1, cancelled: false });
+    expect(await organizeEntries(repo, flat(target), [id])).toEqual({ moved: [], failed: 1, cancelled: false, relocated: [] });
     expect(await exists(from)).toBe(true);
   });
 
@@ -183,7 +292,7 @@ describe('organizeEntries', () => {
     const gone = repo.idOfPath('/nowhere/gone.cbz')!;
 
     const first = await organizeEntries(repo, flat(target), [gone, 'unknown-id']);
-    expect(first).toEqual({ moved: [], failed: 1, cancelled: false });
+    expect(first).toEqual({ moved: [], failed: 1, cancelled: false, relocated: [] });
     expect(repo.get(gone)?.path).toBe('/nowhere/gone.cbz');
   });
 
@@ -197,7 +306,7 @@ describe('organizeEntries', () => {
     await organizeEntries(repo, flat(target), [id]);
     const again = await organizeEntries(repo, flat(target), [id]);
 
-    expect(again).toEqual({ moved: [], failed: 0, cancelled: false });
+    expect(again).toEqual({ moved: [], failed: 0, cancelled: false, relocated: [] });
     expect(repo.get(id)?.path).toBe(path.join(target, `a (${id})`, 'a.cbz'));
     expect(await exists(path.join(target, 'dropped'))).toBe(false);
   });
