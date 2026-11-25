@@ -1,24 +1,29 @@
 import { Navigate, createFileRoute } from '@tanstack/react-router';
-import { CircleStop, Copy, Eraser, FolderMinus, FileArchive, FolderTree, RefreshCw, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { Copy, Eraser, FileArchive, FolderMinus, FolderTree, RefreshCw, Trash2, Wrench, type LucideIcon } from 'lucide-react';
+import { useState, type ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { CleanupDialog } from '@/components/cleanup-dialog';
-import { useConfirm } from '@/components/confirm-dialog';
 import { DuplicatesDialog } from '@/components/duplicates-dialog';
-import { RunProgress } from '@/components/run-progress';
-import { ScanFailuresDialog } from '@/components/scan-failures-dialog';
+import { Deflate64Dialog } from '@/components/organization/deflate64-dialog';
+import { ResyncDialog } from '@/components/organization/resync-dialog';
+import {
+  CleanFoldersDialog,
+  ConvertCbrDialog,
+  EmptyDeletedDialog,
+  OrganizeAllDialog,
+  type ActionDialogProps,
+} from '@/components/organization/simple-run-dialogs';
 import { SETTINGS_SELECT_CLASS, SettingsSection } from '@/components/settings-section';
 import { Button } from '@/components/ui/button';
 import { resyncStepLabel } from '@/lib/resync-step';
 import { isOrganizationOn } from '@/lib/settings-nav';
-import { useOrganizationOffer } from '@/hooks/use-organization-offer';
 import { useLibrary } from '@/hooks/use-library';
+import { useScanProgress } from '@/hooks/use-scan-progress';
 import { useSettings } from '@/hooks/use-settings';
 import { formatArticleList, isArticleList, parseArticleList } from '@/shared/articles';
-import { duplicateGroups } from '@/lib/library-editions';
 import { fileNameExample, levelChoices, setLevel, structureExample } from '@/lib/library-structure';
-import { cn, formatFileSize } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import {
   FILE_NAME_FIELDS,
   MAX_FILE_NAME_TEMPLATE_LENGTH,
@@ -26,7 +31,6 @@ import {
   fileNameTemplateError,
   isVolumePrefix,
 } from '@/shared/file-name-template';
-import type { LibraryEntry, ScanFailure, ScanProgress } from '@/shared/library';
 import {
   MAX_LIBRARY_LEVELS,
   MAX_TRASH_RETENTION_DAYS,
@@ -45,279 +49,59 @@ function OrganizationSettingsGuard() {
   return isOrganizationOn(settings) ? <OrganizationSettingsPage /> : <Navigate to="/settings/library" replace />;
 }
 
+/** The actions of the page, in the order they are listed; each opens its dialog. */
+const ACTIONS = [
+  { id: 'resync', icon: RefreshCw, needsFolder: false },
+  { id: 'organizeAll', icon: FolderTree, needsFolder: true },
+  { id: 'convertCbr', icon: FileArchive, needsFolder: true },
+  { id: 'convertDeflate64', icon: Wrench, needsFolder: false },
+  { id: 'cleanup', icon: Eraser, needsFolder: false },
+  { id: 'duplicates', icon: Copy, needsFolder: false },
+  { id: 'cleanFolders', icon: FolderMinus, needsFolder: true },
+  { id: 'emptyDeleted', icon: Trash2, needsFolder: true },
+] as const satisfies readonly { id: string; icon: LucideIcon; needsFolder: boolean }[];
+
+type ActionId = (typeof ACTIONS)[number]['id'];
+
+/** The dialogs that take nothing but `onClose`; the cleanup and the duplicates get their books from the page. */
+const SIMPLE_DIALOGS: Partial<Record<ActionId, ComponentType<ActionDialogProps>>> = {
+  resync: ResyncDialog,
+  organizeAll: OrganizeAllDialog,
+  convertCbr: ConvertCbrDialog,
+  convertDeflate64: Deflate64Dialog,
+  cleanFolders: CleanFoldersDialog,
+  emptyDeleted: EmptyDeletedDialog,
+};
+
 /**
- * How the library's files are laid out, shared by every user. The folder the files are moved to is
- * each user's own choice (Paramètres › Bibliothèque).
+ * How the library's files are laid out, shared by every user, then the maintenance actions. The folder the
+ * files are moved to is each user's own choice (Paramètres › Bibliothèque). Each action runs in its own
+ * dialog (`RunDialog`): description and start, progress and stop, then the report.
  */
 function OrganizationSettingsPage() {
   const { t, i18n } = useTranslation('settings', { keyPrefix: 'library' });
   const { settings, update } = useSettings();
-  const { t: tLibrary } = useTranslation('library');
   const library = useLibrary();
-  const { confirm, dialog: confirmDialog } = useConfirm();
-  const offerOrganization = useOrganizationOffer(confirm);
-  // The groups found, frozen when the dialog opens.
-  const [duplicates, setDuplicates] = useState<LibraryEntry[][] | null>(null);
-  const [duplicatesStatus, setDuplicatesStatus] = useState<string | null>(null);
-  // Whether the cleanup dialog is open (it always works on the whole library).
-  const [cleanupOpen, setCleanupOpen] = useState(false);
-  const [progress, setProgress] = useState<ScanProgress | null>(null);
-  // The run this page started, to show its progress under its button (a run started elsewhere only disables the controls).
-  const [running, setRunning] = useState<'organize' | 'convertCbr' | 'checkDeflate64' | 'deflate64' | 'emptyDeleted' | 'cleanFolders' | null>(
-    null,
-  );
-  // The files the last resynchronization couldn't open (`total` is the exact count), shown in a dialog on request.
-  const [failures, setFailures] = useState<{ list: ScanFailure[]; total: number } | null>(null);
-  const [failuresOpen, setFailuresOpen] = useState(false);
-  const [convertStatus, setConvertStatus] = useState<{ message: string; error?: boolean } | null>(null);
-  const [resyncRunning, setResyncRunning] = useState(false);
-  const [resyncStopping, setResyncStopping] = useState(false);
-  const [resyncStatus, setResyncStatus] = useState<{ message: string; error?: boolean } | null>(null);
-  const [organizeStatus, setOrganizeStatus] = useState<{ message: string; error?: boolean } | null>(null);
-  // A resynchronization or an organization: either one blocks the other.
+  // Any run over the library files of this window (or the resynchronization started at launch): the editors
+  // wait for it, and the actions too, except the resynchronization's, whose dialog then follows the one going.
+  const progress = useScanProgress();
   const busy = progress !== null;
-  // A resynchronization runs in this window, started here or from the sidebar (only it sends a `step`).
   const resyncStep = progress?.step ?? null;
-  const resyncing = resyncRunning || resyncStep !== null;
-  // Stopped from the sidebar: nothing else drops the stopping state ("adjust state while rendering").
-  if (resyncStopping && !resyncing) setResyncStopping(false);
-  // CBR waiting to be converted and what `.deletedByTankobon` holds, shown beside the actions; null while not counted yet.
-  const [convertibleCount, setConvertibleCount] = useState<number | null>(null);
-  const [deletedBytes, setDeletedBytes] = useState<number | null>(null);
+  const [openAction, setOpenAction] = useState<ActionId | null>(null);
   const organizationReady = settings.libraryOrganization !== 'off' && Boolean(settings.libraryOrganizationFolder);
-
-  // Also shows a run started from the sidebar, or the resynchronization started at launch (already going
-  // when the page opens: it starts from `resyncStatus()`, unless a progress arrived first).
-  useEffect(() => {
-    let pushed = false;
-    const unsubscribe = window.tankobon.library.onScanProgress((p) => {
-      pushed = true;
-      setProgress(p.phase === 'done' ? null : p);
-    });
-    void window.tankobon.library.resyncStatus().then((status) => {
-      if (!pushed && status) setProgress(status);
-    });
-    return unsubscribe;
-  }, []);
-
-  // Counted again whenever the library changes (a conversion updates its entries), the folder does or a run ends
-  // (an orphan cleaning fills `.deletedByTankobon` without touching the library).
-  useEffect(() => {
-    if (!organizationReady || busy) return;
-    let cancelled = false;
-    void window.tankobon.library.countConvertible().then((result) => {
-      if (cancelled) return;
-      setConvertibleCount(result.status === 'error' ? null : result.count);
-      setDeletedBytes(result.status === 'error' ? null : result.deletedBytes);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [organizationReady, busy, settings.libraryOrganizationFolder, library, convertStatus]);
-
-  const organizeAll = async () => {
-    setOrganizeStatus(null);
-    const count = await window.tankobon.library.countUnorganized();
-    if (count.status === 'error') {
-      setOrganizeStatus({ message: count.message, error: true });
-      return;
-    }
-    if (count.count === 0) {
-      setOrganizeStatus({ message: t('organizeAllNone') });
-      return;
-    }
-    const accepted = await confirm({
-      title: t('organizeAllConfirmTitle'),
-      message: t('organizeAllConfirm', { count: count.count, folder: count.folder }),
-      action: t('organizeAllAction'),
-    });
-    if (!accepted) return;
-    setRunning('organize');
-    setProgress({ phase: 'importing', processed: 0, total: count.count, currentFile: '' });
-    const result = await window.tankobon.library.organizeAll();
-    setProgress(null);
-    setRunning(null);
-    if (result.status === 'error') {
-      setOrganizeStatus({ message: result.message, error: true });
-      return;
-    }
-    const parts = [t('organizeAllDone', { count: result.moved })];
-    if (result.failed > 0) parts.push(t('organizeAllFailed', { count: result.failed }));
-    setOrganizeStatus({ message: parts.join(' · ') });
-  };
-
-  const convertCbr = async () => {
-    setConvertStatus(null);
-    const count = await window.tankobon.library.countConvertible();
-    if (count.status === 'error') {
-      setConvertStatus({ message: count.message, error: true });
-      return;
-    }
-    if (count.count === 0) {
-      setConvertStatus({ message: t('convertCbrNone') });
-      return;
-    }
-    const accepted = await confirm({
-      title: t('convertCbrConfirmTitle'),
-      message: t('convertCbrConfirm', { count: count.count, folder: count.folder }),
-      action: t('convertCbrAction'),
-    });
-    if (!accepted) return;
-    setRunning('convertCbr');
-    setProgress({ phase: 'importing', processed: 0, total: count.count, currentFile: '' });
-    const result = await window.tankobon.library.convertCbr();
-    setProgress(null);
-    setRunning(null);
-    if (result.status === 'error') {
-      setConvertStatus({ message: result.message, error: true });
-      return;
-    }
-    const parts = [t('convertCbrDone', { count: result.converted })];
-    if (result.failed > 0) parts.push(t('convertCbrFailed', { count: result.failed }));
-    setConvertStatus({ message: parts.join(' · '), error: result.converted === 0 && result.failed > 0 });
-  };
-
-  const convertDeflate64 = async () => {
-    setConvertStatus(null);
-    // Checking opens every CBZ of the library: its progress shows under the button.
-    setRunning('checkDeflate64');
-    setProgress({ phase: 'importing', processed: 0, total: 0, currentFile: '' });
-    const count = await window.tankobon.library.countDeflate64();
-    setProgress(null);
-    setRunning(null);
-    if (count.status === 'error') {
-      setConvertStatus({ message: count.message, error: true });
-      return;
-    }
-    // Stopped (`cancelRun()`): nothing to offer.
-    if (count.status === 'cancelled') return;
-    if (count.count === 0) {
-      setConvertStatus({ message: t('convertDeflate64None') });
-      return;
-    }
-    const accepted = await confirm({
-      title: t('convertDeflate64ConfirmTitle'),
-      message: t('convertDeflate64Confirm', { count: count.count }),
-      action: t('convertDeflate64Action'),
-    });
-    if (!accepted) return;
-    setRunning('deflate64');
-    setProgress({ phase: 'importing', processed: 0, total: count.count, currentFile: '' });
-    const result = await window.tankobon.library.convertDeflate64();
-    setProgress(null);
-    setRunning(null);
-    if (result.status === 'error') {
-      setConvertStatus({ message: result.message, error: true });
-      return;
-    }
-    const parts = [t('convertDeflate64Done', { count: result.converted })];
-    if (result.failed > 0) parts.push(t('convertDeflate64Failed', { count: result.failed }));
-    setConvertStatus({ message: parts.join(' · '), error: result.converted === 0 && result.failed > 0 });
-  };
-
-  const emptyDeleted = async () => {
-    setConvertStatus(null);
-    const count = await window.tankobon.library.countConvertible();
-    if (count.status === 'error') {
-      setConvertStatus({ message: count.message, error: true });
-      return;
-    }
-    if (count.deletedFiles === 0) {
-      setConvertStatus({ message: t('emptyDeletedNone') });
-      return;
-    }
-    const accepted = await confirm({
-      title: t('emptyDeletedConfirmTitle'),
-      message: t('emptyDeletedConfirm', { count: count.deletedFiles, size: formatFileSize(count.deletedBytes) }),
-      action: t('emptyDeletedAction'),
-    });
-    if (!accepted) return;
-    setRunning('emptyDeleted');
-    setProgress({ phase: 'importing', processed: 0, total: count.deletedFiles, currentFile: '' });
-    const result = await window.tankobon.library.emptyDeleted();
-    setProgress(null);
-    setRunning(null);
-    if (result.status === 'error') {
-      setConvertStatus({ message: result.message, error: true });
-      return;
-    }
-    const parts = [t('emptyDeletedDone', { count: result.deleted, size: formatFileSize(result.bytesFreed) })];
-    if (result.failed > 0) parts.push(t('emptyDeletedFailed', { count: result.failed }));
-    setConvertStatus({ message: parts.join(' · ') });
-  };
-
-  const cleanFolders = async () => {
-    setConvertStatus(null);
-    const count = await window.tankobon.library.countOrphanFolders();
-    if (count.status === 'error') {
-      setConvertStatus({ message: count.message, error: true });
-      return;
-    }
-    if (count.count === 0) {
-      setConvertStatus({ message: t('cleanFoldersNone') });
-      return;
-    }
-    const accepted = await confirm({
-      title: t('cleanFoldersConfirmTitle'),
-      message: t('cleanFoldersConfirm', { count: count.count, folder: count.folder }),
-      action: t('cleanFoldersAction'),
-    });
-    if (!accepted) return;
-    setRunning('cleanFolders');
-    setProgress({ phase: 'importing', processed: 0, total: count.count, currentFile: '' });
-    const result = await window.tankobon.library.cleanFolders();
-    setProgress(null);
-    setRunning(null);
-    if (result.status === 'error') {
-      setConvertStatus({ message: result.message, error: true });
-      return;
-    }
-    const parts = [t('cleanFoldersDone', { count: result.moved })];
-    if (result.failed > 0) parts.push(t('cleanFoldersFailed', { count: result.failed }));
-    setConvertStatus({ message: parts.join(' · '), error: result.moved === 0 && result.failed > 0 });
-  };
-
-  const resync = async () => {
-    setResyncStatus(null);
-    setFailures(null);
-    setResyncRunning(true);
-    setProgress({ phase: 'scanning', processed: 0, total: 0, currentFile: '' });
-    const result = await window.tankobon.library.resync();
-    setProgress(null);
-    setResyncRunning(false);
-    if (result.status === 'error') {
-      setResyncStatus({ message: result.message, error: true });
-      return;
-    }
-    if (result.failed > 0) setFailures({ list: result.failures, total: result.failed });
-    const parts = [t('resyncDone', { added: result.added, removed: result.removed })];
-    if (result.cancelled) parts.unshift(t('resyncStopped'));
-    if (result.failed > 0) parts.push(t('resyncFailed', { count: result.failed }));
-    if (result.nfoWritten > 0) parts.push(t('resyncNfoWritten', { count: result.nfoWritten }));
-    if (result.coversExtracted > 0) parts.push(t('resyncCoversExtracted', { count: result.coversExtracted }));
-    if (result.unreachable > 0) parts.push(t('resyncUnreachable', { count: result.unreachable }));
-    setResyncStatus({ message: parts.join(' · ') });
-    parts.push(...(await offerOrganization(result.organization)));
-    setResyncStatus({ message: parts.join(' · ') });
-  };
-
-  const stopResync = async () => {
-    setResyncStopping(true);
-    if (!(await window.tankobon.library.cancelResync())) setResyncStopping(false);
-  };
 
   const lastResync = settings.lastResyncAt
     ? t('lastResync', { date: new Date(settings.lastResyncAt).toLocaleString(i18n.language) })
     : t('neverResynced');
 
-  const findDuplicates = () => {
-    const groups = duplicateGroups(library ?? []);
-    if (groups.length === 0) setDuplicatesStatus(tLibrary('duplicatesNone'));
-    else {
-      setDuplicatesStatus(null);
-      setDuplicates(groups);
-    }
+  const disabled = (id: ActionId, needsFolder: boolean) => {
+    if (needsFolder && !organizationReady) return true;
+    if (id === 'duplicates' && library === null) return true;
+    return busy && !(id === 'resync' && resyncStep !== null);
   };
+
+  const close = () => setOpenAction(null);
+  const SimpleDialog = openAction ? SIMPLE_DIALOGS[openAction] : undefined;
 
   return (
     <>
@@ -365,70 +149,6 @@ function OrganizationSettingsPage() {
           </label>
           <p className="text-sm text-muted-foreground">{t('writeNfoHint')}</p>
         </div>
-        <p className="text-sm text-muted-foreground">{t('organizeAllHint')}</p>
-        <div>
-          <Button
-            variant="outline"
-            onClick={() => void organizeAll()}
-            disabled={busy || settings.libraryOrganization === 'off' || !settings.libraryOrganizationFolder}
-          >
-            <FolderTree />
-            {running === 'organize' ? t('organizeAllRunning') : t('organizeAll')}
-          </Button>
-        </div>
-        {progress && running === 'organize' && <RunProgress progress={progress} label={t('organizeAllRunning')} />}
-        {organizeStatus && (
-          <p className={cn('text-sm', organizeStatus.error ? 'text-destructive' : 'text-muted-foreground')}>
-            {organizeStatus.message}
-          </p>
-        )}
-        <p className="text-sm text-muted-foreground">{t('convertCbrHint')}</p>
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            onClick={() => void convertCbr()}
-            disabled={busy || settings.libraryOrganization === 'off' || !settings.libraryOrganizationFolder}
-          >
-            <FileArchive />
-            {running === 'convertCbr' ? t('convertCbrRunning') : t('convertCbr')}
-          </Button>
-          {organizationReady && convertibleCount !== null && convertibleCount > 0 && (
-            <span className="text-sm text-muted-foreground">{t('convertCbrCount', { count: convertibleCount })}</span>
-          )}
-        </div>
-        {progress && running === 'convertCbr' && <RunProgress progress={progress} label={t('convertCbrRunning')} />}
-        <p className="text-sm text-muted-foreground">{t('convertDeflate64Hint')}</p>
-        <div>
-          <Button variant="outline" onClick={() => void convertDeflate64()} disabled={busy}>
-            <FileArchive />
-            {running === 'checkDeflate64'
-              ? t('convertDeflate64Checking')
-              : running === 'deflate64'
-                ? t('convertDeflate64Running')
-                : t('convertDeflate64')}
-          </Button>
-        </div>
-        {progress && (running === 'checkDeflate64' || running === 'deflate64') && (
-          <RunProgress
-            progress={progress}
-            label={running === 'checkDeflate64' ? t('convertDeflate64Checking') : t('convertDeflate64Running')}
-          />
-        )}
-        <p className="text-sm text-muted-foreground">{t('emptyDeletedHint')}</p>
-        <div>
-          <Button
-            variant="outline"
-            onClick={() => void emptyDeleted()}
-            disabled={busy || settings.libraryOrganization === 'off' || !settings.libraryOrganizationFolder}
-          >
-            <Trash2 />
-            {t('emptyDeleted')}
-          </Button>
-          {deletedBytes !== null && (
-            <span className="ml-3 text-sm text-muted-foreground">{t('emptyDeletedSize', { size: formatFileSize(deletedBytes) })}</span>
-          )}
-        </div>
-        {progress && running === 'emptyDeleted' && <RunProgress progress={progress} label={t('emptyDeletedRunning')} />}
         <div className="flex flex-wrap items-center gap-3">
           <label className="flex items-center gap-2 text-sm">
             <input
@@ -459,78 +179,8 @@ function OrganizationSettingsPage() {
           )}
         </div>
         <p className="text-sm text-muted-foreground">{t('trashAutoEmptyHint')}</p>
-        <p className="text-sm text-muted-foreground">{t('cleanFoldersHint')}</p>
-        <div>
-          <Button
-            variant="outline"
-            onClick={() => void cleanFolders()}
-            disabled={busy || settings.libraryOrganization === 'off' || !settings.libraryOrganizationFolder}
-          >
-            <FolderMinus />
-            {running === 'cleanFolders' ? t('cleanFoldersRunning') : t('cleanFolders')}
-          </Button>
-        </div>
-        {progress && running === 'cleanFolders' && <RunProgress progress={progress} label={t('cleanFoldersRunning')} />}
-        {convertStatus && (
-          <p className={cn('text-sm', convertStatus.error ? 'text-destructive' : 'text-muted-foreground')}>
-            {convertStatus.message}
-          </p>
-        )}
-        <p className="text-sm text-muted-foreground">{t('duplicatesHint')}</p>
-        <div>
-          <Button variant="outline" onClick={findDuplicates} disabled={library === null}>
-            <Copy />
-            {t('duplicates')}
-          </Button>
-        </div>
-        {duplicatesStatus && <p className="text-sm text-muted-foreground">{duplicatesStatus}</p>}
-        <p className="text-sm text-muted-foreground">{t('cleanupHint')}</p>
-        <div>
-          <Button variant="outline" onClick={() => setCleanupOpen(true)} disabled={busy}>
-            <Eraser />
-            {t('cleanup')}
-          </Button>
-        </div>
       </SettingsSection>
       <SettingsSection title={t('resync')}>
-        <p className="text-sm text-muted-foreground">{t('resyncHint')}</p>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="outline" onClick={() => void resync()} disabled={busy}>
-            <RefreshCw className={cn(resyncing && 'animate-spin')} />
-            {resyncing ? t('resyncRunning') : t('resyncButton')}
-          </Button>
-          {resyncing && (
-            <Button variant="outline" onClick={() => void stopResync()} disabled={resyncStopping}>
-              <CircleStop />
-              {resyncStopping ? t('resyncStopping') : t('resyncStop')}
-            </Button>
-          )}
-        </div>
-        {progress && resyncStep && (
-          <div className="flex flex-col gap-1">
-            <p className="text-sm">{resyncStepLabel(resyncStep)}</p>
-            {progress.phase === 'importing' ? (
-              <RunProgress progress={progress} label={t('resyncRunning')} />
-            ) : (
-              <p className="truncate text-xs text-muted-foreground" title={progress.currentFile}>
-                {progress.currentFile}
-              </p>
-            )}
-          </div>
-        )}
-        {resyncStatus && (
-          <p className={cn('text-sm', resyncStatus.error ? 'text-destructive' : 'text-muted-foreground')}>
-            {resyncStatus.message}
-          </p>
-        )}
-        {failures && (
-          <div>
-            <Button variant="outline" size="sm" onClick={() => setFailuresOpen(true)}>
-              {t('resyncShowFailures')}
-            </Button>
-          </div>
-        )}
-        <p className="text-sm text-muted-foreground">{lastResync}</p>
         <div className="flex items-center gap-2">
           <input
             id="resync-on-startup"
@@ -542,13 +192,36 @@ function OrganizationSettingsPage() {
             {t('resyncOnStartup')}
           </label>
         </div>
+        <p className="text-sm text-muted-foreground">{lastResync}</p>
       </SettingsSection>
-      {duplicates && <DuplicatesDialog groups={duplicates} onClose={() => setDuplicates(null)} />}
-      {cleanupOpen && <CleanupDialog ids={[]} onClose={() => setCleanupOpen(false)} />}
-      {confirmDialog}
-      {failures && failuresOpen && (
-        <ScanFailuresDialog failures={failures.list} total={failures.total} onClose={() => setFailuresOpen(false)} />
-      )}
+      <SettingsSection title={t('actionsTitle')}>
+        <p className="text-sm text-muted-foreground">{t('actionsHint')}</p>
+        <ul className="flex flex-col divide-y rounded-md border">
+          {ACTIONS.map(({ id, icon: Icon, needsFolder }) => (
+            <li key={id} className="flex items-center gap-3 p-3">
+              <Icon className={cn('size-4 shrink-0 text-muted-foreground', id === 'resync' && resyncStep && 'animate-spin')} />
+              <div className="flex min-w-0 flex-1 flex-col">
+                <span className="text-sm font-medium">{t(`actions.${id}.title`)}</span>
+                <span className="text-sm text-muted-foreground">
+                  {id === 'resync' && resyncStep ? resyncStepLabel(resyncStep) : t(`actions.${id}.description`)}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                aria-label={t('actionsOpenLabel', { action: t(`actions.${id}.title`) })}
+                onClick={() => setOpenAction(id)}
+                disabled={disabled(id, needsFolder)}
+              >
+                {t('actionsOpen')}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </SettingsSection>
+      {SimpleDialog && <SimpleDialog onClose={close} />}
+      {openAction === 'cleanup' && <CleanupDialog ids={[]} onClose={close} />}
+      {openAction === 'duplicates' && <DuplicatesDialog entries={library ?? []} onClose={close} />}
     </>
   );
 }

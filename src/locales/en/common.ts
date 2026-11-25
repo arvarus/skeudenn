@@ -14,6 +14,16 @@ export default {
     available: 'Version {{version}} is available.',
     download: 'Download',
   },
+  run: {
+    start: 'Start',
+    stop: 'Stop',
+    stopping: 'Stopping…',
+    stopped: 'Stopped before the end: what had not been reached yet was left as it was.',
+    failed: 'The operation failed.',
+    counting: 'Counting…',
+    showDetail: 'Show the details',
+    hideDetail: 'Hide the details',
+  },
   sizeUnits: {
     b: 'B',
     kb: 'KB',
