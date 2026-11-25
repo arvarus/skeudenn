@@ -50,6 +50,26 @@ export function scrollEdgeAfterTurn(previousPage: number, page: number): 'top' |
   return page < previousPage ? 'bottom' : 'top';
 }
 
+/** Where the single-page reader is: which opened book (its archive id) and which page of it. */
+export interface ReaderPosition {
+  /** The opened archive's id (`ComicInfo.id`): a new one for every book opened. */
+  bookId: string;
+  /** Index of the page shown. */
+  page: number;
+}
+
+/**
+ * The edge of a zoomed page the view lands on when the reader moves from `previous` to `current`,
+ * or `null` when it didn't move. Within a book this is {@link scrollEdgeAfterTurn}; another book
+ * always opens at the top of its page, whatever page the previous one was at, since comparing the
+ * pages of two different books says nothing about the reading direction.
+ */
+export function scrollEdgeAfterMove(previous: ReaderPosition, current: ReaderPosition): 'top' | 'bottom' | null {
+  if (previous.bookId !== current.bookId) return 'top';
+  if (previous.page === current.page) return null;
+  return scrollEdgeAfterTurn(previous.page, current.page);
+}
+
 /** What `pageTurnForKey()` reads of a `keydown` event (a `KeyboardEvent` fits). */
 export interface PageTurnKeyEvent {
   key: string;

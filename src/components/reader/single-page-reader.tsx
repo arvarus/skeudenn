@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { useImageUpscaler } from '@/hooks/use-image-upscaler';
 import type { NextInList } from '@/hooks/use-next-in-list';
 import { useReadingPace } from '@/hooks/use-reading-pace';
-import { directionalControls, disabledControls, pageTurnForKey, scrollEdgeAfterTurn } from '@/lib/reader-navigation';
+import { directionalControls, disabledControls, pageTurnForKey, scrollEdgeAfterMove } from '@/lib/reader-navigation';
 import { cn } from '@/lib/utils';
 import { createWheelPager } from '@/lib/wheel-pager';
 import type { ComicInfo } from '@/shared/comic';
@@ -116,16 +116,19 @@ export function SinglePageReader({
   }, []);
 
   // After a page turn, a zoomed page starts at its top (forward) or bottom (backward) edge
-  // instead of keeping the previous page's scroll position. The new image only has its size
-  // once decoded, so the edge is remembered here and applied when `naturalSize` arrives.
-  const lastPage = useRef(page);
+  // instead of keeping the previous page's scroll position; another book opens at the top of its
+  // page (the component isn't remounted per book, so the zoom stays). The new image only has its
+  // size once decoded, so the edge is remembered here and applied when `naturalSize` arrives.
+  const lastPosition = useRef({ bookId: comic.id, page });
   const pendingEdge = useRef<'top' | 'bottom' | null>(null);
   useEffect(() => {
-    if (page !== lastPage.current) {
-      pendingEdge.current = scrollEdgeAfterTurn(lastPage.current, page);
-      lastPage.current = page;
+    const position = { bookId: comic.id, page };
+    const edge = scrollEdgeAfterMove(lastPosition.current, position);
+    if (edge) {
+      pendingEdge.current = edge;
+      lastPosition.current = position;
     }
-  }, [page]);
+  }, [comic.id, page]);
   useLayoutEffect(() => {
     const el = containerRef.current;
     const edge = pendingEdge.current;
