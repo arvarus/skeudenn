@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import { applyLanguage } from '@/shared/i18n';
 import type { ScanResult } from '@/shared/library';
-import { folderScanParts } from './folder-scan';
+import { fileAddParts, folderScanParts } from './folder-scan';
 
 type Ok = Extract<ScanResult, { status: 'ok' }>;
 
@@ -38,5 +38,25 @@ describe('folderScanParts', () => {
 
   it('says when the folder held no comics', () => {
     expect(folderScanParts({ ...base, added: 0, total: 0 })).toEqual(['Aucune BD trouvée dans /bd']);
+  });
+});
+
+describe('fileAddParts', () => {
+  it('says nothing when the dialog was cancelled', () => {
+    expect(fileAddParts({ status: 'cancelled' })).toBeNull();
+  });
+
+  it('names the file added', () => {
+    expect(
+      fileAddParts({ status: 'added', title: 'Astérix', organization: { moved: 0, failed: 0, pending: null } }),
+    ).toEqual(['« Astérix » ajouté à la bibliothèque']);
+  });
+
+  it('names the file already in the library', () => {
+    expect(fileAddParts({ status: 'exists', title: 'Astérix' })).toEqual(['« Astérix » est déjà dans la bibliothèque']);
+  });
+
+  it('shows the error as it came', () => {
+    expect(fileAddParts({ status: 'error', message: 'Fichier illisible' })).toEqual(['Fichier illisible']);
   });
 });

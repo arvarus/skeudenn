@@ -18,7 +18,7 @@ import {
 } from '@/lib/metadata-review';
 import { bumpCoverRevision } from '@/lib/cover-revisions';
 import { hasFiche } from '@/lib/library-filter';
-import { INITIAL_LOOKUP, lookupReducer } from '@/lib/metadata-lookup';
+import { enterAppliesReview, INITIAL_LOOKUP, lookupReducer, lookupSources } from '@/lib/metadata-lookup';
 import { forgetRule, initialLookupQuery, initialRuleState, offeredRules, queryFromRule, rememberRule } from '@/lib/lookup-query';
 import { cn, formatLanguage } from '@/lib/utils';
 import { fileNameTemplateError } from '@/shared/file-name-template';
@@ -34,9 +34,6 @@ import { formatPersonName } from '@/shared/title-parsing';
 
 /** How to look the book up: in the public APIs, or from the link of a page of a supported site. */
 type Mode = 'api' | 'site';
-
-/** The APIs that are ticked per search once enabled in the settings, in display order. */
-const API_SOURCES: MetadataApiSource[] = ['comicvine', 'googlebooks'];
 
 const INPUT_CLASS =
   'h-8 rounded-md border bg-background px-2 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50';
@@ -92,17 +89,10 @@ export function MetadataDialog({
     setQuery(found);
     update('fileNameRules', rememberRule(settings?.fileNameRules ?? [], rule));
   };
-  const enabledSources = API_SOURCES.filter((source) =>
-    source === 'comicvine' ? settings?.comicVineEnabled : settings?.googleBooksEnabled,
-  );
   const [unticked, setUnticked] = useState<Set<MetadataApiSource>>(new Set());
   // Bédéthèque has no key to enable: its box is always there, starting as the setting says.
   const [bedethequeChoice, setBedethequeChoice] = useState<boolean | null>(null);
-  const bedethequeTicked = bedethequeChoice ?? settings?.bedethequeSearchByDefault ?? false;
-  const sources: MetadataApiSource[] = [
-    ...enabledSources.filter((source) => !unticked.has(source)),
-    ...(bedethequeTicked ? (['bedetheque'] as const) : []),
-  ];
+  const { offered: enabledSources, bedethequeTicked, sources } = lookupSources(settings, unticked, bedethequeChoice);
   const [picking, setPicking] = useState(false);
   // Nothing is searched until the user asks: the dialog opens on the options. Only the awaited search
   // may update the dialog, so an earlier, slower answer never shows stale results; stopping a search
@@ -202,11 +192,8 @@ export function MetadataDialog({
   useEffect(() => {
     if (!reviewToApply) return;
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== 'Enter' || event.defaultPrevented || event.isComposing) return;
-      if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
       const target = event.target instanceof Element ? event.target : null;
-      if (target?.closest('button, a, select, textarea, [role="tab"]')) return;
-      if (target && !target.closest('[role="dialog"]') && target !== document.body) return;
+      if (!enterAppliesReview(event, target, document.body)) return;
       event.preventDefault();
       void apply(reviewToApply);
     };

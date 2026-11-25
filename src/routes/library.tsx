@@ -24,7 +24,7 @@ import { useOrganizationOffer } from '@/hooks/use-organization-offer';
 import { useSettings } from '@/hooks/use-settings';
 import { useActiveUser } from '@/hooks/use-users';
 import { appData } from '@/lib/app-data';
-import { folderScanParts } from '@/lib/folder-scan';
+import { fileAddParts, folderScanParts } from '@/lib/folder-scan';
 import type { LibraryFilters } from '@/lib/library-filter';
 import { rememberedFilters, rememberFilters } from '@/lib/library-filters-memory';
 import { gridLines } from '@/lib/library-groups';
@@ -124,13 +124,12 @@ function LibraryPage() {
   const addFile = async () => {
     setScanStatus(null);
     const result = await window.tankobon.library.addFile();
-    if (result.status === 'added') {
-      const parts = [t('fileAdded', { title: result.title })];
-      setScanStatus(parts[0]);
-      parts.push(...(await offerOrganization(result.organization)));
-      setScanStatus(parts.join(' · '));
-    } else if (result.status === 'exists') setScanStatus(t('fileExists', { title: result.title }));
-    else if (result.status === 'error') setScanStatus(result.message);
+    const parts = fileAddParts(result);
+    if (!parts) return;
+    setScanStatus(parts.join(' · '));
+    if (result.status !== 'added') return;
+    parts.push(...(await offerOrganization(result.organization)));
+    setScanStatus(parts.join(' · '));
   };
 
   // The list drops the entry on the main process's `data:changed`.
