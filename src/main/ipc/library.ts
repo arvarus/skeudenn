@@ -1,4 +1,4 @@
-import { BrowserWindow, shell, type IpcMainInvokeEvent } from 'electron';
+import { BrowserWindow, type IpcMainInvokeEvent } from 'electron';
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -10,7 +10,6 @@ import {
   type ImageScanProgress,
   type PickOrganizationFolderResult,
   type RelinkFolderResult,
-  type RemoveEntryResult,
   type ScanProgress,
   type ScanResult,
   type SetCoverResult,
@@ -31,8 +30,6 @@ import { NOTHING_ORGANIZED, type LibraryOrganizer, type Resynchronizer } from '.
 import type { StartupOrganization } from './startup-organization';
 import { openErrorMessage } from '../services/open-error';
 import { readNfoFor } from '../services/nfo';
-import { parkComic } from '../services/park-comic';
-import { trashSidecars } from '../services/sidecars';
 import { lastOpenedDirectory } from './comic';
 import type { NotifyDataChange } from './data-changes';
 import { existingDirectory, openDialogFor } from './dialogs';
@@ -218,21 +215,21 @@ export function registerLibraryIpc({
       if (repo.hasPath(filePath)) {
         return { status: 'exists', title };
       }
+      let id: string | null;
       try {
         // Same path as a scanned file: the decoder counts the pages and caches the cover.
         const { pageCount, fileCount } = await decoder.inspect(filePath);
         const { size } = await stat(filePath);
         repo.register(filePath, title, pageCount, fileCount, size);
+        id = repo.idOfPath(filePath);
         // A `.nfo` next to the comic documents the new row.
         const nfo = await readNfoFor(filePath);
-        const newId = repo.idOfPath(filePath);
-        if (nfo && newId) repo.updateMetadata(newId, nfo);
+        if (nfo && id) repo.updateMetadata(id, nfo);
       } catch (error) {
         return { status: 'error', message: openErrorMessage(error) };
       }
       // New row: the library slice reloads (a targeted upsert would need the entry's id).
       notify({ scope: 'library' });
-      const id = repo.idOfPath(filePath);
       const organization = id ? await organizer.afterAdd([{ id, path: filePath }]) : NOTHING_ORGANIZED;
       void imageScanner.kick();
       return { status: 'added', title, organization };
@@ -388,43 +385,8 @@ export function registerLibraryIpc({
   handle(LIBRARY_CHANNELS.resyncStatus, args(), () => resynchronizer.progress());
   handle(LIBRARY_CHANNELS.takeStartupOrganization, args(), () => startupOrganization.take());
 
-  handle(LIBRARY_CHANNELS.remove, args(idArg, booleanArg), async (_event, id, deleteFile): Promise<RemoveEntryResult> => {
-    const entry = repo.get(id);
-    repo.remove(id);
-    notify({ scope: 'library', removed: [id] });
-    // The book left the reading lists it was in.
-    notify({ scope: 'readingLists' });
-    if (entry) {
-      await decoder.removeThumbnail(entry.path).catch(() => undefined);
-    }
-    if (!entry) return { status: 'ok' };
-    if (!deleteFile) {
-      // Left in place, the file would be added back by the next resynchronization: it is parked instead.
-      try {
-        await parkComic(entry.path, settingsRepo.getAll().libraryOrganizationFolder);
-      } catch (error) {
-        return {
-          status: 'error',
-          message: t('errors:library.parkFailed', { message: error instanceof Error ? error.message : String(error) }),
-        };
-      }
-      return { status: 'ok' };
-    }
-    // To the trash, not deleted for good; the sidecars (cover, .nfo) follow when they exist.
-    try {
-      await shell.trashItem(entry.path);
-    } catch (error) {
-      // A file already gone is what the user wanted.
-      if ((error as NodeJS.ErrnoException).code !== 'ENOENT' && (await stat(entry.path).catch(() => null))) {
-        return {
-          status: 'error',
-          message: t('errors:library.trashFailed', { message: error instanceof Error ? error.message : String(error) }),
-        };
-      }
-    }
-    await trashSidecars(entry.path, (sidecar) => shell.trashItem(sidecar));
-    return { status: 'ok' };
-  });
+  // Through the remover, under the shared lock like a removal of several books.
+  handle(LIBRARY_CHANNELS.remove, args(idArg, booleanArg), (_event, id, deleteFile) => remover.removeOne(id, deleteFile));
 
   // Progress goes over the scan channel, which both the library page and the settings page follow.
   handle(

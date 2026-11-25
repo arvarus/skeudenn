@@ -319,7 +319,11 @@ export interface UnlinkedFolder {
   path: string;
 }
 
-/** Result of `library.remove()`: `error` when the entry left the library but its file could not be moved to the trash. */
+/**
+ * Result of `library.remove()`. `error` when another run over the library files holds the lock (nothing was removed),
+ * or when the entry left the library but its file stayed where it was: it could not be moved to the trash or parked,
+ * or it is not a comic file. A file already gone is `ok`.
+ */
 export type RemoveEntryResult = { status: 'ok' } | { status: 'error'; message: string };
 
 /** Result of `library.relinkFolder()`. */
@@ -339,7 +343,7 @@ export type RemoveEntriesResult =
       removed: number;
       /** Files moved to the trash (0 unless the files were to be deleted too). */
       filesDeleted: number;
-      /** Files that could not be deleted (already gone, no permission); their entries were removed anyway. */
+      /** Files left where they were (no permission, not a comic file; one already gone doesn't count); their entries were removed anyway. */
       filesFailed: number;
       /** True when `library.cancelRun()` stopped it before every entry was handled: those left are still in the library. */
       cancelled: boolean;
