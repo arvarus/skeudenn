@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { SettingCheckbox } from '@/components/setting-checkbox';
 import { SettingsSection } from '@/components/settings-section';
 import { useSettings } from '@/hooks/use-settings';
 import type { ApiKeys, ApiKeySetting } from '@/shared/settings';
@@ -38,8 +39,7 @@ function MetadataSettingsPage() {
       <p className="text-sm text-muted-foreground">{t('intro')}</p>
 
       <SettingsSection title={t('comicVine')}>
-        <SourceToggle
-          id="comic-vine-enabled"
+        <SettingCheckbox
           label={t('comicVineEnable')}
           checked={settings.comicVineEnabled}
           onChange={(checked) => update('comicVineEnabled', checked)}
@@ -56,8 +56,7 @@ function MetadataSettingsPage() {
       </SettingsSection>
 
       <SettingsSection title={t('googleBooks')}>
-        <SourceToggle
-          id="google-books-enabled"
+        <SettingCheckbox
           label={t('googleBooksEnable')}
           checked={settings.googleBooksEnabled}
           onChange={(checked) => update('googleBooksEnabled', checked)}
@@ -74,8 +73,7 @@ function MetadataSettingsPage() {
       </SettingsSection>
 
       <SettingsSection title={t('bedetheque')}>
-        <SourceToggle
-          id="bedetheque-search-default"
+        <SettingCheckbox
           label={t('bedethequeDefault')}
           checked={settings.bedethequeSearchByDefault}
           onChange={(checked) => update('bedethequeSearchByDefault', checked)}
@@ -83,27 +81,6 @@ function MetadataSettingsPage() {
         <p className="text-sm text-muted-foreground">{t('bedethequeHint')}</p>
       </SettingsSection>
     </>
-  );
-}
-
-function SourceToggle({
-  id,
-  label,
-  checked,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <input id={id} type="checkbox" checked={checked} onChange={(event) => onChange(event.target.checked)} />
-      <label htmlFor={id} className="text-sm">
-        {label}
-      </label>
-    </div>
   );
 }
 

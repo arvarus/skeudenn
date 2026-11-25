@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
 import { LanguageFlag } from '@/components/language-flag';
+import { SettingCheckbox } from '@/components/setting-checkbox';
 import { SETTINGS_SELECT_CLASS, SettingsSection } from '@/components/settings-section';
 import { systemLanguage, useSettings } from '@/hooks/use-settings';
 import { cn } from '@/lib/utils';
@@ -85,55 +86,31 @@ function AppearanceSettingsPage() {
     </SettingsSection>
 
       <SettingsSection title={t('features')}>
-        <div className="flex items-center gap-2">
-          <input
-            id="home-enabled"
-            type="checkbox"
-            checked={settings.homeEnabled}
-            onChange={(event) => update('homeEnabled', event.target.checked)}
-          />
-          <label htmlFor="home-enabled" className="text-sm">
-            {t('homeEnabled')}
-          </label>
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            id="stats-enabled"
-            type="checkbox"
-            checked={settings.statsEnabled}
-            onChange={(event) => update('statsEnabled', event.target.checked)}
-          />
-          <label htmlFor="stats-enabled" className="text-sm">
-            {t('statsEnabled')}
-          </label>
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            id="achievements-enabled"
-            type="checkbox"
-            checked={settings.achievementsEnabled}
-            onChange={(event) => update('achievementsEnabled', event.target.checked)}
-          />
-          <label htmlFor="achievements-enabled" className="text-sm">
-            {t('achievementsEnabled')}
-          </label>
-        </div>
+        <SettingCheckbox
+          label={t('homeEnabled')}
+          checked={settings.homeEnabled}
+          onChange={(checked) => update('homeEnabled', checked)}
+        />
+        <SettingCheckbox
+          label={t('statsEnabled')}
+          checked={settings.statsEnabled}
+          onChange={(checked) => update('statsEnabled', checked)}
+        />
+        <SettingCheckbox
+          label={t('achievementsEnabled')}
+          checked={settings.achievementsEnabled}
+          onChange={(checked) => update('achievementsEnabled', checked)}
+        />
         <p className="text-sm text-muted-foreground">{t('featuresHint')}</p>
       </SettingsSection>
 
       <SettingsSection title={t('askUser')}>
-        <div className="flex items-center gap-2">
-          <input
-            id="ask-user-on-startup"
-            type="checkbox"
-            checked={settings.askUserOnStartup}
-            onChange={(event) => update('askUserOnStartup', event.target.checked)}
-          />
-          <label htmlFor="ask-user-on-startup" className="text-sm">
-            {t('askUserOnStartup')}
-          </label>
-        </div>
-        <p className="text-sm text-muted-foreground">{t('askUserHint')}</p>
+        <SettingCheckbox
+          label={t('askUserOnStartup')}
+          hint={t('askUserHint')}
+          checked={settings.askUserOnStartup}
+          onChange={(checked) => update('askUserOnStartup', checked)}
+        />
       </SettingsSection>
     </>
   );

@@ -14,6 +14,7 @@ import {
   OrganizeAllDialog,
   type ActionDialogProps,
 } from '@/components/organization/simple-run-dialogs';
+import { SettingCheckbox } from '@/components/setting-checkbox';
 import { SETTINGS_SELECT_CLASS, SettingsSection } from '@/components/settings-section';
 import { Button } from '@/components/ui/button';
 import { resyncStepLabel } from '@/lib/resync-step';
@@ -127,38 +128,25 @@ function OrganizationSettingsPage() {
         <StructureEditor disabled={busy} />
         <FileNameEditor disabled={busy} />
         <ArticlesEditor disabled={busy} />
-        <div className="flex flex-col gap-1">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={settings.librarySidecarCovers}
-              onChange={(event) => update('librarySidecarCovers', event.target.checked)}
-            />
-            {t('sidecarCovers')}
-          </label>
-          <p className="text-sm text-muted-foreground">{t('sidecarCoversHint')}</p>
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={settings.libraryWriteNfo}
-              onChange={(event) => update('libraryWriteNfo', event.target.checked)}
-            />
-            {t('writeNfo')}
-          </label>
-          <p className="text-sm text-muted-foreground">{t('writeNfoHint')}</p>
-        </div>
+        <SettingCheckbox
+          label={t('sidecarCovers')}
+          hint={t('sidecarCoversHint')}
+          checked={settings.librarySidecarCovers}
+          onChange={(checked) => update('librarySidecarCovers', checked)}
+        />
+        <SettingCheckbox
+          label={t('writeNfo')}
+          hint={t('writeNfoHint')}
+          checked={settings.libraryWriteNfo}
+          onChange={(checked) => update('libraryWriteNfo', checked)}
+        />
         <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={settings.trashAutoEmpty}
-              disabled={settings.libraryOrganization === 'off'}
-              onChange={(event) => update('trashAutoEmpty', event.target.checked)}
-            />
-            {t('trashAutoEmpty')}
-          </label>
+          <SettingCheckbox
+            label={t('trashAutoEmpty')}
+            checked={settings.trashAutoEmpty}
+            disabled={settings.libraryOrganization === 'off'}
+            onChange={(checked) => update('trashAutoEmpty', checked)}
+          />
           {settings.trashAutoEmpty && (
             <label className="flex items-center gap-2 text-sm">
               {t('trashRetentionDays')}
@@ -181,17 +169,11 @@ function OrganizationSettingsPage() {
         <p className="text-sm text-muted-foreground">{t('trashAutoEmptyHint')}</p>
       </SettingsSection>
       <SettingsSection title={t('resync')}>
-        <div className="flex items-center gap-2">
-          <input
-            id="resync-on-startup"
-            type="checkbox"
-            checked={settings.resyncOnStartup}
-            onChange={(event) => update('resyncOnStartup', event.target.checked)}
-          />
-          <label htmlFor="resync-on-startup" className="text-sm">
-            {t('resyncOnStartup')}
-          </label>
-        </div>
+        <SettingCheckbox
+          label={t('resyncOnStartup')}
+          checked={settings.resyncOnStartup}
+          onChange={(checked) => update('resyncOnStartup', checked)}
+        />
         <p className="text-sm text-muted-foreground">{lastResync}</p>
       </SettingsSection>
       <SettingsSection title={t('actionsTitle')}>
@@ -356,16 +338,13 @@ function FileNameEditor({ disabled }: { disabled: boolean }) {
           if (isVolumePrefix(event.target.value)) update('libraryVolumePrefix', event.target.value);
         }}
       />
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={settings.libraryVolumePrefixNumericOnly}
-          disabled={disabled}
-          onChange={(event) => update('libraryVolumePrefixNumericOnly', event.target.checked)}
-        />
-        {t('volumePrefixNumericOnly')}
-      </label>
-      <p className="text-sm text-muted-foreground">{t('volumePrefixNumericOnlyHint')}</p>
+      <SettingCheckbox
+        label={t('volumePrefixNumericOnly')}
+        hint={t('volumePrefixNumericOnlyHint')}
+        checked={settings.libraryVolumePrefixNumericOnly}
+        disabled={disabled}
+        onChange={(checked) => update('libraryVolumePrefixNumericOnly', checked)}
+      />
       <p className="text-sm text-muted-foreground">{t('volumePrefixHint')}</p>
     </div>
   );
@@ -396,16 +375,13 @@ function ArticlesEditor({ disabled }: { disabled: boolean }) {
 
   return (
     <div className="flex flex-col gap-2">
-      <label className="flex items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          checked={settings.libraryIgnoreArticles}
-          disabled={disabled}
-          onChange={(event) => update('libraryIgnoreArticles', event.target.checked)}
-        />
-        {t('ignoreArticles')}
-      </label>
-      <p className="text-sm text-muted-foreground">{t('ignoreArticlesHint')}</p>
+      <SettingCheckbox
+        label={t('ignoreArticles')}
+        hint={t('ignoreArticlesHint')}
+        checked={settings.libraryIgnoreArticles}
+        disabled={disabled}
+        onChange={(checked) => update('libraryIgnoreArticles', checked)}
+      />
       {settings.libraryIgnoreArticles && (
         <>
           <label htmlFor="library-articles" className="text-sm">

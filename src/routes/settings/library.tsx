@@ -3,6 +3,7 @@ import { FolderOpen, FolderX } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { SettingCheckbox } from '@/components/setting-checkbox';
 import { SettingsSection } from '@/components/settings-section';
 import { Button } from '@/components/ui/button';
 import { useSettings } from '@/hooks/use-settings';
@@ -104,16 +105,13 @@ function LibrarySettingsPage() {
       {status && <p className="text-sm text-destructive">{status.message}</p>}
 
       <SettingsSection title={t('organizedLibrary')}>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={organizationOn}
-            disabled={resyncing}
-            onChange={(event) => update('libraryOrganization', event.target.checked ? 'ask' : 'off')}
-          />
-          {t('organizedLibraryEnable')}
-        </label>
-        <p className="text-sm text-muted-foreground">{t('organizedLibraryHint')}</p>
+        <SettingCheckbox
+          label={t('organizedLibraryEnable')}
+          hint={t('organizedLibraryHint')}
+          checked={organizationOn}
+          disabled={resyncing}
+          onChange={(checked) => update('libraryOrganization', checked ? 'ask' : 'off')}
+        />
       </SettingsSection>
 
       {organizationOn && (
