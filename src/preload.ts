@@ -93,7 +93,7 @@ export interface LibraryApi {
   list(): Promise<LibraryEntry[]>;
   /** Opens a native file picker, then adds the chosen comic to the library without opening it; an unreadable file resolves to an error result rather than rejecting. The library organization then moves it, or offers to (`organization`). */
   addFile(): Promise<AddFileResult>;
-  /** Opens a native directory picker, then adds every comic found under it, recursively. The library organization then moves them, or offers to (`organization`). */
+  /** Opens a native directory picker, then adds every comic found under it, recursively, reporting through `onScanProgress`. The library organization then moves them, or offers to (`organization`). `cancelRun()` stops the scan before its next file (`cancelled: true`): the comics added stay, and none is organized. */
   addFolder(): Promise<ScanResult>;
   /** Opens a native directory picker and makes the chosen folder the library organization's folder (the `libraryOrganizationFolder` setting, which `settings.set` refuses), also remembered among the folders `resync` walks. */
   pickOrganizationFolder(): Promise<PickOrganizationFolderResult>;
@@ -109,7 +109,7 @@ export interface LibraryApi {
   applyCleanup(token: string, keptExtensions: string[]): Promise<CleanupResult>;
   /** Stops the step of cleaning the books in progress (`analyzeCleanup` or `applyCleanup`) before its next book; the book being read or rewritten is finished. A stopped analysis resolves with `cancelled` and leaves no plan; a stopped rewrite resolves with `cancelled: true`, the books already cleaned staying so. False when no cleanup is running. */
   cancelCleanup(): Promise<boolean>;
-  /** Stops the run over the library files in progress, whichever it is and whichever window started it: `organize`, `organizeAll`, `convertCbr`, `countDeflate64`, `convertDeflate64`, `emptyDeleted`, `cleanFolders`, `removeMany`, `resync`, `applyCleanup`, and `analyzeCleanup` too. The run stops before its next item (book, folder, file): the one being moved, rewritten or converted is finished, and what was done stays and is announced. It then resolves with `cancelled: true` (`{ status: 'cancelled' }` for `countDeflate64` and `analyzeCleanup`, which yield no partial result). False when nothing is running or a stop was already asked. */
+  /** Stops the run over the library files in progress, whichever it is and whichever window started it: `addFolder`, `organize`, `organizeAll`, `convertCbr`, `countDeflate64`, `convertDeflate64`, `emptyDeleted`, `cleanFolders`, `removeMany`, `resync`, `applyCleanup`, and `analyzeCleanup` too. The run stops before its next item (book, folder, file): the one being moved, rewritten or converted is finished, and what was done stays and is announced. It then resolves with `cancelled: true` (`{ status: 'cancelled' }` for `countDeflate64` and `analyzeCleanup`, which yield no partial result). False when nothing is running or a stop was already asked. */
   cancelRun(): Promise<boolean>;
   /** How many CBR of the organized folder `convertCbr()` would convert, and what its `.deletedByTankobon` folder holds; an error when the organization is off or its folder unreachable. */
   countConvertible(): Promise<ConvertCountResult>;

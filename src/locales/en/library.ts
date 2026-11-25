@@ -13,6 +13,8 @@ export default {
   scanFailed_one: '{{count}} unreadable',
   scanFailed_other: '{{count}} unreadable',
   scanNoneFound: 'No comics found in {{directory}}',
+  // The folder addition was stopped from its progress bar: the comics found later were not looked at.
+  scanStopped: 'Scan stopped before the end',
   organizeMoved_one: '{{count}} moved to the organized folder',
   organizeMoved_other: '{{count}} moved to the organized folder',
   organizeFailed_one: '{{count}} could not be moved',

@@ -24,12 +24,12 @@ import type { ImageStatsScanner } from '../services/image-stats-scanner';
 import type { CbrConverter } from '../services/cbr-conversion';
 import type { Deflate64Converter } from '../services/deflate64-conversion';
 import type { FolderCleaner } from '../services/folder-cleanup';
+import { addFolderToLibrary } from '../services/library-add-folder';
 import type { LibraryCleaner } from '../services/library-cleanup';
 import type { LibraryRemover } from '../services/library-removal';
 import { NOTHING_ORGANIZED, type LibraryOrganizer, type Resynchronizer } from '../services/library-organization';
 import type { StartupOrganization } from './startup-organization';
 import { openErrorMessage } from '../services/open-error';
-import { scanIntoLibrary } from '../services/library-scanner';
 import { readNfoFor } from '../services/nfo';
 import { parkComic } from '../services/park-comic';
 import { trashSidecars } from '../services/sidecars';
@@ -253,32 +253,11 @@ export function registerLibraryIpc({
       return { status: 'cancelled' };
     }
 
-    if (!organizer.lock.tryStart('add')) return { status: 'error', message: organizer.lock.busyMessage() };
-    try {
-      const directory = filePaths[0];
-      const startedBy = activeUser();
-      settingsRepo.set('lastScanFolder', directory);
-      notify({ scope: 'settings', values: { lastScanFolder: directory } });
-      // Watched for the user who picked it, before the long scan: its books are then stored relative to it at once.
-      folders.add(directory);
-      const summary = await scanIntoLibrary(
-        repo,
-        directory,
-        scanProgressTo(event),
-        (filePath) => decoder.inspect(filePath),
-      );
-      // The comics already in the library under that folder are stored relative to it from now on.
-      repo.adoptRoots();
-      notify({ scope: 'library' });
-      // Another user is active now: their organized folder is not the one this addition was made for.
-      const organization = activeUser() === startedBy ? await organizer.afterAdd(summary.addedEntries) : NOTHING_ORGANIZED;
-      // The files are in: their pages are measured in the background, after the import.
-      void imageScanner.kick();
-      const { added, skipped, failed, failures, total } = summary;
-      return { status: 'ok', directory, added, skipped, failed, failures, total, organization };
-    } finally {
-      organizer.lock.end();
-    }
+    return addFolderToLibrary(
+      { repo, folders, settings: settingsRepo, decoder, notify, imageScanner, organizer, activeUser },
+      filePaths[0],
+      scanProgressTo(event),
+    );
   });
 
   handle(LIBRARY_CHANNELS.pickOrganizationFolder, args(), async (event): Promise<PickOrganizationFolderResult> => {

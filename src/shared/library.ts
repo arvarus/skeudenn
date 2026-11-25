@@ -178,8 +178,13 @@ export type ScanResult =
       failed: number;
       /** The first `MAX_REPORTED_FAILURES` of those files, with the reason each one failed. */
       failures: ScanFailure[];
-      /** Supported files found in the tree, i.e. `added + skipped + failed`. */
+      /** Supported files found in the tree, i.e. `added + skipped + failed` unless the scan was stopped. */
       total: number;
+      /**
+       * Stopped (`library:cancel-run`) between two files: the comics added before stay, and nothing was
+       * organized (`organization` is then empty).
+       */
+      cancelled: boolean;
       /** What the library organization did with the comics added. */
       organization: OrganizationOutcome;
     };

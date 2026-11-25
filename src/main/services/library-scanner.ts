@@ -21,6 +21,8 @@ export interface ScanSummary {
   total: number;
   /** The entries this scan created, for the library organization. */
   addedEntries: { id: string; path: string }[];
+  /** Stopped through the signal before the last file: `added + skipped + failed` is then below `total`. */
+  cancelled: boolean;
 }
 
 /**
@@ -73,10 +75,13 @@ export async function scanIntoLibrary(
   onProgress({ phase: 'scanning', processed: 0, total: 0, currentFile: directory });
   const files = await collectComicFiles(directory);
 
-  const summary: ScanSummary = { added: 0, skipped: 0, failed: 0, failures: [], total: files.length, addedEntries: [] };
+  const summary: ScanSummary = { added: 0, skipped: 0, failed: 0, failures: [], total: files.length, addedEntries: [], cancelled: false };
 
   for (const [index, filePath] of files.entries()) {
-    if (signal?.aborted) break;
+    if (signal?.aborted) {
+      summary.cancelled = true;
+      break;
+    }
     onProgress({ phase: 'importing', processed: index, total: files.length, currentFile: filePath });
 
     if (repo.hasPath(filePath)) {

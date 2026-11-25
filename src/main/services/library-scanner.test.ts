@@ -141,4 +141,38 @@ describe('scanIntoLibrary', () => {
     expect(inspected).toEqual(['b.cbz', 'c.cbz']);
     expect(repo.list().find((entry) => entry.title === 'b')).toMatchObject({ pageCount: 12, fileCount: 13 });
   });
+
+  it('stops between two files once its signal is aborted, keeping what it added', async () => {
+    const root = await tree(['a.cbz', 'b.cbz', 'c.cbz']);
+    const db = new DatabaseSync(':memory:');
+    migrate(db);
+    const repo = new LibraryRepository(db);
+    const controller = new AbortController();
+    const inspected: string[] = [];
+
+    const summary = await scanIntoLibrary(
+      repo,
+      root,
+      () => undefined,
+      async (filePath) => {
+        inspected.push(path.basename(filePath));
+        // Asked while the first file is being opened: that one still finishes.
+        controller.abort();
+        return { pageCount: 1, fileCount: 1 };
+      },
+      controller.signal,
+    );
+
+    expect(inspected).toEqual(['a.cbz']);
+    expect(summary).toMatchObject({ added: 1, skipped: 0, failed: 0, total: 3, cancelled: true });
+    expect(repo.list().map((entry) => entry.title)).toEqual(['a']);
+  });
+
+  it('says it was not stopped when it went through every file', async () => {
+    const root = await tree(['a.cbz']);
+    const db = new DatabaseSync(':memory:');
+    migrate(db);
+    const summary = await scanIntoLibrary(new LibraryRepository(db), root, () => undefined, async () => ({ pageCount: 1, fileCount: 1 }));
+    expect(summary.cancelled).toBe(false);
+  });
 });
