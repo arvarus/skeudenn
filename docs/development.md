@@ -115,11 +115,14 @@ The API reference covers the modules listed in `typedoc.json`'s `entryPoints`. E
 
 ## Dependency audit
 
-As of 2026-10-13, `npm audit` reports 14 findings (8 high, 6 moderate) and `npm audit --omit=dev` 10 of them. None ships in the packaged app, and none is reachable by a file or an answer the app handles:
+As of 2026-11-25, `npm audit --omit=dev` (the production tree) reports nothing, and `npm audit` (the full tree) reports 23 findings (5 high, 18 moderate), all in development dependencies. Only one of them concerns what the packaged app ships, the Electron runtime itself; none of the others is in the packaged app or reachable by a file or an answer the app handles:
 
-- **`upscaler` → `wireit` → `chokidar`/`fast-glob`/`micromatch` → `braces`** (high, a denial of service on deeply nested glob patterns). `upscaler` 1.0.0 declares `wireit`, a build tool, as a runtime dependency; nothing of it is in the renderer bundle (`node_modules/upscaler/dist/browser/esm` doesn't reference it). `npm audit` proposes `upscaler@0.12.3`, a downgrade of a major version: not an option.
-- **`@tensorflow/tfjs` → `argparse` → `sprintf-js`** (moderate, a denial of service through unbounded precision specifiers in a format string): no fix exists. The umbrella package declares `argparse` for its own scripts; the browser entry the renderer imports (`dist/index.js`) doesn't reference it.
-- **Build and docs tooling**, never shipped: `esbuild` and `vite` through `vitepress` 1.x (its bundled Vite 5; the advisory only concerns the dev server, `npm run docs:dev`, and the published site is static; no fix until VitePress 2 leaves pre-release), and `braces` again through `vite-plugin-static-copy`'s `chokidar`, which only runs at build time on the project's own files.
+- **`electron`** (high, GHSA-jr5w-w6x2-84p9: Electron releases before 44.9.1 still trust the compromised eMudhra intermediate certificates). `electron` is a development dependency, but it is the runtime the packaged app runs on, and the main process's requests (metadata lookup, update check) go through Chromium's certificate store. The fix is a patch of the same major (`44.11.6`); `package.json` pins Electron to an exact version, so it needs a deliberate bump of that pin, not `npm audit fix`.
+- **Build tooling**, never shipped: `vite` 8.3.0–8.3.2 (the dev server's `launch-editor`, `server.fs` and custom-middleware advisories: `npm start`/`npm run dev` only, the packaged app loads its built files), `zod` through `@tanstack/router-plugin` and `eslint-plugin-react-hooks` (validation of the route generator's and the lint rule's own options), `undici` through `@electron/get` and `node-gyp` (downloading Electron and headers when packaging) and through `jsdom` (tests), and `glob`/`minimatch`/`@electron/asar` through `@electron/packager` and `@electron/universal`, which only read the project's own files.
+- **Lint and commit tooling**, never shipped: `minimatch` through `eslint`, `@eslint/config-array`, `eslint-plugin-import-x` and `typescript-eslint`, and `fast-uri` through `@commitlint/cli`'s `ajv`, all fed the project's own config.
+- **Docs tooling**, never shipped: `esbuild` and `vite` through `vitepress` 1.x (its bundled Vite 5; the advisories only concern the dev server, `npm run docs:dev`, and the published site is static; no fix until VitePress 2 leaves pre-release), and `markdown-it`/`minimatch` through `typedoc` and its `typedoc-plugin-markdown`/`typedoc-vitepress-theme` plugins (`npm audit` proposes downgrading them across majors, to TypeDoc 0.23: not an option), which only read the project's own sources and Markdown.
+
+`seroval`, which `@tanstack/router-core` imports only from its SSR code (absent from the renderer build), was moved from 1.6.8 to 1.8.2 (and `seroval-plugins` to 1.8.0) on 2026-11-25 for GHSA-f86p-h4j2-7qgj and GHSA-9wx9-5pv9-3349, a lockfile-only bump within the router's `^1.6.7` range. The `upscaler` → `wireit` → `braces` and `@tensorflow/tfjs` → `argparse` → `sprintf-js` findings listed on 2026-10-13 are no longer reported, although those packages are unchanged.
 
 Re-read `npm audit` after each dependency bump: a new finding that is not in this list, or one on a package the renderer or the decoder process really loads, is a real one.
 
@@ -128,4 +131,4 @@ Upgrading Electron Forge to 8 removed the `extract-zip` findings (`@electron/pac
 Majors deliberately left behind:
 
 - `@tensorflow/tfjs` stays on `~4.11.0`, the range `upscaler` itself requires.
-- TypeScript 7 and `@types/node` above 22: not needed by any fix, to be done as their own change.
+- TypeScript 7 and `@types/node` above 24: not needed by any fix, to be done as their own change.
