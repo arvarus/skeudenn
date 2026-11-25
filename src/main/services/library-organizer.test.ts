@@ -101,6 +101,15 @@ describe('moveFile', () => {
     await expect(moveFile(path.join(root, 'missing.cbz'), path.join(root, 'out/missing.cbz'))).rejects.toThrow();
     expect(await exists(path.join(root, 'out'))).toBe(false);
   });
+
+  it('removes every folder it created, and only those, when the move fails', async () => {
+    const root = await tree(['kept/other.cbz']);
+    await expect(
+      moveFile(path.join(root, 'missing.cbz'), path.join(root, 'kept', 'a', 'b', 'missing.cbz')),
+    ).rejects.toThrow();
+    expect(await exists(path.join(root, 'kept', 'a'))).toBe(false);
+    expect(await exists(path.join(root, 'kept', 'other.cbz'))).toBe(true);
+  });
 });
 
 describe('organizeEntries', () => {
@@ -253,9 +262,10 @@ function entry(fields: Partial<OrganizedEntry> = {}): OrganizedEntry {
 describe('organizedPaths without a fiche', () => {
   it('keeps the original file name when the template has nothing to fill it with', () => {
     const bare = entry({ series: null, volume: null, releaseDate: null, credits: [] });
-    const target = { root: '/org', structure: [], fileName: '{series} - T{volume}' };
-    expect(organizedPaths(target, bare)).toEqual([`/org/Tintin au Tibet (${ID})/Tintin au Tibet.cbz`]);
-    expect(organizedPaths(target, entry())[0]).toBe(`/org/Tintin - T20 (${ID})/Tintin - T20.cbz`);
+    const root = path.resolve('/org');
+    const target = { root, structure: [], fileName: '{series} - T{volume}' };
+    expect(organizedPaths(target, bare)).toEqual([path.join(root, `Tintin au Tibet (${ID})`, 'Tintin au Tibet.cbz')]);
+    expect(organizedPaths(target, entry())[0]).toBe(path.join(root, `Tintin - T20 (${ID})`, 'Tintin - T20.cbz'));
   });
 });
 

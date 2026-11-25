@@ -1,3 +1,5 @@
+import path from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { isInside, leavesFolder } from './path-containment';
@@ -22,9 +24,9 @@ describe('isInside', () => {
 describe('leavesFolder', () => {
   it('is true for a `..` segment and an absolute path only', () => {
     expect(leavesFolder('..')).toBe(true);
-    expect(leavesFolder('../x')).toBe(true);
-    expect(leavesFolder('/x')).toBe(true);
-    expect(leavesFolder('...x/y')).toBe(false);
-    expect(leavesFolder('a/b')).toBe(false);
+    expect(leavesFolder(path.join('..', 'x'))).toBe(true);
+    expect(leavesFolder(path.resolve('/x'))).toBe(true);
+    expect(leavesFolder(path.join('...x', 'y'))).toBe(false);
+    expect(leavesFolder(path.join('a', 'b'))).toBe(false);
   });
 });

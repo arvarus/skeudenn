@@ -149,13 +149,20 @@ describe('writeNfo', () => {
     expect(await readdir(d)).toEqual(['Tome 1.nfo']);
   });
 
-  it('does not write through a symbolic link planted as the sidecar', async () => {
+  it('does not write through a symbolic link planted as the sidecar', async (ctx) => {
     const d = await mkdtemp(path.join(tmpdir(), 'tankobon-nfo-'));
     dirs.push(d);
     const comic = path.join(d, 'Tome 1.cbz');
     const precious = path.join(d, 'precious.txt');
     await writeFile(precious, 'keep me');
-    await symlink(precious, nfoPathFor(comic));
+    try {
+      await symlink(precious, nfoPathFor(comic));
+    } catch (error) {
+      // Windows only lets an administrator, or Developer Mode, create a symbolic link.
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === 'EPERM' || code === 'EACCES') ctx.skip('symbolic links cannot be created here');
+      throw error;
+    }
 
     expect(await writeNfo({ ...base, path: comic })).toBe(true);
     expect(await readFile(precious, 'utf8')).toBe('keep me');

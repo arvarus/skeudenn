@@ -4,7 +4,7 @@
 
 1. Branch off `master`.
 2. Make the change, with its tests and its documentation (see below).
-3. Run `npm run lint`, `npm run typecheck`, `npm test` and `npm run docs:build`; CI runs the same four.
+3. Run `npm run lint`, `npm run typecheck`, `npm test` and `npm run docs:build`; CI runs the same four (the tests on Windows too, so keep them portable: see "Portable tests" in `docs/development.md`).
 4. Open a pull request whose **title** follows the commit convention. Pull requests are squash-merged, so the title becomes the commit message on `master`, and that message feeds the changelog.
 
 ## Documentation rule

@@ -158,8 +158,9 @@ describe('resyncLibrary covers', () => {
 
   // A book whose library folder has no path on this machine keeps its stored form (`root:<id>/…`); its absence
   // says nothing, even when the stored form happens to name a readable directory relative to the working directory.
+  // Windows refuses `:` in a file name, so there the stored form can name no directory and the case is the plain one.
   it('keeps the books of a folder that is not linked on this machine', async () => {
-    const root = await tree(['elsewhere/root:abc/.keep']);
+    const root = await tree([process.platform === 'win32' ? 'elsewhere/.keep' : 'elsewhere/root:abc/.keep']);
     const folder = await tree(['one.cbz']);
     const repo = repository();
     repo.register('root:abc/gone.cbz', 'gone', 10, 10, 0);

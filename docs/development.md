@@ -54,7 +54,7 @@ A restart kills the app without going through `will-quit`, so the database isn't
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on every push to `master` and on every pull request, as independent parallel jobs: `lint`, `typecheck`, `test` and `docs` (`npm run docs:build`).
+`.github/workflows/ci.yml` runs on every push to `master` and on every pull request, as independent parallel jobs: `lint`, `typecheck`, `test` and `docs` (`npm run docs:build`). `test` runs twice, on Ubuntu and on Windows (a matrix, `fail-fast` off so one platform's failure doesn't hide the other's), since the app ships for Windows and the file system code behaves differently there (see [Portable tests](#portable-tests)); the other jobs run on Ubuntu only.
 
 `.github/workflows/e2e.yml` runs the [smoke tests](#smoke-tests-of-the-packaged-app) every night and on demand (`workflow_dispatch`), not on pull requests: it packages the app and drives it under xvfb.
 
@@ -68,6 +68,16 @@ Four other workflows run on GitHub:
 **Token permissions**: each workflow declares the least `GITHUB_TOKEN` permissions it needs. `ci.yml`, `pr-title.yml` and `build.yml` default to `contents: read` at the workflow level; `build.yml` grants `contents: write` to its `release` job only (it creates the release and uploads the installers), so the `make` jobs, which run `npm ci` and third-party scripts, hold a read-only token. `docs.yml` adds `pages: write` and `id-token: write` for the Pages deployment, and `release-please.yml` needs `contents: write` and `pull-requests: write` to maintain the release pull request. A new workflow or job should start from `contents: read` and add only what it uses.
 
 Dependabot (`.github/dependabot.yml`) opens one pull request a week, titled `ci(deps): bump …`, when the GitHub Actions used by these workflows have new versions. Every action is pinned to the commit SHA of its release (`uses: actions/checkout@<sha> # v7`, the tag kept as a comment), so a moved or hijacked tag can't change what runs, notably `release-please-action`, which has `contents: write`; Dependabot updates the SHA and the comment together.
+
+## Portable tests
+
+The unit tests pass on Linux, macOS and Windows, and CI runs them on Windows too. A test that touches paths or files keeps to what every platform accepts:
+
+- **No POSIX path literals** where the code under test resolves, joins or compares paths: build them with `path.join()`/`path.resolve()` (`path.resolve('/comics')` is `C:\comics` on Windows), and expect the result built the same way. `path.relative()` answers with `\` separators on Windows, so a relative path fed to the code is `path.join('..', 'x')`, not `'../x'`.
+- **Real files go in a temporary folder** (`mkdtemp(path.join(tmpdir(), …))`), removed after the test.
+- **No `:`, `*`, `?`, `"`, `<`, `>`, `|` in a file name**, nor a trailing dot or space: Windows refuses them (a `:` even names an alternate data stream). When the case under test needs such a name, create it only off Windows (`process.platform === 'win32'`) and keep the assertion.
+- **Symbolic links may be unavailable**: creating one on Windows needs administrator rights or Developer Mode. Skip the test at run time when `symlink()` fails with `EPERM` or `EACCES` (`ctx.skip()`, see `src/main/services/nfo.test.ts`), never silently pass it.
+- **Heavy tests get their own timeout** (the last argument of `it()`): the suite runs files in parallel, and a test that takes one second alone can pass the default 5 s under load on a slower machine.
 
 ## Testing components and hooks
 

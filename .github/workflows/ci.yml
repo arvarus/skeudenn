@@ -38,8 +38,13 @@ jobs:
       - run: npm run typecheck
 
   test:
-    name: Unit tests
-    runs-on: ubuntu-latest
+    # Also on Windows, whose paths, file names and symbolic links differ (see docs/development.md).
+    name: Unit tests (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7

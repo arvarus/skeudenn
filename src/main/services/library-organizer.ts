@@ -242,8 +242,10 @@ export async function moveFile(from: string, to: string): Promise<void> {
     throw Object.assign(new Error(`${to} already exists`), { code: 'EEXIST' });
   }
   const folder = path.dirname(to);
-  // The first folder `mkdir` had to create, if any: the top of what a failure removes.
-  const created = await mkdir(folder, { recursive: true });
+  // The first folder that has to be created, if any: the top of what a failure removes. Not the path
+  // `mkdir` returns, which is a namespaced `\\?\C:\…` path on Windows that no other path is inside of.
+  const created = await firstMissingFolder(folder);
+  await mkdir(folder, { recursive: true });
   try {
     try {
       await rename(from, to);
@@ -262,6 +264,19 @@ export async function moveFile(from: string, to: string): Promise<void> {
     if (created !== undefined) await removeEmptyFolders(path.dirname(created), folder);
     throw error;
   }
+}
+
+/** The outermost of `folder` and its parents that doesn't exist, or `undefined` when `folder` exists. */
+async function firstMissingFolder(folder: string): Promise<string | undefined> {
+  let missing: string | undefined;
+  let current = folder;
+  while (!(await pathExists(current))) {
+    missing = current;
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+  return missing;
 }
 
 /** A comic the organization moved. */
