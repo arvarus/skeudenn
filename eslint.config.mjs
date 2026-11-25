@@ -23,6 +23,13 @@ export default config(
     },
   },
   {
+    // Single quotes, except where a string holds one (`avoidEscape`); template
+    // literals stay allowed. JSX attributes are `jsx-quotes`' business, left
+    // unenforced. The core rule is deprecated (formatting rules move to
+    // @stylistic/eslint-plugin) but kept until ESLint 11.
+    rules: { quotes: ['error', 'single', { avoidEscape: true, allowTemplateLiterals: true }] },
+  },
+  {
     // Renderer: React rules only apply to the UI code.
     files: ['src/**/*.tsx'],
     ...reactHooks.configs.flat.recommended,

@@ -200,10 +200,10 @@ const SERIES_PAGE = `<html><body>
       ${albumLine('Tome-2-Arctic-Nation-24600', '2', 'Arctic-Nation', '03/2003')}
       ${albumLine('Tome-10-Dix-1', '10', 'Dix', '2030')}
       <li class="bdt-box-albums-grp"><button type="button" data-groupe="hs">4 hors-séries</button></li>
-      ${albumLine('HS-What-s-News-426397', 'HS', "What&#039;s News", '11/2020', 'is-hs')}
-      ${albumLine('HS1-L-histoire-des-aquarelles-51853', 'HS1', "L&#039;histoire des aquarelles", '11/2005', 'is-hs')}
+      ${albumLine('HS-What-s-News-426397', 'HS', 'What&#039;s News', '11/2020', 'is-hs')}
+      ${albumLine('HS1-L-histoire-des-aquarelles-51853', 'HS1', 'L&#039;histoire des aquarelles', '11/2005', 'is-hs')}
       <li class="bdt-box-albums-grp"><button type="button" data-groupe="int">3 intégrales</button></li>
-      ${albumLine('INT01-L-Integrale-226936', 'INT01', "L&#039;Intégrale", '11/2014', 'is-int')}
+      ${albumLine('INT01-L-Integrale-226936', 'INT01', 'L&#039;Intégrale', '11/2014', 'is-int')}
     </ul>
   </div>
 </div>
@@ -569,7 +569,7 @@ describe('searchBedetheque', () => {
     expect(found).toHaveLength(2);
   });
 
-  it("asks again with the folded text, accents and curly apostrophe removed, when the typed one finds nothing", async () => {
+  it('asks again with the folded text, accents and curly apostrophe removed, when the typed one finds nothing', async () => {
     const terms: string[] = [];
     const fetch = vi.fn(async (input: string | URL | Request) => {
       const url = new URL(String(input));

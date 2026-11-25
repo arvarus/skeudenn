@@ -17,7 +17,7 @@ const metadata: Translation<typeof en> = {
   useCover: 'Utiliser cette couverture pour le livre',
   apply: 'Appliquer',
   untitled: 'Sans titre',
-  noResults: "Aucun résultat. Essaie avec le nom de la série seul, sans numéro de tome, ou cherche le livre depuis le lien de sa fiche.",
+  noResults: 'Aucun résultat. Essaie avec le nom de la série seul, sans numéro de tome, ou cherche le livre depuis le lien de sa fiche.',
   accept: 'Accepter',
   acceptField: 'Accepter : {{field}}',
   field: 'Champ',
@@ -48,7 +48,7 @@ const metadata: Translation<typeof en> = {
   rulePlaceholder: '{series} - T{volume}',
   applyRule: 'Lire le nom',
   ruleInvalid: "Cette règle n'est pas valide : utilise seulement les champs ci-dessus, sans / ni \\.",
-  ruleNoMatch: "Le nom du fichier ne correspond pas à cette règle.",
+  ruleNoMatch: 'Le nom du fichier ne correspond pas à cette règle.',
   previousRules: 'Règles précédentes',
   forgetRule: 'Oublier la règle {{rule}}',
 };

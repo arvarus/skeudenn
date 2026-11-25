@@ -1,32 +1,32 @@
-import { createFileRoute, Navigate } from "@tanstack/react-router";
-import { RotateCcw, Shuffle, Star } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { createFileRoute, Navigate } from '@tanstack/react-router';
+import { RotateCcw, Shuffle, Star } from 'lucide-react';
+import { type ReactNode, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
-import { BookCarousel } from "@/components/book-carousel";
-import { BookRating } from "@/components/book-row";
-import { BookTile } from "@/components/book-tile";
-import { Button } from "@/components/ui/button";
-import { useConfirm } from "@/components/confirm-dialog";
-import { useActiveUser } from "@/hooks/use-users";
-import { appData } from "@/lib/app-data";
-import { useLibrary } from "@/hooks/use-library";
-import { useSettings } from "@/hooks/use-settings";
-import { visibleHomeSections } from "@/lib/home-sections";
-import { continueReading } from "@/lib/continue-reading";
-import { pickRandomFavorites, topRated } from "@/lib/home-favorites";
-import { pickRandomUnread, resolveDrawn } from "@/lib/home-picks";
-import { recentlyAdded } from "@/lib/recent-books";
+import { BookCarousel } from '@/components/book-carousel';
+import { BookRating } from '@/components/book-row';
+import { BookTile } from '@/components/book-tile';
+import { Button } from '@/components/ui/button';
+import { useConfirm } from '@/components/confirm-dialog';
+import { useActiveUser } from '@/hooks/use-users';
+import { appData } from '@/lib/app-data';
+import { useLibrary } from '@/hooks/use-library';
+import { useSettings } from '@/hooks/use-settings';
+import { visibleHomeSections } from '@/lib/home-sections';
+import { continueReading } from '@/lib/continue-reading';
+import { pickRandomFavorites, topRated } from '@/lib/home-favorites';
+import { pickRandomUnread, resolveDrawn } from '@/lib/home-picks';
+import { recentlyAdded } from '@/lib/recent-books';
 import {
   isLowRated,
   lowestRated,
   pickRandomLowRated,
-} from "@/lib/second-chance";
-import type { LibraryEntry } from "@/shared/library";
-import type { HomeSection } from "@/shared/settings";
-import type { ResolvedHomeSection } from "@/lib/home-sections";
+} from '@/lib/second-chance';
+import type { LibraryEntry } from '@/shared/library';
+import type { HomeSection } from '@/shared/settings';
+import type { ResolvedHomeSection } from '@/lib/home-sections';
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute('/')({
   component: HomePage,
 });
 
@@ -37,14 +37,14 @@ export const Route = createFileRoute("/")({
  * the user it was made for.
  */
 function HomePage() {
-  const { t } = useTranslation("home");
+  const { t } = useTranslation('home');
   const { settings } = useSettings();
   const user = useActiveUser();
   if (!settings.homeEnabled) return <Navigate to="/library" replace />;
 
   return (
     <div className="space-y-6 p-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{user ? t("welcome", { nickname: user.nickname }) : t("title")}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight">{user ? t('welcome', { nickname: user.nickname }) : t('title')}</h1>
       {visibleHomeSections(settings.homeSections).map((section) => {
         const Section = SECTION_VIEWS[section.id];
         return <Section key={`${user?.id}:${section.id}`} section={section} />;
@@ -122,7 +122,7 @@ const SECTION_VIEWS: Record<
 
 /** The books started and not finished, to resume; nothing when there are none. */
 function ContinueReading({ section }: { section: ResolvedHomeSection }) {
-  const { t } = useTranslation("home");
+  const { t } = useTranslation('home');
   const library = useLibrary();
   const { confirm, dialog } = useConfirm();
   const books = library ? continueReading(library, section.count) : [];
@@ -131,9 +131,9 @@ function ContinueReading({ section }: { section: ResolvedHomeSection }) {
   // Back to page 0: the book leaves the block; its completion date (the "read" mark) is kept.
   const reset = async (entry: LibraryEntry) => {
     const confirmed = await confirm({
-      title: t("resetProgress.title"),
-      message: t("resetProgress.message", { title: entry.title }),
-      action: t("resetProgress.confirm"),
+      title: t('resetProgress.title'),
+      message: t('resetProgress.message', { title: entry.title }),
+      action: t('resetProgress.confirm'),
     });
     if (!confirmed) return;
     void appData
@@ -145,10 +145,10 @@ function ContinueReading({ section }: { section: ResolvedHomeSection }) {
 
   return (
     <section className="mt-6" aria-labelledby="continue-reading">
-      <SectionHeader id="continue-reading" title={t("continueReading")} />
+      <SectionHeader id="continue-reading" title={t('continueReading')} />
       {books.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">
-          {t("continueReadingEmpty")}
+          {t('continueReadingEmpty')}
         </p>
       ) : (
         <BookCarousel layout={section.layout}>
@@ -158,7 +158,7 @@ function ContinueReading({ section }: { section: ResolvedHomeSection }) {
               entry={entry}
               extra={
                 <span className="block text-xs text-muted-foreground">
-                  {t("continueReadingPage", {
+                  {t('continueReadingPage', {
                     page: entry.currentPage + 1,
                     total: entry.pageCount,
                   })}
@@ -170,8 +170,8 @@ function ContinueReading({ section }: { section: ResolvedHomeSection }) {
                   size="icon-sm"
                   className="shadow"
                   onClick={() => void reset(entry)}
-                  aria-label={t("resetProgress.action")}
-                  title={t("resetProgress.action")}
+                  aria-label={t('resetProgress.action')}
+                  title={t('resetProgress.action')}
                 >
                   <RotateCcw />
                 </Button>
@@ -187,7 +187,7 @@ function ContinueReading({ section }: { section: ResolvedHomeSection }) {
 
 /** The books most recently added to the library. */
 function RecentlyAdded({ section }: { section: ResolvedHomeSection }) {
-  const { t } = useTranslation("home");
+  const { t } = useTranslation('home');
   const library = useLibrary();
   const recent = useMemo(
     () => (library ? recentlyAdded(library, section.count) : []),
@@ -197,10 +197,10 @@ function RecentlyAdded({ section }: { section: ResolvedHomeSection }) {
   return (
     <>
       <section className="mt-6" aria-labelledby="recently-added">
-        <SectionHeader id="recently-added" title={t("recentlyAdded")} />
+        <SectionHeader id="recently-added" title={t('recentlyAdded')} />
         {recent.length === 0 ? (
           <p className="mt-3 text-sm text-muted-foreground">
-            {t("recentlyAddedEmpty")}
+            {t('recentlyAddedEmpty')}
           </p>
         ) : (
           <BookCarousel layout={section.layout}>
@@ -219,7 +219,7 @@ function RecentlyAdded({ section }: { section: ResolvedHomeSection }) {
  * draw is kept (by id) so a change in the store doesn't reshuffle the block. Nothing while none is rated.
  */
 function Favorites({ section }: { section: ResolvedHomeSection }) {
-  const { t } = useTranslation("home");
+  const { t } = useTranslation('home');
   const library = useLibrary();
   const [drawn, setDrawn] = useKeptDraw(library);
   const favorites = useMemo(() => {
@@ -234,10 +234,10 @@ function Favorites({ section }: { section: ResolvedHomeSection }) {
     <section className="mt-6" aria-labelledby="home-favorites">
       <SectionHeader
         id="home-favorites"
-        title={t("favorites.title")}
+        title={t('favorites.title')}
         action={
           <ShuffleButton
-            label={t("favorites.shuffle")}
+            label={t('favorites.shuffle')}
             onClick={() =>
               setDrawn(
                 pickRandomFavorites(library, section.count).map(
@@ -250,7 +250,7 @@ function Favorites({ section }: { section: ResolvedHomeSection }) {
       />
       {favorites.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">
-          {t("favorites.empty")}
+          {t('favorites.empty')}
         </p>
       ) : (
         <BookCarousel layout={section.layout}>
@@ -262,12 +262,12 @@ function Favorites({ section }: { section: ResolvedHomeSection }) {
                 <span
                   className="mt-0.5 flex gap-0.5"
                   role="img"
-                  aria-label={t("favorites.rating", { rating: entry.rating })}
+                  aria-label={t('favorites.rating', { rating: entry.rating })}
                 >
                   {[1, 2, 3, 4, 5].map((value) => (
                     <Star
                       key={value}
-                      className={`size-3.5 ${value <= entry.rating ? "fill-amber-400 text-amber-400" : "text-muted-foreground/40"}`}
+                      className={`size-3.5 ${value <= entry.rating ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground/40'}`}
                       aria-hidden
                     />
                   ))}
@@ -286,7 +286,7 @@ function Favorites({ section }: { section: ResolvedHomeSection }) {
  * button redraws it, so a rating or a tag changing in the store doesn't reshuffle the block.
  */
 function Suggestions({ section }: { section: ResolvedHomeSection }) {
-  const { t } = useTranslation("home");
+  const { t } = useTranslation('home');
   const library = useLibrary();
   const [drawn, setDrawn] = useKeptDraw(library);
 
@@ -303,17 +303,17 @@ function Suggestions({ section }: { section: ResolvedHomeSection }) {
     <section className="mt-6" aria-labelledby="home-suggestions">
       <SectionHeader
         id="home-suggestions"
-        title={t("suggestions.title")}
+        title={t('suggestions.title')}
         action={
           <ShuffleButton
-            label={t("suggestions.shuffle")}
+            label={t('suggestions.shuffle')}
             onClick={() => setDrawn(draw())}
           />
         }
       />
       {shown.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">
-          {t("suggestions.empty")}
+          {t('suggestions.empty')}
         </p>
       ) : (
         <BookCarousel layout={section.layout}>
@@ -331,7 +331,7 @@ function Suggestions({ section }: { section: ResolvedHomeSection }) {
  * button draws another selection among all the poorly rated ones (kept by id until the next draw).
  */
 function SecondChance({ section }: { section: ResolvedHomeSection }) {
-  const { t } = useTranslation("home");
+  const { t } = useTranslation('home');
   const library = useLibrary();
   const [drawn, setDrawn] = useKeptDraw(library);
   const entries = useMemo(() => {
@@ -347,10 +347,10 @@ function SecondChance({ section }: { section: ResolvedHomeSection }) {
     <section className="mt-6" aria-labelledby="second-chance">
       <SectionHeader
         id="second-chance"
-        title={t("secondChance.title")}
+        title={t('secondChance.title')}
         action={
           <ShuffleButton
-            label={t("secondChance.shuffle")}
+            label={t('secondChance.shuffle')}
             onClick={() =>
               setDrawn(
                 pickRandomLowRated(library, section.count).map(
@@ -363,7 +363,7 @@ function SecondChance({ section }: { section: ResolvedHomeSection }) {
       />
       {entries.length === 0 ? (
         <p className="mt-3 text-sm text-muted-foreground">
-          {t("secondChance.empty")}
+          {t('secondChance.empty')}
         </p>
       ) : (
         <BookCarousel layout={section.layout}>

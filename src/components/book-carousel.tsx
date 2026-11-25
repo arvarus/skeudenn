@@ -1,15 +1,15 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import {
   type ReactNode,
   useCallback,
   useEffect,
   useRef,
   useState,
-} from "react";
-import { useTranslation } from "react-i18next";
+} from 'react';
+import { useTranslation } from 'react-i18next';
 
-import { Button } from "@/components/ui/button";
-import type { HomeSectionLayout } from "@/shared/settings";
+import { Button } from '@/components/ui/button';
+import type { HomeSectionLayout } from '@/shared/settings';
 
 /** Share of the visible width one click on an arrow scrolls by. */
 const SCROLL_STEP = 0.8;
@@ -22,12 +22,12 @@ const SCROLL_STEP = 0.8;
  */
 export function BookCarousel({
   children,
-  layout = "row",
+  layout = 'row',
 }: {
   children: ReactNode;
   layout?: HomeSectionLayout;
 }) {
-  const { t } = useTranslation("home");
+  const { t } = useTranslation('home');
   const list = useRef<HTMLUListElement>(null);
   const [edges, setEdges] = useState({ start: true, end: true });
 
@@ -52,10 +52,10 @@ export function BookCarousel({
   const scroll = (direction: -1 | 1) =>
     list.current?.scrollBy({
       left: direction * list.current.clientWidth * SCROLL_STEP,
-      behavior: "smooth",
+      behavior: 'smooth',
     });
 
-  if (layout === "wrap") {
+  if (layout === 'wrap') {
     return <ul className="mt-3 flex flex-wrap gap-4 p-1">{children}</ul>;
   }
 
@@ -74,8 +74,8 @@ export function BookCarousel({
           size="icon-sm"
           className="absolute left-0 top-1/3 -translate-y-1/2 shadow"
           onClick={() => scroll(-1)}
-          aria-label={t("scrollPrevious")}
-          title={t("scrollPrevious")}
+          aria-label={t('scrollPrevious')}
+          title={t('scrollPrevious')}
         >
           <ChevronLeft />
         </Button>
@@ -86,8 +86,8 @@ export function BookCarousel({
           size="icon-sm"
           className="absolute right-0 top-1/3 -translate-y-1/2 shadow"
           onClick={() => scroll(1)}
-          aria-label={t("scrollNext")}
-          title={t("scrollNext")}
+          aria-label={t('scrollNext')}
+          title={t('scrollNext')}
         >
           <ChevronRight />
         </Button>

@@ -76,7 +76,7 @@ export default {
   removeManyFilesFailed_one: '{{count}} file could not be moved to the trash; its book was removed from the library anyway',
   removeManyFilesFailed_other: '{{count}} files could not be moved to the trash; their books were removed from the library anyway',
   removeManyFailed: 'The books could not be removed.',
-  confirmRemove: "Remove “{{title}}” from the library? Its rating, tags and details will be lost; the file is moved to the .deletedByTankobon folder.",
+  confirmRemove: 'Remove “{{title}}” from the library? Its rating, tags and details will be lost; the file is moved to the .deletedByTankobon folder.',
   rating: '{{rating}} / 5',
   notRated: 'Not rated',
   rate_one: 'Rate {{count}} star',

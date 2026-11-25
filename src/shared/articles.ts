@@ -6,7 +6,7 @@
  */
 
 /** The articles offered the first time (`AppSettings.libraryArticles`), in French and English. */
-export const DEFAULT_ARTICLES: readonly string[] = ["le", "la", "les", "l'", "un", "une", "des", "d'", "the", "a", "an"];
+export const DEFAULT_ARTICLES: readonly string[] = ['le', 'la', 'les', "l'", 'un', 'une', 'des', "d'", 'the', 'a', 'an'];
 
 /** Most articles the list may hold. */
 export const MAX_ARTICLES = 50;
