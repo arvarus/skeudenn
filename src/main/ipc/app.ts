@@ -1,7 +1,8 @@
-import { app, BrowserWindow, net, shell } from 'electron';
+import { app, net, shell } from 'electron';
 
 import { APP_LINKS, isAppLink, type AppInfo, type UpdateCheckResult } from '../../shared/app';
 import { checkForUpdate } from '../services/update-checker';
+import { broadcast } from './broadcast';
 import { handle } from './handle';
 import type { LaunchFiles } from './launch-files';
 import { IpcArgumentError, args } from './validate';
@@ -68,9 +69,5 @@ export function registerAppIpc(launchFiles: LaunchFiles): void {
 
 /** Tells every window a comic the OS asked to open is waiting: the renderer then calls `app:take-launch-file`. */
 export function announceLaunchFile(): void {
-  for (const window of BrowserWindow.getAllWindows()) {
-    if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
-      window.webContents.send(APP_CHANNELS.launchFile);
-    }
-  }
+  broadcast(APP_CHANNELS.launchFile);
 }

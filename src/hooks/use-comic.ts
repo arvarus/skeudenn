@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { createRecoveryGuard } from '@/lib/recovery-guard';
 import type { ComicInfo } from '@/shared/comic';
+import { errorText } from '@/shared/errors';
 
 interface ComicState {
   comic: ComicInfo | null;
@@ -22,10 +23,6 @@ interface ComicState {
 }
 
 const initialState: ComicState = { comic: null, page: 0, pageUrl: null, pageKey: null, error: null, loading: false };
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 /** Options of {@link useComic}. */
 export interface UseComicOptions {
@@ -92,7 +89,7 @@ export function useComic({ loadPages = true }: UseComicOptions = {}) {
       setState({ comic: opened, page: opened.resumePage, pageUrl: null, pageKey: null, error: null, loading: loadPages });
     } catch (error) {
       if (!mounted.current || request !== openRequest.current) return;
-      setState((s) => ({ ...s, loading: false, error: errorMessage(error) }));
+      setState((s) => ({ ...s, loading: false, error: errorText(error) }));
     }
   }, [loadPages]);
 
@@ -143,7 +140,7 @@ export function useComic({ loadPages = true }: UseComicOptions = {}) {
           void openFile(lastRef.current, page);
           return;
         }
-        setState((s) => ({ ...s, loading: false, error: errorMessage(error) }));
+        setState((s) => ({ ...s, loading: false, error: errorText(error) }));
       });
 
     return () => {

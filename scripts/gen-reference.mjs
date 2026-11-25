@@ -111,7 +111,8 @@ function mainChannels() {
       for (const [, key, channel] of body.matchAll(/(\w+): '([^']+)'/g)) {
         const ref = `${constName}.${key}`;
         const handled = new RegExp(`\\bhandle\\(\\s*${constName}\\.${key}\\b`).test(source);
-        const pushed = new RegExp(`\\.send\\(\\s*${constName}\\.${key}\\b`).test(source);
+        // Pushed to one window (`webContents.send(…)`) or to all of them (`broadcast(…)`, `broadcast.ts`).
+        const pushed = new RegExp(`(?:\\.send|\\bbroadcast)\\(\\s*${constName}\\.${key}\\b`).test(source);
         if (!handled && !pushed) errors.push(`${file}: ${ref} ('${channel}') is declared but never handled nor sent`);
         channels.set(channel, { file, ref, direction: pushed ? 'main → renderer (push)' : 'renderer → main (invoke)' });
       }
@@ -168,13 +169,14 @@ function preloadChannels() {
       continue;
     }
     if (fn && namespace) method = fn[1];
-    const call = line.match(/ipcRenderer\.(invoke|on)\('([^']+)'/);
+    // `subscribe()` is the preload's helper around `ipcRenderer.on` for the push channels.
+    const call = line.match(/(?:ipcRenderer\.(?:invoke|on)|subscribe(?:<\w+>)?)\('([^']+)'/);
     if (call && namespace && method) {
       const doc = docs.get(namespace)?.get(method)?.doc ?? '';
-      channels.set(call[2], { method: `window.tankobon.${namespace}.${method}`, doc });
+      channels.set(call[1], { method: `window.tankobon.${namespace}.${method}`, doc });
     }
   }
-  if (channels.size === 0) errors.push(`${file}: no ipcRenderer.invoke/on call found`);
+  if (channels.size === 0) errors.push(`${file}: no ipcRenderer.invoke/on or subscribe call found`);
   return channels;
 }
 

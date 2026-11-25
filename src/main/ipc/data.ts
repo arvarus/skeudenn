@@ -3,6 +3,7 @@ import type { DatabaseSync } from 'node:sqlite';
 
 import type { ClearCacheResult, ClearLibraryResult, ExportResult, ImportResult } from '../../shared/data';
 import { t } from '../../shared/i18n';
+import { errorText } from '../../shared/errors';
 import { clearLibraryData } from '../db/clear-library';
 import { buildExport, exportFileName } from '../db/export-service';
 import { applyImport, parseExport, readExportFile } from '../db/import-service';
@@ -25,10 +26,6 @@ export const DATA_CHANNELS = {
   clearLibrary: 'data:clear-library',
   clearCache: 'data:clear-cache',
 } as const;
-
-function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
 
 /** What {@link registerDataIpc} works with, built once in `main.ts`. */
 export interface DataIpcDependencies {
@@ -84,7 +81,7 @@ export function registerDataIpc({
       await writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
       return { status: 'exported', filePath };
     } catch (error) {
-      return { status: 'error', message: t('errors:data.exportFailed', { message: errorMessage(error) }) };
+      return { status: 'error', message: t('errors:data.exportFailed', { message: errorText(error) }) };
     }
   });
 
@@ -117,7 +114,7 @@ export function registerDataIpc({
       void imageScanner.kick();
       return { status: 'imported', filePath: filePaths[0], ...counts };
     } catch (error) {
-      return { status: 'error', message: error instanceof Error ? error.message : String(error) };
+      return { status: 'error', message: errorText(error) };
     } finally {
       lock.end();
     }
@@ -134,7 +131,7 @@ export function registerDataIpc({
       await decoder.pruneThumbnails([]);
       return { status: 'cleared', entries, readingLists };
     } catch (error) {
-      return { status: 'error', message: t('errors:data.clearFailed', { message: errorMessage(error) }) };
+      return { status: 'error', message: t('errors:data.clearFailed', { message: errorText(error) }) };
     } finally {
       lock.end();
     }
@@ -147,7 +144,7 @@ export function registerDataIpc({
       await decoder.pruneThumbnails([]);
       return { status: 'cleared' };
     } catch (error) {
-      return { status: 'error', message: t('errors:data.clearCacheFailed', { message: errorMessage(error) }) };
+      return { status: 'error', message: t('errors:data.clearCacheFailed', { message: errorText(error) }) };
     }
   });
 }

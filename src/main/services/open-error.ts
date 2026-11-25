@@ -3,6 +3,7 @@
  * @module
  */
 import { t } from '../../shared/i18n';
+import { errorText } from '../../shared/errors';
 
 /**
  * The message shown in the reader when a book can't be opened, in the interface language: a
@@ -12,5 +13,5 @@ export function openErrorMessage(error: unknown): string {
   if (error instanceof Error && (error as NodeJS.ErrnoException).code === 'ENOENT') {
     return t('errors:archive.fileNotFound');
   }
-  return t('errors:archive.openFailed', { message: error instanceof Error ? error.message : String(error) });
+  return t('errors:archive.openFailed', { message: errorText(error) });
 }

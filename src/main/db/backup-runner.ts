@@ -7,6 +7,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 
 import type { BackupInfo } from '../../shared/data';
+import { errorText } from '../../shared/errors';
 import { createBackup } from './backup-service';
 
 /** What the worker is told: the open database's file and the folder the copy goes in. */
@@ -67,7 +68,7 @@ export function createBackupRunner(spawn: (job: BackupJob) => BackupWorker): Bac
       try {
         worker = spawn(job);
       } catch (error) {
-        reject(new BackupWorkerUnavailableError(error instanceof Error ? error.message : String(error), { cause: error }));
+        reject(new BackupWorkerUnavailableError(errorText(error), { cause: error }));
         return;
       }
       let settled = false;

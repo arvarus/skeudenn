@@ -7,6 +7,7 @@
 import type { MessagePortMain } from 'electron';
 
 import { applyLanguage } from '../../shared/i18n';
+import { errorText } from '../../shared/errors';
 import { createDecoderHandlers, type DecoderHandlers } from './decoder-handlers';
 import type { DecoderInbound, DecoderRequest, DecoderResponse } from './protocol';
 
@@ -24,7 +25,7 @@ async function run(request: DecoderRequest): Promise<DecoderResponse> {
       type: 'response',
       id: request.id,
       ok: false,
-      message: error instanceof Error ? error.message : String(error),
+      message: errorText(error),
     };
   }
 }

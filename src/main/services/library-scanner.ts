@@ -7,6 +7,7 @@ import path from 'node:path';
 
 import { isSupportedComicFile } from '../../shared/comic';
 import { DELETED_BY_TANKOBON_FOLDER, MAX_REPORTED_FAILURES, type ScanFailure, type ScanProgress } from '../../shared/library';
+import { errorText } from '../../shared/errors';
 import type { ArchiveSummary } from '../decoder/protocol';
 import type { LibraryRepository } from '../db/library-repository';
 import { readNfoFor } from './nfo';
@@ -109,7 +110,7 @@ export async function scanIntoLibrary(
     } catch (error) {
       summary.failed += 1;
       if (summary.failures.length < MAX_REPORTED_FAILURES) {
-        summary.failures.push({ path: filePath, reason: error instanceof Error ? error.message : String(error) });
+        summary.failures.push({ path: filePath, reason: errorText(error) });
       }
     }
   }

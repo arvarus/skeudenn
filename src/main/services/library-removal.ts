@@ -11,6 +11,7 @@ import path from 'node:path';
 import { isSupportedComicFile } from '../../shared/comic';
 import { t } from '../../shared/i18n';
 import type { RemoveEntriesResult, RemoveEntryResult, ScanProgress } from '../../shared/library';
+import { errorText } from '../../shared/errors';
 import type { LibraryRepository } from '../db/library-repository';
 import type { SettingsRepository } from '../db/settings-repository';
 import type { LibraryNotifier, LibraryRunLock } from './library-organization';
@@ -50,10 +51,6 @@ export interface EntryRemovalContext {
   files: RemovalFiles;
   /** The organized folder, where a comic inside it is parked (`''` when there is none). */
   organizedRoot: string;
-}
-
-function errorText(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
 }
 
 async function exists(filePath: string): Promise<boolean> {

@@ -1,4 +1,4 @@
-import { BrowserWindow, type IpcMainInvokeEvent } from 'electron';
+import type { IpcMainInvokeEvent } from 'electron';
 import { stat } from 'node:fs/promises';
 import path from 'node:path';
 
@@ -14,6 +14,7 @@ import {
   type ScanResult,
   type SetCoverResult,
 } from '../../shared/library';
+import { errorText } from '../../shared/errors';
 import type { LibraryFolderRepository } from '../db/library-folder-repository';
 import type { LibraryRepository } from '../db/library-repository';
 import type { SettingsRepository } from '../db/settings-repository';
@@ -30,6 +31,7 @@ import { NOTHING_ORGANIZED, type LibraryOrganizer, type Resynchronizer } from '.
 import type { StartupOrganization } from './startup-organization';
 import { openErrorMessage } from '../services/open-error';
 import { readNfoFor } from '../services/nfo';
+import { broadcast } from './broadcast';
 import { lastOpenedDirectory } from './comic';
 import type { NotifyDataChange } from './data-changes';
 import { existingDirectory, openDialogFor } from './dialogs';
@@ -96,11 +98,7 @@ export const LIBRARY_CHANNELS = {
 
 /** Sends the state of the background measure to every open window (one being closed is skipped). */
 export function broadcastImageScanProgress(progress: ImageScanProgress): void {
-  for (const window of BrowserWindow.getAllWindows()) {
-    if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
-      window.webContents.send(LIBRARY_CHANNELS.imageScanProgress, progress);
-    }
-  }
+  broadcast(LIBRARY_CHANNELS.imageScanProgress, progress);
 }
 
 /**
@@ -108,20 +106,12 @@ export function broadcastImageScanProgress(progress: ImageScanProgress): void {
  * at launch, which no window asked for, is shown by all of them.
  */
 export function broadcastScanProgress(progress: ScanProgress): void {
-  for (const window of BrowserWindow.getAllWindows()) {
-    if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
-      window.webContents.send(LIBRARY_CHANNELS.scanProgress, progress);
-    }
-  }
+  broadcast(LIBRARY_CHANNELS.scanProgress, progress);
 }
 
 /** Tells every window that the organization's outcome of the start-up resynchronization is waiting; announced without payload, so a window takes it once. */
 export function announceStartupOrganization(): void {
-  for (const window of BrowserWindow.getAllWindows()) {
-    if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
-      window.webContents.send(LIBRARY_CHANNELS.startupOrganization);
-    }
-  }
+  broadcast(LIBRARY_CHANNELS.startupOrganization);
 }
 
 /** What {@link registerLibraryIpc} works with, built once in `main.ts`. */
@@ -441,7 +431,7 @@ export function registerLibraryIpc({
       } catch (error) {
         return {
           status: 'error',
-          message: t('errors:library.coverFailed', { message: error instanceof Error ? error.message : String(error) }),
+          message: t('errors:library.coverFailed', { message: errorText(error) }),
         };
       }
     },

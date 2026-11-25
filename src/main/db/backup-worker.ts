@@ -6,6 +6,7 @@
  */
 import { parentPort, workerData } from 'node:worker_threads';
 
+import { errorText } from '../../shared/errors';
 import { backupDatabaseFile } from './backup-service';
 import type { BackupJob, BackupWorkerMessage } from './backup-runner';
 
@@ -18,5 +19,5 @@ function answer(message: BackupWorkerMessage): void {
 try {
   answer({ ok: true, backup: backupDatabaseFile(job.databaseFile, job.directory) });
 } catch (error) {
-  answer({ ok: false, message: error instanceof Error ? error.message : String(error) });
+  answer({ ok: false, message: errorText(error) });
 }
