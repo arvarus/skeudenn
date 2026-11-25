@@ -130,7 +130,7 @@ describe('DataStore', () => {
 
   // `library:list` is a snapshot of when the main process served it; the event of a write made right after can
   // reach the renderer before that answer, while there is no library yet to apply it to.
-  it('loads again when a targeted change arrives before the first load answers', async () => {
+  it('replays on the first load a targeted change that arrived before it answered', async () => {
     const { source, emit } = fakeSource();
     let answerFirst: (entries: LibraryEntry[]) => void = () => undefined;
     source.library.list.mockImplementationOnce(() => new Promise<LibraryEntry[]>((resolve) => (answerFirst = resolve)));
@@ -139,16 +139,16 @@ describe('DataStore', () => {
     await flush();
 
     emit({ scope: 'library', upserted: [entry('a', '2026-05', { rating: 5 })] });
-    // The snapshot predates the change; the next list holds it.
-    source.library.list.mockImplementationOnce(async () => [entry('a', '2026-05', { rating: 5 })]);
-    answerFirst([entry('a', '2026-01')]);
+    // The snapshot predates the change.
+    answerFirst([entry('b', '2026-02'), entry('a', '2026-01')]);
     await flush();
 
-    expect(source.library.list).toHaveBeenCalledTimes(2);
+    expect(source.library.list).toHaveBeenCalledTimes(1);
+    expect(ids(store.getLibrary() ?? [])).toEqual(['a', 'b']);
     expect(store.getLibrary()?.[0]).toMatchObject({ lastOpenedAt: '2026-05', rating: 5 });
   });
 
-  it('loads again when a change arrives during a reload, and not otherwise', async () => {
+  it('applies the targeted changes received during a load to its answer, in order, without loading again', async () => {
     const { source, emit } = fakeSource({ library: [entry('a', '2026-01')] });
     const store = new DataStore(source);
     store.start();
@@ -156,15 +156,93 @@ describe('DataStore', () => {
     let answer: (entries: LibraryEntry[]) => void = () => undefined;
     source.library.list.mockImplementationOnce(() => new Promise<LibraryEntry[]>((resolve) => (answer = resolve)));
     void store.reloadLibrary();
-    emit({ scope: 'library', upserted: [entry('a', '2026-01', { rating: 3 })] });
-    answer([entry('a', '2026-01')]);
+
+    // 20 changes, like the page size measure's batches: ratings of `a` going up, new books, then removals.
+    for (let i = 1; i <= 10; i++) emit({ scope: 'library', upserted: [entry('a', '2026-01', { rating: i % 6 })] });
+    for (let i = 1; i <= 8; i++) emit({ scope: 'library', upserted: [entry(`n${i}`, `2026-02-0${i}`)] });
+    emit({ scope: 'library', removed: ['n1', 'n2'] });
+    emit({ scope: 'library', upserted: [entry('a', '2026-03', { rating: 5 })] });
+    // Applied at once to the library shown meanwhile.
+    expect(store.getLibrary()?.[0]).toMatchObject({ id: 'a', rating: 5 });
+
+    // The snapshot holds some of them already (n3, an older rating of `a`), not the rest.
+    answer([entry('n3', '2026-02-03'), entry('a', '2026-01', { rating: 2 })]);
     await flush();
-    expect(source.library.list).toHaveBeenCalledTimes(3);
+
+    expect(source.library.list).toHaveBeenCalledTimes(2);
+    expect(ids(store.getLibrary() ?? [])).toEqual(['a', 'n8', 'n7', 'n6', 'n5', 'n4', 'n3']);
+    expect(store.getLibrary()?.[0]).toMatchObject({ lastOpenedAt: '2026-03', rating: 5 });
 
     // A change with no load under way triggers nothing.
-    emit({ scope: 'library', upserted: [entry('a', '2026-01', { rating: 4 })] });
+    emit({ scope: 'library', upserted: [entry('a', '2026-03', { rating: 4 })] });
     await flush();
+    expect(source.library.list).toHaveBeenCalledTimes(2);
+    expect(store.getLibrary()?.[0].rating).toBe(4);
+  });
+
+  it('loads once more when an untargeted change arrives during a load', async () => {
+    const { source, emit } = fakeSource({ library: [entry('a', '2026-01')] });
+    const store = new DataStore(source);
+    store.start();
+    await flush();
+    let answer: (entries: LibraryEntry[]) => void = () => undefined;
+    source.library.list.mockImplementationOnce(() => new Promise<LibraryEntry[]>((resolve) => (answer = resolve)));
+    void store.reloadLibrary();
+
+    emit({ scope: 'library', upserted: [entry('a', '2026-01', { rating: 3 })] });
+    emit({ scope: 'library' }); // A folder scan: the answer on its way may not hold it.
+    emit({ scope: 'library' });
+    source.library.list.mockImplementationOnce(async () => [entry('s', '2026-02'), entry('a', '2026-01', { rating: 3 })]);
+    answer([entry('a', '2026-01')]);
+    await flush();
+
     expect(source.library.list).toHaveBeenCalledTimes(3);
+    expect(ids(store.getLibrary() ?? [])).toEqual(['s', 'a']);
+    expect(store.getLibrary()?.[1].rating).toBe(3);
+  });
+
+  it('drops the changes set aside for a load requested before a switch of user', async () => {
+    const { source, emit, switchTo } = fakeSource({ library: [entry('a', '2026-01')] });
+    const store = new DataStore(source);
+    store.start();
+    await flush();
+    let answerStale: (entries: LibraryEntry[]) => void = () => undefined;
+    source.library.list.mockImplementationOnce(() => new Promise<LibraryEntry[]>((resolve) => (answerStale = resolve)));
+    void store.reloadLibrary();
+    emit({ scope: 'library', upserted: [entry('old-user-book', '2026-05')] });
+
+    let answerNew: (entries: LibraryEntry[]) => void = () => undefined;
+    source.library.list.mockImplementationOnce(() => new Promise<LibraryEntry[]>((resolve) => (answerNew = resolve)));
+    switchTo('u2');
+    emit({ scope: 'users' });
+    await flush();
+    answerStale([entry('a', '2026-01')]);
+    answerNew([entry('b', '2026-02')]);
+    await flush();
+
+    expect(source.library.list).toHaveBeenCalledTimes(3);
+    expect(ids(store.getLibrary() ?? [])).toEqual(['b']);
+  });
+
+  it('keeps an optimistic value over the echo of an older write received during a load', async () => {
+    const { source, emit } = fakeSource({ library: [entry('a', '2026-01')] });
+    const store = new DataStore(source);
+    store.start();
+    await flush();
+    let answer: (entries: LibraryEntry[]) => void = () => undefined;
+    source.library.list.mockImplementationOnce(() => new Promise<LibraryEntry[]>((resolve) => (answer = resolve)));
+    void store.reloadLibrary();
+
+    let finish: () => void = () => undefined;
+    const write = store.patchEntry('a', { rating: 3 }, () => new Promise<void>((resolve) => (finish = resolve)));
+    emit({ scope: 'library', upserted: [entry('a', '2026-01', { rating: 2 })] });
+    // The main process served the list once the newer write was stored.
+    answer([entry('a', '2026-01', { rating: 3 })]);
+    await flush();
+    expect(store.getLibrary()?.[0].rating).toBe(3);
+    finish();
+    await write;
+    expect(source.library.list).toHaveBeenCalledTimes(2);
   });
 
   it('reloads the reading lists and the settings on their changes', async () => {

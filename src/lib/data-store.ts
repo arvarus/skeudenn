@@ -77,6 +77,18 @@ export function applyLibraryChange(entries: LibraryEntry[], change: LibraryChang
   return result;
 }
 
+/** A `library:list` under way (see `DataStore.libraryLoad`). */
+interface LibraryLoad {
+  /** The user epoch it was asked in. */
+  epoch: number;
+  /** The targeted changes received since it was asked, in arrival order. */
+  buffer: LibraryChange[];
+  /** An untargeted change or another reload was asked meanwhile: the answer is dropped and the list asked again. */
+  stale: boolean;
+  /** Settles once the library is loaded (or the load is dropped or failed). */
+  done: Promise<void>;
+}
+
 /**
  * Holds the data and notifies subscribers per slice. `null` library or reading lists mean "not
  * loaded yet"; the settings are {@link DEFAULT_SETTINGS} until loaded (see {@link DataStore.ready}).
@@ -105,11 +117,14 @@ export class DataStore {
   /** Counts the switches of user: an answer that was requested before one belongs to the previous user and is dropped. */
   private epoch = 0;
   /**
-   * Counts the targeted library changes received. A `library:list` answer is a snapshot of the moment the
-   * main process served it, which can predate a change whose event reached the renderer before the answer:
-   * a load that sees this counter move while it waits loads again.
+   * The `library:list` under way, if any. Its answer is a snapshot of the moment the main process served it,
+   * which can predate a change whose event reached the renderer before the answer: the targeted changes
+   * received meanwhile are kept in `buffer`, in arrival order, and replayed on the snapshot. Replaying one the
+   * snapshot already holds is harmless, since each carries the whole entries as of its write and the later
+   * ones follow. `stale` is set by an untargeted change (or another reload request) meanwhile: the snapshot
+   * is then dropped and the list asked again.
    */
-  private libraryChanges = 0;
+  private libraryLoad: LibraryLoad | null = null;
 
   constructor(private readonly source: DataSource) {}
 
@@ -149,17 +164,37 @@ export class DataStore {
     for (const listener of [...this.listeners[slice]]) listener();
   }
 
-  /** Fetches the whole library again. */
-  async reloadLibrary(): Promise<void> {
-    const epoch = this.epoch;
-    const changes = this.libraryChanges;
-    const loaded = await this.source.library.list();
-    if (epoch !== this.epoch) return;
-    this.library = loaded;
-    this.emit('library');
-    // A change arrived while the list was on its way (and, with no library yet, was set aside): the snapshot may
-    // not hold it, so ask again.
-    if (changes !== this.libraryChanges) void this.reloadLibrary();
+  /**
+   * Fetches the whole library again. A call while a load is under way doesn't start another one: it marks
+   * that load stale (it asks the list again once answered) and resolves with it.
+   */
+  reloadLibrary(): Promise<void> {
+    if (this.libraryLoad) {
+      this.libraryLoad.stale = true;
+      return this.libraryLoad.done;
+    }
+    const load: LibraryLoad = { epoch: this.epoch, buffer: [], stale: false, done: Promise.resolve() };
+    this.libraryLoad = load;
+    load.done = this.runLibraryLoad(load);
+    return load.done;
+  }
+
+  private async runLibraryLoad(load: LibraryLoad): Promise<void> {
+    try {
+      for (;;) {
+        load.stale = false;
+        load.buffer = [];
+        const loaded = await this.source.library.list();
+        if (load.epoch !== this.epoch) return;
+        // An untargeted change (a scan, an import) arrived while the list was on its way: it may not hold it.
+        if (load.stale) continue;
+        this.library = load.buffer.reduce(applyLibraryChange, loaded);
+        this.emit('library');
+        return;
+      }
+    } finally {
+      if (this.libraryLoad === load) this.libraryLoad = null;
+    }
   }
 
   /** Fetches the reading lists again. */
@@ -191,6 +226,8 @@ export class DataStore {
     this.users = state;
     if (switched) {
       this.epoch += 1;
+      // A load under way is the previous user's: its answer and the changes it set aside are dropped.
+      this.libraryLoad = null;
       this.library = null;
       this.readingLists = null;
       this.achievements = null;
@@ -222,10 +259,13 @@ export class DataStore {
           void this.reloadLibrary();
           return;
         }
-        this.libraryChanges += 1;
-        if (!this.library) return; // The load under way brings the final state (and starts again if it predates this change).
+        // The echo of a write still pending is dropped now, not when replayed: the optimistic value wins.
         const upserted = change.upserted?.filter((entry) => !this.pending.has(`entry:${entry.id}`));
-        this.library = applyLibraryChange(this.library, { ...change, upserted });
+        const targeted: LibraryChange = { ...change, upserted };
+        // A load under way replays it on its snapshot, which may predate it.
+        this.libraryLoad?.buffer.push(targeted);
+        if (!this.library) return; // The load under way brings the final state.
+        this.library = applyLibraryChange(this.library, targeted);
         this.emit('library');
         return;
       }
