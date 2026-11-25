@@ -9,6 +9,7 @@ import { DELETED_BY_TANKOBON_FOLDER, type ScanProgress } from '../../shared/libr
 import { migrate } from '../db/schema';
 import { SettingsRepository } from '../db/settings-repository';
 import { createFolderCleaner, findOrphanFolders } from './folder-cleanup';
+import { FOLDER_LINK_KINDS, linkFolderOrSkip } from '../test-links';
 import { createLibraryRunLock } from './library-organization';
 
 applyLanguage('fr');
@@ -93,5 +94,20 @@ describe('folder cleanup', () => {
     expect(await cleaner.count()).toMatchObject({ count: 1 });
     expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ phase: 'done' }));
     expect(lock.tryStart('folders')).not.toBeNull();
+  });
+
+  it.for(FOLDER_LINK_KINDS)('moves nothing into a .deletedByTankobon that is a link (%s)', async (kind, { skip }) => {
+    const outside = await mkdtemp(join(tmpdir(), 'tankobon-folder-cleanup-outside-'));
+    try {
+      await linkFolderOrSkip(outside, join(root, DELETED_BY_TANKOBON_FOLDER), kind, skip);
+      await file('Dead/book.nfo');
+      const cleaner = createFolderCleaner(settings, createLibraryRunLock());
+
+      expect(await cleaner.clean()).toEqual({ status: 'ok', moved: 0, failed: 1, cancelled: false });
+      expect(await readdir(join(root, 'Dead'))).toEqual(['book.nfo']);
+      expect(await readdir(outside)).toEqual([]);
+    } finally {
+      await rm(outside, { recursive: true, force: true });
+    }
   });
 });

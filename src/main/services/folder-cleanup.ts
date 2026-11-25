@@ -18,7 +18,7 @@ import {
 } from '../../shared/library';
 import type { SettingsRepository } from '../db/settings-repository';
 import type { LibraryRunLock } from './library-organization';
-import { firstFreeName, markParked, organizedFolderProblem } from './organized-folder';
+import { firstFreeName, markParked, organizedFolderProblem, requireTrashFolder } from './organized-folder';
 
 /** Extensions of the files an orphan folder may still hold: sidecars (`.nfo`) and cover images. */
 const SIDECAR_EXTENSIONS = new Set(['.nfo', '.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.avif']);
@@ -107,7 +107,6 @@ export function createFolderCleaner(settings: SettingsRepository, lock: LibraryR
       if (!('root' in usable)) return usable;
       const signal = lock.tryStart('folders');
       if (!signal) return { status: 'error', message: lock.busyMessage() };
-      const trash = path.join(usable.root, DELETED_BY_TANKOBON_FOLDER);
       const result = { moved: 0, failed: 0, cancelled: false };
       try {
         const orphans = await findOrphanFolders(usable.root);
@@ -118,6 +117,8 @@ export function createFolderCleaner(settings: SettingsRepository, lock: LibraryR
           }
           onProgress({ phase: 'importing', processed: index, total: orphans.length, currentFile: folder });
           try {
+            // Checked for each folder: a trash that is a link or a junction fails the move, nothing goes through it.
+            const trash = await requireTrashFolder(usable.root);
             await mkdir(trash, { recursive: true });
             const parked = await firstFreeName(trash, path.basename(folder));
             await moveFolder(folder, parked);

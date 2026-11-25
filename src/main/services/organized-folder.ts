@@ -3,11 +3,13 @@
  * the folder can be used, and the names free in a folder. Free of Electron, like those services.
  * @module
  */
-import { stat, utimes } from 'node:fs/promises';
+import { lstat, realpath, stat, utimes } from 'node:fs/promises';
 import path from 'node:path';
 
 import { t } from '../../shared/i18n';
+import { DELETED_BY_TANKOBON_FOLDER } from '../../shared/library';
 import type { LibraryOrganization } from '../../shared/settings';
+import { isInside } from '../path-containment';
 
 /** Whether `file` exists (any error counts as no). */
 export async function pathExists(file: string): Promise<boolean> {
@@ -49,4 +51,36 @@ export async function firstFreeName(
 export async function markParked(target: string): Promise<void> {
   const now = new Date();
   await utimes(target, now, now).catch(() => undefined);
+}
+
+/**
+ * The `.deletedByTankobon` folder of `root`, or `null` when it must not be used. It is usable when it doesn't
+ * exist yet (parking creates it) or when it is a real directory: not a symbolic link nor a Windows junction
+ * (which `lstat` reports as links), and inside `root` once both are resolved. A link planted there (a shared
+ * or synced organized folder) would otherwise make the emptying delete, the size count read and the parking
+ * move files wherever it points. Any other error reading it counts as unusable.
+ */
+export async function usableTrashFolder(root: string): Promise<string | null> {
+  const folder = path.join(root, DELETED_BY_TANKOBON_FOLDER);
+  let info;
+  try {
+    info = await lstat(folder);
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'ENOENT' ? folder : null;
+  }
+  if (info.isSymbolicLink() || !info.isDirectory()) return null;
+  try {
+    return isInside(await realpath(root), await realpath(folder)) ? folder : null;
+  } catch {
+    return null;
+  }
+}
+
+/** `usableTrashFolder()`, throwing a translated error when the folder can't be used, for the parking steps that report a failure. */
+export async function requireTrashFolder(root: string): Promise<string> {
+  const folder = await usableTrashFolder(root);
+  if (folder === null) {
+    throw new Error(t('errors:library.trashFolderLinked', { folder: path.join(root, DELETED_BY_TANKOBON_FOLDER) }));
+  }
+  return folder;
 }

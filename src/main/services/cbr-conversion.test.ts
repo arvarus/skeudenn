@@ -10,6 +10,7 @@ import { LibraryRepository } from '../db/library-repository';
 import { migrate } from '../db/schema';
 import { SettingsRepository } from '../db/settings-repository';
 import { createCbrConverter, type ConversionDecoder } from './cbr-conversion';
+import { FOLDER_LINK_KINDS, linkFolderOrSkip } from '../test-links';
 import { createLibraryRunLock } from './library-organization';
 
 applyLanguage('fr');
@@ -185,5 +186,48 @@ describe('createCbrConverter', () => {
     expect(onProgress.mock.calls.map(([p]) => p.phase)).toEqual(['importing', 'done']);
     expect(onProgress.mock.calls[0][0]).toMatchObject({ processed: 0, total: 2 });
     expect(lock.tryStart('convert')).not.toBeNull();
+  });
+
+  describe.for(FOLDER_LINK_KINDS)('with a .deletedByTankobon that is a link (%s) to a folder outside', (kind) => {
+    let outside: string;
+    beforeEach(async () => {
+      outside = await mkdtemp(join(tmpdir(), 'tankobon-cbr-conversion-outside-'));
+      await writeFile(join(outside, 'precious.docx'), 'precious');
+      await mkdir(join(outside, 'Photos'));
+      await writeFile(join(outside, 'Photos', 'a.jpg'), 'x');
+    });
+    afterEach(async () => {
+      await rm(outside, { recursive: true, force: true });
+    });
+
+    const link = (skip: () => void) => linkFolderOrSkip(outside, join(root, DELETED_BY_TANKOBON_FOLDER), kind, skip);
+    const untouched = async () => {
+      expect((await readdir(outside)).sort()).toEqual(['Photos', 'precious.docx']);
+      expect(await readdir(join(outside, 'Photos'))).toEqual(['a.jpg']);
+    };
+
+    it('neither empties nor sizes it', async ({ skip }) => {
+      await link(skip);
+      const { converter } = setup();
+      const inAYear = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+
+      expect(await converter.count()).toMatchObject({ status: 'ok', deletedFiles: 0, deletedBytes: 0 });
+      expect(await converter.emptyDeleted()).toEqual({ status: 'ok', deleted: 0, bytesFreed: 0, failed: 0, cancelled: false });
+      expect(await converter.emptyDeletedOlderThan(1, inAYear)).toEqual({ status: 'ok', deleted: 0, bytesFreed: 0, failed: 0, cancelled: false });
+      await untouched();
+    });
+
+    it('converts nothing: the book fails and stays a CBR', async ({ skip }) => {
+      await link(skip);
+      const cbr = await addBook('Serie/book.cbr');
+      const id = repo.idOfPath(cbr)!;
+      const { converter, decoder } = setup();
+
+      expect(await converter.convert()).toEqual({ status: 'ok', converted: 0, failed: 1, cancelled: false });
+      expect(decoder.convertCbr).not.toHaveBeenCalled();
+      expect(repo.get(id)?.path).toBe(cbr);
+      expect(await readdir(join(root, 'Serie'))).toEqual(['book.cbr']);
+      await untouched();
+    });
   });
 });
