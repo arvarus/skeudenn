@@ -3,7 +3,8 @@
  * @module
  */
 import type { MetadataReview } from '@/lib/metadata-review';
-import type { MetadataCandidate } from '@/shared/metadata';
+import type { MetadataApiSource, MetadataCandidate } from '@/shared/metadata';
+import type { PublicSettings } from '@/shared/settings';
 
 /** Where the dialog is: choosing options, waiting for an answer, picking a result or reviewing one. */
 export type LookupStep =
@@ -62,4 +63,72 @@ export function lookupReducer(state: LookupState, action: LookupAction): LookupS
         ? { ...state, step: { kind: 'results', candidates: state.step.candidates, errors: [] } }
         : state;
   }
+}
+
+/** The APIs that are offered once enabled in the settings, in display order. */
+const API_SOURCES: readonly MetadataApiSource[] = ['comicvine', 'googlebooks'];
+
+/** The settings the source choice depends on. */
+export type LookupSourceSettings = Pick<PublicSettings, 'comicVineEnabled' | 'googleBooksEnabled' | 'bedethequeSearchByDefault'>;
+
+/** What the dialog's source boxes show, and what a search is sent with. */
+export interface LookupSources {
+  /** The APIs enabled in the settings, each offered as a box, in display order. */
+  offered: MetadataApiSource[];
+  /** Whether Bédéthèque's box is ticked. */
+  bedethequeTicked: boolean;
+  /** The sources a search queries: the offered APIs still ticked, then Bédéthèque when ticked. */
+  sources: MetadataApiSource[];
+}
+
+/**
+ * The sources of a lookup. The APIs enabled in the settings are offered and ticked unless the user
+ * unticked them (`unticked`). Bédéthèque has no switch in the settings: its box is always there,
+ * ticked as the user chose (`bedethequeChoice`) or, until they do (`null`), as
+ * `bedethequeSearchByDefault` says. Settings not loaded yet offer nothing and leave Bédéthèque unticked.
+ */
+export function lookupSources(
+  settings: LookupSourceSettings | null | undefined,
+  unticked: ReadonlySet<MetadataApiSource>,
+  bedethequeChoice: boolean | null,
+): LookupSources {
+  const offered = API_SOURCES.filter((source) =>
+    source === 'comicvine' ? settings?.comicVineEnabled : settings?.googleBooksEnabled,
+  );
+  const bedethequeTicked = bedethequeChoice ?? settings?.bedethequeSearchByDefault ?? false;
+  const sources: MetadataApiSource[] = [
+    ...offered.filter((source) => !unticked.has(source)),
+    ...(bedethequeTicked ? (['bedetheque'] as const) : []),
+  ];
+  return { offered, bedethequeTicked, sources };
+}
+
+/** The part of a DOM element `enterAppliesReview()` reads (`Element` fits). */
+export interface KeyTarget {
+  /** The element itself or its closest ancestor matching `selectors`, or a falsy value when none does. */
+  closest(selectors: string): unknown;
+}
+
+/** The part of a keyboard event `enterAppliesReview()` reads (`KeyboardEvent` fits). */
+export type EnterKeyEvent = Pick<
+  KeyboardEvent,
+  'key' | 'defaultPrevented' | 'isComposing' | 'ctrlKey' | 'altKey' | 'metaKey' | 'shiftKey'
+>;
+
+/** The elements that keep their own Enter: a focused one of these never saves the review. */
+const OWN_ENTER = 'button, a, select, textarea, [role="tab"]';
+
+/**
+ * Whether a key press saves the review of the lookup dialog: a plain Enter (no modifier, not
+ * composing, not already handled), from inside a dialog or from the page body (nothing focused,
+ * after a click on a result). A focused button, link, list, text area or tab keeps its own Enter,
+ * and a key typed outside any dialog (with the focus elsewhere than the body) is left alone.
+ * `target` is the event's target when it is an element, else `null`; `body` is `document.body`.
+ */
+export function enterAppliesReview(event: EnterKeyEvent, target: KeyTarget | null, body: unknown): boolean {
+  if (event.key !== 'Enter' || event.defaultPrevented || event.isComposing) return false;
+  if (event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return false;
+  if (target?.closest(OWN_ENTER)) return false;
+  if (target && !target.closest('[role="dialog"]') && target !== body) return false;
+  return true;
 }
