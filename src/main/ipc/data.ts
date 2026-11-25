@@ -9,6 +9,7 @@ import { applyImport, parseExport, readExportFile } from '../db/import-service';
 import type { DecoderClient } from '../decoder/decoder-client';
 import type { LibraryRepository } from '../db/library-repository';
 import type { ImageStatsScanner } from '../services/image-stats-scanner';
+import type { LibraryRunLock } from '../services/library-organization';
 import type { ReadingListRepository } from '../db/reading-list-repository';
 import type { SettingsRepository } from '../db/settings-repository';
 import { applyMainLanguage } from '../language';
@@ -29,15 +30,44 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export function registerDataIpc(
-  db: DatabaseSync,
-  libraryRepo: LibraryRepository,
-  settingsRepo: SettingsRepository,
-  readingListRepo: ReadingListRepository,
-  decoder: DecoderClient,
-  notify: NotifyDataChange,
-  imageScanner: ImageStatsScanner,
-): void {
+/** What {@link registerDataIpc} works with, built once in `main.ts`. */
+export interface DataIpcDependencies {
+  /** The database, for the import's single transaction and the clearing. */
+  db: DatabaseSync;
+  /** The library, as the active user sees it. */
+  libraryRepo: LibraryRepository;
+  /** The settings, exported and replaced by an import. */
+  settingsRepo: SettingsRepository;
+  /** The active user's reading lists. */
+  readingListRepo: ReadingListRepository;
+  /** The decoder process: the thumbnails to rebuild or delete. */
+  decoder: DecoderClient;
+  /** Announces a write to every window. */
+  notify: NotifyDataChange;
+  /** The background measure of the pages, started after an import. */
+  imageScanner: ImageStatsScanner;
+  /**
+   * The lock shared by the runs over the library files (`organizer.lock`): the import and the clearing take
+   * it (kind `data`), so a resynchronization can't add back the books just cleared, nor a walk register
+   * files while an import rewrites the library.
+   */
+  lock: LibraryRunLock;
+}
+
+/**
+ * Registers the `data:*` handlers: export, import, clearing the library and clearing the thumbnail cache.
+ * The import and the clearing refuse to start, with an `error` result, while another run holds `lock`.
+ */
+export function registerDataIpc({
+  db,
+  libraryRepo,
+  settingsRepo,
+  readingListRepo,
+  decoder,
+  notify,
+  imageScanner,
+  lock,
+}: DataIpcDependencies): void {
   handle(DATA_CHANNELS.export, args(), async (event): Promise<ExportResult> => {
     const options: Electron.SaveDialogOptions = {
       title: t('dialogs:exportData'),
@@ -69,6 +99,8 @@ export function registerDataIpc(
       return { status: 'cancelled' };
     }
 
+    // Taken once the dialog is answered, so an open picker doesn't hold up the other runs.
+    if (!lock.tryStart('data')) return { status: 'error', message: lock.busyMessage() };
     try {
       const data = parseExport(await readExportFile(filePaths[0]));
       const counts = applyImport(db, libraryRepo, settingsRepo, readingListRepo, data);
@@ -86,10 +118,14 @@ export function registerDataIpc(
       return { status: 'imported', filePath: filePaths[0], ...counts };
     } catch (error) {
       return { status: 'error', message: error instanceof Error ? error.message : String(error) };
+    } finally {
+      lock.end();
     }
   });
 
   handle(DATA_CHANNELS.clearLibrary, args(), async (): Promise<ClearLibraryResult> => {
+    // A resynchronization running meanwhile would register again the files whose rows were just deleted.
+    if (!lock.tryStart('data')) return { status: 'error', message: lock.busyMessage() };
     try {
       const { entries, readingLists } = clearLibraryData(db, libraryRepo, readingListRepo);
       notify({ scope: 'library' });
@@ -99,6 +135,8 @@ export function registerDataIpc(
       return { status: 'cleared', entries, readingLists };
     } catch (error) {
       return { status: 'error', message: t('errors:data.clearFailed', { message: errorMessage(error) }) };
+    } finally {
+      lock.end();
     }
   });
 
