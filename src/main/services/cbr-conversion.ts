@@ -174,6 +174,8 @@ export function createCbrConverter(
           onProgress({ phase: 'importing', processed: index, total: ids.length, currentFile: from });
           const stem = path.basename(from, path.extname(from));
           let to: string | null = null;
+          // Where the CBR was parked, until the entry names the CBZ: a failure puts it back.
+          let parked: string | null = null;
           // Once the entry names the CBZ, that file is the book: a later hiccup must not delete it.
           let committed = false;
           try {
@@ -182,14 +184,12 @@ export function createCbrConverter(
             to = await firstFreeName(path.dirname(from), stem, '.cbz', (candidate) => !repo.hasPath(candidate));
             const { fileCount } = await decoder.convertCbr(from, to);
             // The CBR leaves the library folders for good only once the CBZ exists and was checked.
-            const parked = await firstFreeName(trash, path.basename(from, path.extname(from)), path.extname(from), () => true);
-            await moveFile(from, parked);
-            await markParked(parked);
-            if (!repo.updatePath(id, to)) {
-              // The database refused: the CBR goes back where the entry says it is.
-              await moveFile(parked, from).catch(() => undefined);
-              throw new Error('path refused');
-            }
+            const target = await firstFreeName(trash, path.basename(from, path.extname(from)), path.extname(from), () => true);
+            await moveFile(from, target);
+            parked = target;
+            await markParked(target);
+            // The database refused (or threw, "database is locked"…): handled below, the CBR goes back.
+            if (!repo.updatePath(id, to)) throw new Error('path refused');
             committed = true;
             repo.updateFileStats(id, fileCount, await stat(to).then((s) => s.size, () => 0));
             // The cover kept beside the comic and its `.nfo` follow it (best effort, regenerated when missing).
@@ -198,8 +198,11 @@ export function createCbrConverter(
             await decoder.removeThumbnail(from).catch(() => undefined);
             result.converted++;
           } catch {
-            // Before the entry was pointed at the CBZ, nothing half-done is left: it still names the CBR, where it was.
-            if (to && !committed) await rm(to, { force: true }).catch(() => undefined);
+            // Before the entry was pointed at the CBZ, nothing half-done is left: it still names the CBR, put back where it was.
+            if (!committed) {
+              if (parked) await moveFile(parked, from).catch(() => undefined);
+              if (to) await rm(to, { force: true }).catch(() => undefined);
+            }
             result.failed++;
           }
         }

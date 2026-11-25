@@ -108,6 +108,40 @@ describe('createCbrConverter', () => {
     expect(notify).not.toHaveBeenCalled();
   });
 
+  // The CBR is already parked when the entry is pointed at the CBZ: a database that refuses or throws must not lose it.
+  it.each([
+    ['refuses the new path', () => false],
+    ['throws while writing the new path', () => {
+      throw new Error('database is locked');
+    }],
+  ])('puts the CBR back when the database %s', async (_label, updatePath) => {
+    const cbr = await addBook('Serie/book.cbr');
+    const id = repo.idOfPath(cbr)!;
+    vi.spyOn(repo, 'updatePath').mockImplementation(updatePath);
+    const { converter, notify } = setup();
+
+    expect(await converter.convert()).toEqual({ status: 'ok', converted: 0, failed: 1, cancelled: false });
+    expect(repo.get(id)?.path).toBe(cbr);
+    expect(await readdir(join(root, 'Serie'))).toEqual(['book.cbr']);
+    expect(await readdir(join(root, DELETED_BY_TANKOBON_FOLDER)).catch(() => [])).toEqual([]);
+    expect(notify).not.toHaveBeenCalled();
+  });
+
+  // `updateFileStats()` runs once the entry names the CBZ: that file is the book then, and the CBR stays parked.
+  it('keeps the CBZ when a write after pointing the entry at it throws', async () => {
+    const cbr = await addBook('Serie/book.cbr');
+    const id = repo.idOfPath(cbr)!;
+    vi.spyOn(repo, 'updateFileStats').mockImplementation(() => {
+      throw new Error('database is locked');
+    });
+    const { converter } = setup();
+
+    expect(await converter.convert()).toMatchObject({ converted: 0, failed: 1 });
+    expect(repo.get(id)?.path).toBe(join(root, 'Serie', 'book.cbz'));
+    expect(await readdir(join(root, 'Serie'))).toEqual(['book.cbz']);
+    expect(await readdir(join(root, DELETED_BY_TANKOBON_FOLDER))).toEqual(['book.cbr']);
+  });
+
   it('picks another name when the CBZ already exists', async () => {
     const cbr = await addBook('book.cbr');
     await writeFile(join(root, 'book.cbz'), 'someone else');
