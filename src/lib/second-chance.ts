@@ -11,6 +11,11 @@ export const LOW_RATING_MAX = 2;
 /** How many books the block shows. */
 export const SECOND_CHANCE_LIMIT = 5;
 
+/** Whether `entry` is poorly rated: rated, and at most {@link LOW_RATING_MAX}. Unrated books (rating 0) are not. */
+export function isLowRated(entry: LibraryEntry): boolean {
+  return entry.rating >= 1 && entry.rating <= LOW_RATING_MAX;
+}
+
 /**
  * The rated books at or below {@link LOW_RATING_MAX}, worst first (ties by title, numeric and
  * accent-insensitive), at most `limit`. Unrated books (rating 0) are not poorly rated.
@@ -18,7 +23,7 @@ export const SECOND_CHANCE_LIMIT = 5;
 export function lowestRated(entries: readonly LibraryEntry[], limit: number = SECOND_CHANCE_LIMIT): LibraryEntry[] {
   const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
   return entries
-    .filter((entry) => entry.rating >= 1 && entry.rating <= LOW_RATING_MAX)
+    .filter(isLowRated)
     .sort((a, b) => a.rating - b.rating || collator.compare(a.title, b.title))
     .slice(0, limit);
 }

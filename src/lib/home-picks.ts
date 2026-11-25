@@ -60,3 +60,21 @@ export function sampleRandom<T>(pool: T[], count: number, random: () => number =
   }
   return pool.slice(0, picks);
 }
+
+/**
+ * The books of a draw kept by id (a home block's selection), taken from the current `library` so
+ * each shows its latest state (progress, rating, tags), in the order of `ids`. A book no longer in
+ * the library is left out, and so is one that `keep` refuses: the block's own condition applied
+ * again (a book whose rating was raised leaves the poorly rated ones).
+ */
+export function resolveDrawn(
+  library: readonly LibraryEntry[],
+  ids: readonly string[],
+  keep: (entry: LibraryEntry) => boolean = () => true,
+): LibraryEntry[] {
+  const byId = new Map(library.map((entry) => [entry.id, entry]));
+  return ids.flatMap((id) => {
+    const entry = byId.get(id);
+    return entry && keep(entry) ? [entry] : [];
+  });
+}

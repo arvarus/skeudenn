@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { pickRandomUnread } from '@/lib/home-picks';
+import { pickRandomUnread, resolveDrawn } from '@/lib/home-picks';
 import type { LibraryEntry } from '@/shared/library';
 
 function entry(id: string, overrides: Partial<LibraryEntry> = {}): LibraryEntry {
@@ -40,5 +40,22 @@ describe('pickRandomUnread', () => {
     expect(pickRandomUnread(library, 5).map((e) => e.id).sort()).toEqual(['solo', 'v1']);
     const read = [book('v3', '3'), book('v1', '1', { tags: ['Lu'] }), book('v2', '2', { tags: ['Lu'] })];
     expect(pickRandomUnread(read, 5).map((e) => e.id)).toEqual(['v3']);
+  });
+});
+
+describe('resolveDrawn', () => {
+  it('takes the books from the current library, in the order of the draw', () => {
+    const library = [entry('a', { currentPage: 1 }), entry('b'), entry('c')];
+    expect(resolveDrawn(library, ['c', 'a'])).toEqual([library[2], library[0]]);
+  });
+
+  it('leaves out the books no longer in the library', () => {
+    expect(resolveDrawn([entry('a')], ['gone', 'a']).map((e) => e.id)).toEqual(['a']);
+    expect(resolveDrawn([], ['a'])).toEqual([]);
+  });
+
+  it('applies the block condition again', () => {
+    const library = [entry('a', { rating: 1 }), entry('b', { rating: 4 })];
+    expect(resolveDrawn(library, ['a', 'b'], (e) => e.rating <= 2).map((e) => e.id)).toEqual(['a']);
   });
 });
