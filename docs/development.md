@@ -78,6 +78,7 @@ Logic stays pure and in `src/lib/` where it can, but a hook or a component has b
 - jsdom has no `IntersectionObserver`/`ResizeObserver`: stub them with `vi.stubGlobal` (`src/components/reader/continuous-page.test.tsx` shows both), and `URL.createObjectURL`.
 - A component using `useTranslation()` is wrapped in `<I18nextProvider i18n={i18n}>` (`@/shared/i18n`), the language set with `applyLanguage()`.
 - Other examples: `src/hooks/use-comic.test.tsx` (reopening a book the decoder lost, with a guard against looping) and `src/components/reader/continuous-page.test.tsx`.
+- A route's test goes beside it with a leading `-` (`src/routes/-index.test.tsx`), which the router plugin ignores (any other file of `src/routes/` becomes a route). It mocks `@tanstack/react-router` (`createFileRoute` returning the options, so the test renders `Route.options.component`; `Link` as a plain `<a>`), and can drive the real data store (`appData.start()` over the fake, then `data.onChanged`'s listener to play a `data:changed` event such as a switch of user).
 
 ## Smoke tests of the packaged app
 

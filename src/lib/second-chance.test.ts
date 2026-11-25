@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { lowestRated, pickRandomLowRated } from './second-chance';
+import { isLowRated, lowestRated, pickRandomLowRated } from './second-chance';
 import type { LibraryEntry } from '@/shared/library';
 
 const entry = (id: string, rating: number, title = id): LibraryEntry =>
@@ -35,5 +35,11 @@ describe('pickRandomLowRated', () => {
 
   it('returns fewer books when fewer are poorly rated', () => {
     expect(pickRandomLowRated([entry('a', 1), entry('b', 5)], 5).map((e) => e.id)).toEqual(['a']);
+  });
+});
+
+describe('isLowRated', () => {
+  it('holds for the rated books up to LOW_RATING_MAX only', () => {
+    expect([0, 1, 2, 3].map((rating) => isLowRated(entry('a', rating)))).toEqual([false, true, true, false]);
   });
 });

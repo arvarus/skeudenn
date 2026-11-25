@@ -15,10 +15,10 @@ import { useSettings } from "@/hooks/use-settings";
 import { visibleHomeSections } from "@/lib/home-sections";
 import { continueReading } from "@/lib/continue-reading";
 import { pickRandomFavorites, topRated } from "@/lib/home-favorites";
-import { pickRandomUnread } from "@/lib/home-picks";
+import { pickRandomUnread, resolveDrawn } from "@/lib/home-picks";
 import { recentlyAdded } from "@/lib/recent-books";
 import {
-  LOW_RATING_MAX,
+  isLowRated,
   lowestRated,
   pickRandomLowRated,
 } from "@/lib/second-chance";
@@ -32,7 +32,9 @@ export const Route = createFileRoute("/")({
 
 /**
  * The page shown when the app starts: the blocks chosen in Paramètres › Accueil, in their order.
- * With the home page turned off it sends to the library instead.
+ * With the home page turned off it sends to the library instead. The blocks are keyed by the active
+ * user too, so a switch of user remounts them: nothing a block kept (a draw, a dialog) outlives
+ * the user it was made for.
  */
 function HomePage() {
   const { t } = useTranslation("home");
@@ -45,7 +47,7 @@ function HomePage() {
       <h1 className="text-2xl font-semibold tracking-tight">{user ? t("welcome", { nickname: user.nickname }) : t("title")}</h1>
       {visibleHomeSections(settings.homeSections).map((section) => {
         const Section = SECTION_VIEWS[section.id];
-        return <Section key={section.id} section={section} />;
+        return <Section key={`${user?.id}:${section.id}`} section={section} />;
       })}
     </div>
   );
@@ -90,6 +92,20 @@ function ShuffleButton({
       <Shuffle />
     </Button>
   );
+}
+
+/**
+ * A block's draw, kept by id until its button draws another one. It is dropped while the library is
+ * not loaded, which is how the data store announces a switch of user (it empties the library before
+ * loading the new user's): the new user's library may arrive before the switch remounts the block,
+ * and must not be shown through the previous user's draw.
+ */
+function useKeptDraw(
+  library: LibraryEntry[] | null,
+): [string[] | null, (ids: string[]) => void] {
+  const [drawn, setDrawn] = useState<string[] | null>(null);
+  if (!library && drawn) setDrawn(null);
+  return [drawn, setDrawn];
 }
 
 /** The component drawing each home block. */
@@ -205,12 +221,12 @@ function RecentlyAdded({ section }: { section: ResolvedHomeSection }) {
 function Favorites({ section }: { section: ResolvedHomeSection }) {
   const { t } = useTranslation("home");
   const library = useLibrary();
-  const [drawn, setDrawn] = useState<string[] | null>(null);
+  const [drawn, setDrawn] = useKeptDraw(library);
   const favorites = useMemo(() => {
     if (!library) return [];
-    if (!drawn) return topRated(library, section.count);
-    const byId = new Map(library.map((entry) => [entry.id, entry]));
-    return drawn.flatMap((id) => byId.get(id) ?? []);
+    return drawn
+      ? resolveDrawn(library, drawn)
+      : topRated(library, section.count);
   }, [library, section.count, drawn]);
   if (!library || (favorites.length === 0 && section.hideWhenEmpty))
     return null;
@@ -272,14 +288,15 @@ function Favorites({ section }: { section: ResolvedHomeSection }) {
 function Suggestions({ section }: { section: ResolvedHomeSection }) {
   const { t } = useTranslation("home");
   const library = useLibrary();
-  const [picks, setPicks] = useState<LibraryEntry[] | null>(null);
+  const [drawn, setDrawn] = useKeptDraw(library);
 
   if (!library) return null;
-  const drawn = picks ?? pickRandomUnread(library, section.count);
-  if (!picks) setPicks(drawn);
+  const draw = () =>
+    pickRandomUnread(library, section.count).map((entry) => entry.id);
+  const ids = drawn ?? draw();
+  if (!drawn) setDrawn(ids);
   // Keep the books' latest state (progress, tags) while the selection itself stays put.
-  const byId = new Map(library.map((entry) => [entry.id, entry]));
-  const shown = drawn.flatMap((entry) => byId.get(entry.id) ?? []);
+  const shown = resolveDrawn(library, ids);
   if (shown.length === 0 && section.hideWhenEmpty) return null;
 
   return (
@@ -290,7 +307,7 @@ function Suggestions({ section }: { section: ResolvedHomeSection }) {
         action={
           <ShuffleButton
             label={t("suggestions.shuffle")}
-            onClick={() => setPicks(pickRandomUnread(library, section.count))}
+            onClick={() => setDrawn(draw())}
           />
         }
       />
@@ -316,18 +333,13 @@ function Suggestions({ section }: { section: ResolvedHomeSection }) {
 function SecondChance({ section }: { section: ResolvedHomeSection }) {
   const { t } = useTranslation("home");
   const library = useLibrary();
-  const [drawn, setDrawn] = useState<string[] | null>(null);
+  const [drawn, setDrawn] = useKeptDraw(library);
   const entries = useMemo(() => {
     if (!library) return [];
-    if (!drawn) return lowestRated(library, section.count);
-    const byId = new Map(library.map((entry) => [entry.id, entry]));
     // A book whose rating was raised meanwhile leaves the block.
-    return drawn.flatMap((id) => {
-      const entry = byId.get(id);
-      return entry && entry.rating >= 1 && entry.rating <= LOW_RATING_MAX
-        ? [entry]
-        : [];
-    });
+    return drawn
+      ? resolveDrawn(library, drawn, isLowRated)
+      : lowestRated(library, section.count);
   }, [library, section.count, drawn]);
 
   if (!library || (entries.length === 0 && section.hideWhenEmpty)) return null;
