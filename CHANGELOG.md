@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented here. This file is maintained by [release-please](https://github.com/googleapis/release-please) from the [Conventional Commits](https://www.conventionalcommits.org/) merged into `master`: don't edit released entries by hand. New versions are inserted above the previous ones.
 
+## [0.26.0](https://github.com/arvarus/skeudenn/compare/v0.25.0...v0.26.0) (2026-11-25)
+
+
+### Features
+
+* **library:** let every library run be stopped ([#303](https://github.com/arvarus/skeudenn/issues/303)) ([8200f97](https://github.com/arvarus/skeudenn/commit/8200f9742da6de9b359d4d09b009e895f4a92a26))
+* **library:** let the book cleanup be stopped ([#300](https://github.com/arvarus/skeudenn/issues/300)) ([ac68de8](https://github.com/arvarus/skeudenn/commit/ac68de83cc97d664d686471736ae80c43d7f657b))
+* **settings:** run every organization action in the same dialog ([#304](https://github.com/arvarus/skeudenn/issues/304)) ([bb623d3](https://github.com/arvarus/skeudenn/commit/bb623d3d1a036aacb9c0cecbae0ec0feb9339fc7))
+
+
+### Documentation
+
+* **guide:** remove the stale cleanup entry of the features guide ([#302](https://github.com/arvarus/skeudenn/issues/302)) ([7f3bcc3](https://github.com/arvarus/skeudenn/commit/7f3bcc34f4e954a2a3987554bd442e7b174f0477))
+
 ## [0.25.0](https://github.com/arvarus/skeudenn/compare/v0.24.1...v0.25.0) (2026-11-08)
 
 
