@@ -172,6 +172,22 @@ describe('library organization and resynchronization', () => {
       expect(repo.get(outside.id)?.path).toBe(outside.path);
     });
 
+    it('files the added comics where the whole-library organization would, volume prefix included', async () => {
+      const source = await folderWith(['a.cbz']);
+      const root = await folderWith([]);
+      configure('always', root);
+      settings.set('libraryFileName', '{series} {volume}');
+      settings.set('libraryVolumePrefix', 'T');
+      const added = register(path.join(source, 'a.cbz'));
+      // What the `.nfo` beside the comic gives right after `register()`.
+      repo.updateMetadata(added.id, { series: 'Tintin', volume: '3' });
+
+      expect(await organizer.afterAdd([added])).toEqual({ moved: 1, failed: 0, pending: null });
+
+      expect(path.basename(repo.get(added.id)!.path)).toBe('Tintin T3.cbz');
+      expect(await organizer.countUnorganized()).toEqual({ status: 'ok', count: 0, folder: root });
+    });
+
     it('counts the comics as failed, and offers nothing, when the organized folder is unreachable', async () => {
       const source = await folderWith(['a.cbz']);
       configure('ask', path.join(source, 'unplugged'));
