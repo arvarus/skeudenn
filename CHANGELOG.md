@@ -2,6 +2,32 @@
 
 All notable changes to this project are documented here. This file is maintained by [release-please](https://github.com/googleapis/release-please) from the [Conventional Commits](https://www.conventionalcommits.org/) merged into `master`: don't edit released entries by hand. New versions are inserted above the previous ones.
 
+## [0.26.1](https://github.com/arvarus/skeudenn/compare/v0.26.0...v0.26.1) (2026-11-25)
+
+
+### Bug Fixes
+
+* **cleanup:** bound the inflated size of entries when rewriting a CBZ ([#317](https://github.com/arvarus/skeudenn/issues/317)) ([eb47fd0](https://github.com/arvarus/skeudenn/commit/eb47fd08f567f0f15d56fefd1e6a14ce97c2045a))
+* **data:** take the run lock when clearing or importing the library ([#313](https://github.com/arvarus/skeudenn/issues/313)) ([e2dfa0d](https://github.com/arvarus/skeudenn/commit/e2dfa0d4962db7b5b2fca798a7aedf4759a5a52e))
+* **home:** draw the home blocks again when the user changes ([#312](https://github.com/arvarus/skeudenn/issues/312)) ([ce54c48](https://github.com/arvarus/skeudenn/commit/ce54c48fd4cf656eab1ba13f5f3308060e303b50))
+* **library:** apply the volume prefix when organizing added books ([#306](https://github.com/arvarus/skeudenn/issues/306)) ([f3fc0d0](https://github.com/arvarus/skeudenn/commit/f3fc0d068904dd47cb0d5aed7f15a917fd44562d))
+* **library:** let adding a folder be stopped ([#309](https://github.com/arvarus/skeudenn/issues/309)) ([0234102](https://github.com/arvarus/skeudenn/commit/0234102d0bf3fdd5f1c1871ae1019e92dfd39ae2))
+* **library:** organize case-only renames on case-insensitive file systems ([#320](https://github.com/arvarus/skeudenn/issues/320)) ([07f5154](https://github.com/arvarus/skeudenn/commit/07f51545d4e3f93a866688f79f0e2fd5533ab369))
+* **library:** put the CBR back when its conversion fails after parking it ([#307](https://github.com/arvarus/skeudenn/issues/307)) ([a67a74c](https://github.com/arvarus/skeudenn/commit/a67a74c76cd8e863821852aaa5f4b42d381dc7af))
+* **library:** refuse a linked .deletedByTankobon folder before emptying or parking ([#305](https://github.com/arvarus/skeudenn/issues/305)) ([b18f28e](https://github.com/arvarus/skeudenn/commit/b18f28e069c3365d6e3c8cc08d85c521e2e4f4f6))
+* **metadata:** attach the review's Enter listener as soon as the review shows ([#329](https://github.com/arvarus/skeudenn/issues/329)) ([15fe9d1](https://github.com/arvarus/skeudenn/commit/15fe9d133c409e2d331fd844307098ba0a4e4762))
+* **metadata:** complete the tab semantics of the mode switch ([#323](https://github.com/arvarus/skeudenn/issues/323)) ([abc8fd8](https://github.com/arvarus/skeudenn/commit/abc8fd898691fcb4fc9a2f8e916488c4ef63f5af))
+* **metadata:** make the HTML tag regexes linear on scraped pages ([#308](https://github.com/arvarus/skeudenn/issues/308)) ([5110758](https://github.com/arvarus/skeudenn/commit/5110758f9d850fdfcab84002457c3c3de2f33a5a))
+* **reader:** clear the upscaling state and the scroll edge between pages and books ([#319](https://github.com/arvarus/skeudenn/issues/319)) ([581fa90](https://github.com/arvarus/skeudenn/commit/581fa9031cac3be08d5551b33bd82c3857a6fb9e))
+* **reader:** release continuous pages whose fetch ends out of range ([#311](https://github.com/arvarus/skeudenn/issues/311)) ([3c54a5f](https://github.com/arvarus/skeudenn/commit/3c54a5f29ae451f787e9f52697b4fe7e15bd3873))
+* **settings:** keep lastScanFolder out of imports and renderer writes ([#310](https://github.com/arvarus/skeudenn/issues/310)) ([4bbbb5c](https://github.com/arvarus/skeudenn/commit/4bbbb5cdfdead59703a067669fef65a0ff02df47))
+* **users:** manage focus in the start-up user chooser ([#318](https://github.com/arvarus/skeudenn/issues/318)) ([0c49de4](https://github.com/arvarus/skeudenn/commit/0c49de4999d4fa054b1845a67a4656fef3b32f1d))
+
+
+### Performance Improvements
+
+* **store:** apply library changes received during a load instead of reloading ([#322](https://github.com/arvarus/skeudenn/issues/322)) ([386633f](https://github.com/arvarus/skeudenn/commit/386633fc2b99cdfd57ad9be4687eee0b0f5f3960))
+
 ## [0.26.0](https://github.com/arvarus/skeudenn/compare/v0.25.0...v0.26.0) (2026-11-25)
 
 
