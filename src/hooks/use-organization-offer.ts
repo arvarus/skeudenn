@@ -10,7 +10,7 @@ import type { OrganizationOutcome } from '@/shared/library';
 
 /**
  * Follows up on what the library organization did after an addition (`organization` of an
- * `addFile`/`addFolder`/`resync` result): when it offers to move comics (`ask` mode), asks through
+ * `addFile`/`addFolders`/`resync` result): when it offers to move comics (`ask` mode), asks through
  * `confirm` (the view's `useConfirm()`) and moves them on approval. Resolves with the status parts to
  * show (moved, failed, or the error), empty when there was nothing to say.
  */

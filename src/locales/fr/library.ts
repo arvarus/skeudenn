@@ -5,7 +5,14 @@ const library: Translation<typeof en> = {
   title: 'Bibliothèque',
   intro: 'Gestionnaire et lecteur de BD numériques.',
   addFile: 'Ajouter un fichier',
-  addFolder: 'Ajouter un dossier…',
+  addFolders: 'Ajouter des dossiers…',
+  addFoldersTitle: 'Ajouter ces dossiers ?',
+  addFoldersIntro_one: 'Ce dossier sera analysé, sous-dossiers compris.',
+  addFoldersIntro_other: 'Ces {{count}} dossiers seront analysés, sous-dossiers compris.',
+  addFoldersWatch: 'Surveiller ces dossiers (resynchronisation)',
+  addFoldersWatchHint:
+    "Coché, une resynchronisation les parcourt à nouveau pour trouver les nouvelles BD. Décoché, les BD sont ajoutées comme des fichiers seuls : rien d'autre n'est cherché dans ces dossiers, et une BD dont le fichier disparaît est retirée de la bibliothèque à la prochaine resynchronisation.",
+  addFoldersConfirm: 'Ajouter',
   fileAdded: '« {{title}} » ajouté à la bibliothèque',
   fileExists: '« {{title}} » est déjà dans la bibliothèque',
   scanAdded_one: '{{count}} BD ajoutée depuis {{directory}}',
@@ -25,6 +32,11 @@ const library: Translation<typeof en> = {
   scanFailed_one: '{{count}} illisible',
   scanFailed_other: '{{count}} illisibles',
   scanNoneFound: 'Aucune BD trouvée dans {{directory}}',
+  scanAddedFolders_one: '{{count}} BD ajoutée depuis {{folders}} dossiers',
+  scanAddedFolders_other: '{{count}} BD ajoutées depuis {{folders}} dossiers',
+  scanNoneFoundFolders: 'Aucune BD trouvée dans ces {{folders}} dossiers',
+  // The label of the progress while several folders are added: which one is being scanned.
+  scanFolderLabel: 'Dossier {{index}}/{{count}} : {{name}}',
   // The folder addition was stopped from its progress bar: the comics found later were not looked at.
   scanStopped: 'Analyse arrêtée avant la fin',
   scanning: 'Recherche des BD…',

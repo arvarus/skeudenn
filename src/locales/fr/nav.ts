@@ -15,6 +15,7 @@ const nav: Translation<typeof en> = {
   collapseSidebar: 'Réduire le panneau latéral',
   syncRunning: 'Synchronisation…',
   syncProgress: 'Synchronisation… {{processed}} / {{total}}',
+  syncFolderProgress: 'Dossier {{index}}/{{count}} : {{processed}} / {{total}}',
   syncLast: 'Dernière synchronisation : {{date}}',
   syncNever: 'Jamais synchronisée',
   syncStart: 'Synchroniser la bibliothèque',

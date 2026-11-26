@@ -21,7 +21,7 @@ function samePath(a: string, b: string): boolean {
 }
 
 /**
- * The folders added to the library with "Ajouter un dossier…", and the roots the books' paths are
+ * The folders added to the library with "Ajouter des dossiers…" (when they are watched), and the roots the books' paths are
  * stored relative to (see `PathRoots`). The database holds each folder's id and the path it had
  * when added; where it is on *this* machine lives in `roots`. The folders themselves are common
  * (books refer to them), but which of them a resynchronization walks is each user's choice

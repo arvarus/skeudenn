@@ -7,7 +7,7 @@ import { Progress } from '@/components/ui/progress';
 import type { ScanProgress } from '@/shared/library';
 
 /**
- * The folder scan's progress: a button that stops the run while it goes (`library.cancelRun()`: the
+ * The folder scan's progress (with the folder it is on when several are being added): a button that stops the run while it goes (`library.cancelRun()`: the
  * scan stops between two files and keeps what it added), and a close button once it is done.
  */
 export function ScanProgressBar({ progress, onClose }: { progress: ScanProgress; onClose: () => void }) {
@@ -33,7 +33,10 @@ export function ScanProgressBar({ progress, onClose }: { progress: ScanProgress;
   return (
     <div className="flex flex-col gap-1 rounded-md border p-3">
       <div className="flex items-center justify-between gap-3 text-sm">
-        <span>{scanning ? t('scanning') : `${progress.processed} / ${progress.total}`}</span>
+        <span>
+          {progress.folder && `${t('scanFolderLabel', { ...progress.folder })} · `}
+          {scanning ? t('scanning') : `${progress.processed} / ${progress.total}`}
+        </span>
         <span className="min-w-0 truncate text-xs text-muted-foreground" title={progress.currentFile}>
           {progress.currentFile}
         </span>

@@ -9,6 +9,7 @@ type Ok = Extract<ScanResult, { status: 'ok' }>;
 const base: Ok = {
   status: 'ok',
   directory: '/bd',
+  folders: 1,
   added: 2,
   skipped: 0,
   failed: 0,
@@ -38,6 +39,15 @@ describe('folderScanParts', () => {
 
   it('says when the folder held no comics', () => {
     expect(folderScanParts({ ...base, added: 0, total: 0 })).toEqual(['Aucune BD trouvée dans /bd']);
+  });
+
+  it('counts the folders instead of naming one when several were added', () => {
+    expect(folderScanParts({ ...base, folders: 3, added: 5, skipped: 1, total: 6 })).toEqual(['5 BD ajoutées depuis 3 dossiers', '1 déjà présente']);
+    expect(folderScanParts({ ...base, folders: 2, added: 0, total: 0 })).toEqual(['Aucune BD trouvée dans ces 2 dossiers']);
+    expect(folderScanParts({ ...base, folders: 2, added: 1, total: 4, cancelled: true })).toEqual([
+      'Analyse arrêtée avant la fin',
+      '1 BD ajoutée depuis 2 dossiers',
+    ]);
   });
 });
 

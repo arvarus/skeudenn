@@ -9,6 +9,7 @@ import { BookDetails, BookRating, BookTags } from '@/components/book-row';
 import { BookBulkEditDialog } from '@/components/book-bulk-edit-dialog';
 import { BookEditDialog } from '@/components/book-edit-dialog';
 import { useConfirm } from '@/components/confirm-dialog';
+import { AddFoldersDialog } from '@/components/library/add-folders-dialog';
 import { BookCard } from '@/components/library/book-card';
 import { LibraryToolbar } from '@/components/library/library-toolbar';
 import { ScanProgressBar } from '@/components/library/scan-progress-bar';
@@ -32,7 +33,7 @@ import { draggedEntries } from '@/lib/library-selection';
 import { encodeDraggedEntries, LIBRARY_ENTRY_DRAG_TYPE } from '@/lib/reading-list';
 import { cn } from '@/lib/utils';
 import { comicFormat } from '@/shared/comic';
-import type { LibraryEntry, ScanFailure, ScanProgress } from '@/shared/library';
+import type { LibraryEntry, PickFoldersResult, ScanFailure, ScanProgress } from '@/shared/library';
 import type { BookRowView } from '@/shared/settings';
 
 /** Narrowest a book card of the grid view is allowed to get, and the space between cards (px). */
@@ -92,17 +93,25 @@ function LibraryPage() {
   const { selected, selection, shownSelected, tick, tickGroup, tickAllShown, clear: clearSelection } = useLibrarySelection(shown, entries);
 
   // Subscribed for the whole page's life rather than around each scan: the main process starts
-  // sending progress as soon as the directory is picked, which is before `addFolder()` resolves.
+  // sending progress as soon as the folders are confirmed, which is before `addFolders()` resolves.
   // A resynchronization (it carries a `step`) is the sidebar's to show, wherever it was started.
   useEffect(() => window.tankobon.library.onScanProgress((p) => !p.step && setScan(p)), []);
 
   // The bar stays on its final state once the scan is done, until the user closes it.
   const scanning = scan !== null && scan.phase !== 'done';
 
-  const addFolder = async () => {
+  // The folders picked in the native dialog, waiting for the confirmation (the main process keeps them behind `token`).
+  const [pickedFolders, setPickedFolders] = useState<Extract<PickFoldersResult, { status: 'ok' }> | null>(null);
+
+  const pickFolders = async () => {
+    const picked = await window.tankobon.library.pickFolders();
+    if (picked.status === 'ok') setPickedFolders(picked);
+  };
+
+  const addFolders = async (token: string, watch: boolean) => {
     setScanStatus(null);
     setFailures(null);
-    const result = await window.tankobon.library.addFolder();
+    const result = await window.tankobon.library.addFolders(token, watch);
     if (result.status === 'cancelled') {
       setScan(null);
       return;
@@ -239,9 +248,9 @@ function LibraryPage() {
           <FolderOpen />
           {t('addFile')}
         </Button>
-        <Button variant="outline" onClick={addFolder} disabled={scanning}>
+        <Button variant="outline" onClick={() => void pickFolders()} disabled={scanning}>
           <FolderTree />
-          {t('addFolder')}
+          {t('addFolders')}
         </Button>
       </div>
 
@@ -499,6 +508,19 @@ function LibraryPage() {
       )}
       {failures && failuresOpen && (
         <ScanFailuresDialog failures={failures.list} total={failures.total} onClose={() => setFailuresOpen(false)} />
+      )}
+      {pickedFolders && (
+        <AddFoldersDialog
+          folders={pickedFolders.folders}
+          initialWatch={settings.watchAddedFolders}
+          onCancel={() => setPickedFolders(null)}
+          onConfirm={(watch) => {
+            setPickedFolders(null);
+            // Remembered for the next addition, whatever the outcome of this one.
+            update('watchAddedFolders', watch);
+            void addFolders(pickedFolders.token, watch);
+          }}
+        />
       )}
       {confirmDialog}
     </div>
