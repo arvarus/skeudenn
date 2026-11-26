@@ -5,6 +5,7 @@ import {
   MAX_PAGE_SPACING,
   MAX_SETTING_TEXT,
   SETTING_VALIDATORS,
+  SHARED_SETTINGS,
   isLibraryStructure,
   isSettingKey,
   isValidSetting,
@@ -21,6 +22,10 @@ describe('SETTING_VALIDATORS', () => {
 
   it('refuses values outside a setting’s domain', () => {
     expect(isValidSetting('readingMode', 'webtoon')).toBe(false);
+    expect(isValidSetting('readingMode', 'Book')).toBe(false);
+    expect(isValidSetting('readingMode', 1)).toBe(false);
+    expect(isValidSetting('bookCoverAlone', 'yes')).toBe(false);
+    expect(isValidSetting('bookCoverAlone', 1)).toBe(false);
     expect(isValidSetting('readingDirection', 'up')).toBe(false);
     expect(isValidSetting('theme', 'dark')).toBe(true);
     expect(isValidSetting('theme', 'blue')).toBe(false);
@@ -46,6 +51,8 @@ describe('SETTING_VALIDATORS', () => {
 
   it('accepts in-range values', () => {
     expect(isValidSetting('readingMode', 'continuous')).toBe(true);
+    expect(isValidSetting('readingMode', 'book')).toBe(true);
+    expect(isValidSetting('bookCoverAlone', false)).toBe(true);
     expect(isValidSetting('libraryView', 'compact')).toBe(true);
     expect(isValidSetting('libraryView', 'grid')).toBe(true);
     expect(isValidSetting('readingListView', 'medium')).toBe(true);
@@ -82,6 +89,15 @@ describe('isLibraryStructure', () => {
     expect(isLibraryStructure(['letter', 'year'])).toBe(false);
     expect(isLibraryStructure(['letter'])).toBe(false);
     expect(isLibraryStructure(['year'])).toBe(true);
+  });
+});
+
+describe('book reading mode settings', () => {
+  it('shows the cover alone by default, and is a personal setting', () => {
+    expect(DEFAULT_SETTINGS.bookCoverAlone).toBe(true);
+    expect(DEFAULT_SETTINGS.readingMode).toBe('single');
+    expect(SHARED_SETTINGS).not.toContain('bookCoverAlone');
+    expect(SHARED_SETTINGS).not.toContain('readingMode');
   });
 });
 

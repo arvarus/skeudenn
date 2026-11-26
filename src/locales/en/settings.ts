@@ -25,7 +25,11 @@ export default {
     mode: 'Reading mode',
     modeSingle: 'Page by page',
     modeContinuous: 'Continuous scroll (pages follow one another)',
+    modeBook: 'Book (double page)',
     pageSpacing: 'Spacing between pages',
+    bookCoverAlone: 'Cover alone',
+    bookCoverAloneHint:
+      'The first page is a spread of its own and the others are paired from the second one. Unchecked, pages are paired from the first one, for files that start with a double page. A landscape page is always shown alone.',
     pixels: 'px',
     autoAdd: 'Library',
     autoAddLabel: 'Add a book to the library when it is opened in the reader',

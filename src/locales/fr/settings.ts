@@ -26,8 +26,12 @@ const settings: Translation<typeof en> = {
     scrollInverted: 'Inversé (vers le bas = page précédente)',
     mode: 'Mode de lecture',
     modeSingle: 'Page par page',
+    modeBook: 'Livre (double page)',
     modeContinuous: 'Défilement continu (pages qui se suivent)',
     pageSpacing: 'Espacement entre les pages',
+    bookCoverAlone: 'Couverture seule',
+    bookCoverAloneHint:
+      'La première page forme une double page à elle seule et les autres sont appariées à partir de la deuxième. Décoché, les pages sont appariées dès la première, pour les fichiers qui commencent par une double page. Une page en paysage est toujours affichée seule.',
     pixels: 'px',
     autoAdd: 'Bibliothèque',
     autoAddLabel: 'Ajouter un livre à la bibliothèque quand il est ouvert dans le lecteur',

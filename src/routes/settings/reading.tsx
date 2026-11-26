@@ -44,10 +44,11 @@ function ReadingSettingsPage() {
           id="reading-mode"
           className={SETTINGS_SELECT_CLASS}
           value={settings.readingMode}
-          onChange={(event) => update('readingMode', event.target.value as 'single' | 'continuous')}
+          onChange={(event) => update('readingMode', event.target.value as 'single' | 'continuous' | 'book')}
         >
           <option value="single">{t('modeSingle')}</option>
           <option value="continuous">{t('modeContinuous')}</option>
+          <option value="book">{t('modeBook')}</option>
         </select>
 
         {settings.readingMode === 'continuous' && (
@@ -66,6 +67,15 @@ function ReadingSettingsPage() {
             />
             <span className="text-sm text-muted-foreground">{t('pixels')}</span>
           </div>
+        )}
+
+        {settings.readingMode === 'book' && (
+          <SettingCheckbox
+            label={t('bookCoverAlone')}
+            hint={t('bookCoverAloneHint')}
+            checked={settings.bookCoverAlone}
+            onChange={(checked) => update('bookCoverAlone', checked)}
+          />
         )}
       </SettingsSection>
 
