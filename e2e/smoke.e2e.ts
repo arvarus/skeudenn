@@ -1,6 +1,7 @@
-// Smoke tests of the packaged app: it starts, a book opens and its progress is saved, in both
-// reader modes and from a reading list. They cover what Vitest can't (no DOM there): the
-// components, and the build gotchas that only break the packaged app (docs/architecture.md).
+// Smoke tests of the packaged app: it starts, a book opens and its progress is saved, in each
+// reader mode (page by page, continuous, book) and from a reading list. They cover what Vitest can't
+// (no DOM there): the components, and the build gotchas that only break the packaged app
+// (docs/architecture.md).
 import { expect, test, type Page } from '@playwright/test';
 
 import { launchApp, type RunningApp, type Seed } from './app';
@@ -76,6 +77,32 @@ test('continuous mode resumes on the saved page', async () => {
   // Page 1 must never have been reported over the saved progress.
   await page.waitForTimeout(1000);
   expect(await savedPage(page, 'Alpha')).toBe(2);
+});
+
+test('book mode shows two pages side by side and marks the book read on the last spread', async () => {
+  const page = await start({
+    books: [{ title: 'Alpha', pageCount: 5 }],
+    settings: { readingMode: 'book' },
+  });
+  await page.getByRole('button', { name: 'Open Alpha' }).click();
+
+  // The cover is a spread of its own.
+  await expect(page.getByRole('img', { name: 'Page 1' })).toBeVisible();
+  await expect(page.getByRole('img')).toHaveCount(1);
+
+  await page.getByRole('button', { name: 'Next pages' }).click();
+  await expect(page.getByRole('img')).toHaveCount(2);
+  await expect(page.getByRole('img', { name: 'Page 2' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Page 3' })).toBeVisible();
+  await expect(page.getByRole('textbox', { name: 'Go to page' })).toHaveValue('2–3');
+  // The progress saved is the highest page of the spread.
+  await expect.poll(() => savedPage(page, 'Alpha')).toBe(2);
+
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByRole('img', { name: 'Page 4' })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Page 5' })).toBeVisible();
+  await expect.poll(() => savedPage(page, 'Alpha')).toBe(4);
+  await expect(page.getByRole('button', { name: 'Next pages' })).toBeDisabled();
 });
 
 test('a reading list offers its next book on the last page', async () => {

@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   directionalControls,
+  bookKeyAction,
+  disabledAtEnds,
   disabledControls,
   pageTurnForKey,
   scrollEdgeAfterMove,
@@ -16,6 +18,20 @@ describe('directionalControls', () => {
 
   it('swaps them in right-to-left order', () => {
     expect(directionalControls('rtl', 'next', 'prev')).toEqual({ advance: 'prev', retreat: 'next' });
+  });
+});
+
+describe('disabledAtEnds', () => {
+  it('disables the left control at the start and the right one at the end in LTR', () => {
+    expect(disabledAtEnds('ltr', true, false)).toEqual({ isPrevDisabled: true, isNextDisabled: false });
+    expect(disabledAtEnds('ltr', false, true)).toEqual({ isPrevDisabled: false, isNextDisabled: true });
+    expect(disabledAtEnds('ltr', false, false)).toEqual({ isPrevDisabled: false, isNextDisabled: false });
+    expect(disabledAtEnds('ltr', true, true)).toEqual({ isPrevDisabled: true, isNextDisabled: true });
+  });
+
+  it('swaps the sides in RTL', () => {
+    expect(disabledAtEnds('rtl', true, false)).toEqual({ isPrevDisabled: false, isNextDisabled: true });
+    expect(disabledAtEnds('rtl', false, true)).toEqual({ isPrevDisabled: true, isNextDisabled: false });
   });
 });
 
@@ -99,5 +115,34 @@ describe('pageTurnForKey', () => {
     expect(pageTurnForKey(press(' ', { target: { tagName: 'BUTTON' } }))).toBeNull();
     expect(pageTurnForKey(press(' ', { target: { tagName: 'A' } }))).toBeNull();
     expect(pageTurnForKey(press('ArrowRight', { target: { tagName: 'BUTTON' } }))).toBe('advance');
+  });
+});
+
+describe('bookKeyAction', () => {
+  const press = (key: string, rest: Partial<PageTurnKeyEvent> = {}): PageTurnKeyEvent => ({
+    key,
+    defaultPrevented: false,
+    ctrlKey: false,
+    altKey: false,
+    metaKey: false,
+    target: { tagName: 'BODY' },
+    ...rest,
+  });
+
+  it('maps Home, End and the zoom keys', () => {
+    expect(bookKeyAction(press('Home'))).toBe('first');
+    expect(bookKeyAction(press('End'))).toBe('last');
+    expect(bookKeyAction(press('+'))).toBe('zoomIn');
+    expect(bookKeyAction(press('='))).toBe('zoomIn');
+    expect(bookKeyAction(press('-'))).toBe('zoomOut');
+    expect(bookKeyAction(press('ArrowRight'))).toBeNull();
+    expect(bookKeyAction(press('a'))).toBeNull();
+  });
+
+  it('ignores them with a modifier, once handled, or typed in a field', () => {
+    expect(bookKeyAction(press('+', { ctrlKey: true }))).toBeNull();
+    expect(bookKeyAction(press('Home', { defaultPrevented: true }))).toBeNull();
+    expect(bookKeyAction(press('End', { target: { tagName: 'INPUT' } }))).toBeNull();
+    expect(bookKeyAction(press('-', { target: { tagName: 'SELECT' } }))).toBeNull();
   });
 });

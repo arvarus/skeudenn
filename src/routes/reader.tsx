@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { useConfirm } from '@/components/confirm-dialog';
+import { BookReader } from '@/components/reader/book-reader';
 import { ContinuousReader } from '@/components/reader/continuous-reader';
 import { SinglePageReader } from '@/components/reader/single-page-reader';
 import { Button } from '@/components/ui/button';
@@ -34,13 +35,14 @@ function ReaderPage() {
   const { book, list } = Route.useSearch();
   const { t } = useTranslation('reader');
   const { t: tLibrary } = useTranslation('library');
-  const { settings } = useSettings();
+  const { settings, update } = useSettings();
   const library = useLibrary();
   const navigate = useNavigate();
   const { confirmWithChoice, dialog: confirmDialog } = useConfirm();
   const [removeError, setRemoveError] = useState<string | null>(null);
-  const { comic, page, pageUrl, pageKey, error, loading, pickAndOpen, openFile, reopen, close: closeComic, next, prev } = useComic({
-    loadPages: settings.readingMode !== 'continuous',
+  const { comic, page, pageUrl, pageKey, error, loading, pickAndOpen, openFile, reopen, close: closeComic, goTo, next, prev } = useComic({
+    // The continuous and book readers load their own pages.
+    loadPages: settings.readingMode === 'single',
   });
   const { fullscreen, toggle: toggleFullscreen } = useReaderFullscreen(comic !== null);
   const nextInList = useNextInList(list, comic?.libraryId ?? undefined);
@@ -59,7 +61,7 @@ function ReaderPage() {
     if (book) void openFile(book);
   }, [book, openFile]);
 
-  // Continuous mode doesn't drive `page`/`goTo` (that would also re-trigger useComic's
+  // Continuous and book modes don't drive `page`/`goTo` (that would also re-trigger useComic's
   // own single-page fetch for no reason); it persists progress directly instead.
   const persistProgress = useCallback(
     (index: number) => {
@@ -68,6 +70,17 @@ function ReaderPage() {
     },
     [comic],
   );
+
+  // The header button of the page-by-page and book readers: the book reader reports the page it is
+  // at, so the page-by-page one opens on it; the other way round it is `page` that the book reader opens at.
+  const switchToSingle = useCallback(
+    (at: number) => {
+      goTo(at);
+      update('readingMode', 'single');
+    },
+    [goTo, update],
+  );
+  const switchToBook = useCallback(() => update('readingMode', 'book'), [update]);
 
   // A library book that fails to open (missing, corrupted, unsupported) can be dropped from the library.
   const failedEntry = !comic && error && book ? library?.find((entry) => entry.id === book) : undefined;
@@ -127,6 +140,25 @@ function ReaderPage() {
     );
   }
 
+  if (settings.readingMode === 'book') {
+    return (
+      <BookReader
+        key={comic.id}
+        comic={comic}
+        startPage={page}
+        settings={settings}
+        pickAndOpen={pickAndOpen}
+        close={close}
+        onActivePage={persistProgress}
+        onRetry={reopen}
+        onSwitchToSingle={switchToSingle}
+        fullscreen={fullscreen}
+        toggleFullscreen={toggleFullscreen}
+        nextInList={nextInList}
+      />
+    );
+  }
+
   return (
     <SinglePageReader
       comic={comic}
@@ -143,6 +175,7 @@ function ReaderPage() {
       fullscreen={fullscreen}
       toggleFullscreen={toggleFullscreen}
       nextInList={nextInList}
+      onSwitchToBook={switchToBook}
     />
   );
 }

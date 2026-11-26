@@ -108,13 +108,19 @@ export function useComic({ loadPages = true }: UseComicOptions = {}) {
     [openFile],
   );
 
-  const goTo = useCallback((page: number) => {
-    setState((s) => {
-      if (!s.comic) return s;
-      const clamped = Math.max(0, Math.min(page, s.comic.pageCount - 1));
-      return clamped === s.page ? s : { ...s, page: clamped, loading: true };
-    });
-  }, []);
+  const goTo = useCallback(
+    (page: number) => {
+      setState((s) => {
+        if (!s.comic) return s;
+        const clamped = Math.max(0, Math.min(page, s.comic.pageCount - 1));
+        if (clamped === s.page) return s;
+        // The reader that doesn't load pages here (continuous, book) can hand the position over to the
+        // page-by-page one: the image kept in the state is another page's, so it is dropped.
+        return { ...s, page: clamped, loading: true, ...(loadPages ? {} : { pageUrl: null, pageKey: null }) };
+      });
+    },
+    [loadPages],
+  );
 
   // Load the page image whenever the comic or page index changes.
   const comicId = state.comic?.id;
