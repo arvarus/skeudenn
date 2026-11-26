@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 
+import { AuthorLink } from '@/components/author-link';
 import { BookCover } from '@/components/book-cover';
 import { bookTooltip } from '@/lib/book-tooltip';
 import { LanguageFlag } from '@/components/language-flag';
@@ -154,16 +155,34 @@ function EntryMetadata({ entry }: { entry: LibraryEntry }) {
   );
   const details = [series, entry.releaseDate?.slice(0, 4), language].filter(Boolean);
   const credits = CREDIT_ROLES.flatMap((role) => {
-    const names = entry.credits.filter((credit) => credit.role === role).map(formatPersonName);
-    return names.length > 0 ? [t('common:labelValue', { label: creditRoleLabel(role), value: names.join(', ') })] : [];
+    const people = entry.credits.filter((credit) => credit.role === role);
+    return people.length > 0 ? [{ role, people }] : [];
   });
   if (details.length === 0 && credits.length === 0) return null;
 
+  // The tooltip lists the credits as plain text; in the line itself each name links to the author's page.
+  const tooltip = credits
+    .map(({ role, people }) => t('common:labelValue', { label: creditRoleLabel(role), value: people.map(formatPersonName).join(', ') }))
+    .join('\n');
   return (
-    <p className="truncate text-xs" title={credits.join('\n') || undefined}>
+    <p className="truncate text-xs" title={tooltip || undefined}>
       {details.flatMap((detail, index) => (index === 0 ? [detail] : [' · ', detail]))}
       {details.length > 0 && credits.length > 0 && ' — '}
-      <span className="text-muted-foreground">{credits.join(' · ')}</span>
+      <span className="text-muted-foreground">
+        {credits.map(({ role, people }, index) => (
+          <span key={role}>
+            {index > 0 && ' · '}
+            {/* The label with an empty value: "Writer: ", the value (the names) always comes last. */}
+            {t('common:labelValue', { label: creditRoleLabel(role), value: '' })}
+            {people.map((person, i) => (
+              <span key={`${person.personId}-${i}`}>
+                {i > 0 && ', '}
+                <AuthorLink person={person} />
+              </span>
+            ))}
+          </span>
+        ))}
+      </span>
     </p>
   );
 }

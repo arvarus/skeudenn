@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router';
-import { Award, BarChart3, BookOpen, ChevronLeft, ChevronRight, Home, Info, Library, ListOrdered } from 'lucide-react';
+import { Award, BarChart3, BookOpen, ChevronLeft, ChevronRight, Home, Info, Library, ListOrdered, PenLine } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { UserMenu } from '@/components/user-menu';
@@ -17,6 +17,7 @@ const nav = [
   { to: '/', label: 'home', icon: Home },
   { to: '/library', label: 'library', icon: Library },
   { to: '/lists', label: 'readingLists', icon: ListOrdered },
+  { to: '/authors', label: 'authors', icon: PenLine },
   { to: '/reader', label: 'reader', icon: BookOpen },
   { to: '/stats', label: 'stats', icon: BarChart3 },
   { to: '/achievements', label: 'achievements', icon: Award },

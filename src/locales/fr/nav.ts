@@ -5,6 +5,7 @@ const nav: Translation<typeof en> = {
   home: 'Accueil',
   library: 'Bibliothèque',
   readingLists: 'Listes de lecture',
+  authors: 'Auteurs',
   achievements: 'Accomplissements',
   reader: 'Lecteur',
   stats: 'Statistiques',

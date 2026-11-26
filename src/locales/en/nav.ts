@@ -3,6 +3,7 @@ export default {
   home: 'Home',
   library: 'Library',
   readingLists: 'Reading lists',
+  authors: 'Authors',
   achievements: 'Achievements',
   reader: 'Reader',
   stats: 'Statistics',

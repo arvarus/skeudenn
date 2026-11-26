@@ -17,6 +17,8 @@ import { Route as ProfileRouteImport } from './routes/profile'
 import { Route as ReaderRouteImport } from './routes/reader'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as StatsRouteImport } from './routes/stats'
+import { Route as AuthorsIndexRouteImport } from './routes/authors/index'
+import { Route as AuthorsPersonIdRouteImport } from './routes/authors/$personId'
 import { Route as ListsIndexRouteImport } from './routes/lists/index'
 import { Route as ListsListIdRouteImport } from './routes/lists/$listId'
 import { Route as SettingsIndexRouteImport } from './routes/settings/index'
@@ -66,6 +68,16 @@ const SettingsRoute = SettingsRouteImport.update({
 const StatsRoute = StatsRouteImport.update({
   id: '/stats',
   path: '/stats',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthorsIndexRoute = AuthorsIndexRouteImport.update({
+  id: '/authors/',
+  path: '/authors/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthorsPersonIdRoute = AuthorsPersonIdRouteImport.update({
+  id: '/authors/$personId',
+  path: '/authors/$personId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ListsIndexRoute = ListsIndexRouteImport.update({
@@ -128,6 +140,7 @@ export interface FileRoutesByFullPath {
   '/reader': typeof ReaderRoute
   '/settings': typeof SettingsRouteWithChildren
   '/stats': typeof StatsRoute
+  '/authors/$personId': typeof AuthorsPersonIdRoute
   '/lists/$listId': typeof ListsListIdRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/data': typeof SettingsDataRoute
@@ -136,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/settings/metadata': typeof SettingsMetadataRoute
   '/settings/organization': typeof SettingsOrganizationRoute
   '/settings/reading': typeof SettingsReadingRoute
+  '/authors/': typeof AuthorsIndexRoute
   '/lists/': typeof ListsIndexRoute
   '/settings/': typeof SettingsIndexRoute
 }
@@ -147,6 +161,7 @@ export interface FileRoutesByTo {
   '/profile': typeof ProfileRoute
   '/reader': typeof ReaderRoute
   '/stats': typeof StatsRoute
+  '/authors/$personId': typeof AuthorsPersonIdRoute
   '/lists/$listId': typeof ListsListIdRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/data': typeof SettingsDataRoute
@@ -155,6 +170,7 @@ export interface FileRoutesByTo {
   '/settings/metadata': typeof SettingsMetadataRoute
   '/settings/organization': typeof SettingsOrganizationRoute
   '/settings/reading': typeof SettingsReadingRoute
+  '/authors': typeof AuthorsIndexRoute
   '/lists': typeof ListsIndexRoute
   '/settings': typeof SettingsIndexRoute
 }
@@ -168,6 +184,7 @@ export interface FileRoutesById {
   '/reader': typeof ReaderRoute
   '/settings': typeof SettingsRouteWithChildren
   '/stats': typeof StatsRoute
+  '/authors/$personId': typeof AuthorsPersonIdRoute
   '/lists/$listId': typeof ListsListIdRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/data': typeof SettingsDataRoute
@@ -176,6 +193,7 @@ export interface FileRoutesById {
   '/settings/metadata': typeof SettingsMetadataRoute
   '/settings/organization': typeof SettingsOrganizationRoute
   '/settings/reading': typeof SettingsReadingRoute
+  '/authors/': typeof AuthorsIndexRoute
   '/lists/': typeof ListsIndexRoute
   '/settings/': typeof SettingsIndexRoute
 }
@@ -190,6 +208,7 @@ export interface FileRouteTypes {
     | '/reader'
     | '/settings'
     | '/stats'
+    | '/authors/$personId'
     | '/lists/$listId'
     | '/settings/appearance'
     | '/settings/data'
@@ -198,6 +217,7 @@ export interface FileRouteTypes {
     | '/settings/metadata'
     | '/settings/organization'
     | '/settings/reading'
+    | '/authors/'
     | '/lists/'
     | '/settings/'
   fileRoutesByTo: FileRoutesByTo
@@ -209,6 +229,7 @@ export interface FileRouteTypes {
     | '/profile'
     | '/reader'
     | '/stats'
+    | '/authors/$personId'
     | '/lists/$listId'
     | '/settings/appearance'
     | '/settings/data'
@@ -217,6 +238,7 @@ export interface FileRouteTypes {
     | '/settings/metadata'
     | '/settings/organization'
     | '/settings/reading'
+    | '/authors'
     | '/lists'
     | '/settings'
   id:
@@ -229,6 +251,7 @@ export interface FileRouteTypes {
     | '/reader'
     | '/settings'
     | '/stats'
+    | '/authors/$personId'
     | '/lists/$listId'
     | '/settings/appearance'
     | '/settings/data'
@@ -237,6 +260,7 @@ export interface FileRouteTypes {
     | '/settings/metadata'
     | '/settings/organization'
     | '/settings/reading'
+    | '/authors/'
     | '/lists/'
     | '/settings/'
   fileRoutesById: FileRoutesById
@@ -250,7 +274,9 @@ export interface RootRouteChildren {
   ReaderRoute: typeof ReaderRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   StatsRoute: typeof StatsRoute
+  AuthorsPersonIdRoute: typeof AuthorsPersonIdRoute
   ListsListIdRoute: typeof ListsListIdRoute
+  AuthorsIndexRoute: typeof AuthorsIndexRoute
   ListsIndexRoute: typeof ListsIndexRoute
 }
 
@@ -310,6 +336,20 @@ declare module '@tanstack/react-router' {
       path: '/stats'
       fullPath: '/stats'
       preLoaderRoute: typeof StatsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/authors/': {
+      id: '/authors/'
+      path: '/authors'
+      fullPath: '/authors/'
+      preLoaderRoute: typeof AuthorsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/authors/$personId': {
+      id: '/authors/$personId'
+      path: '/authors/$personId'
+      fullPath: '/authors/$personId'
+      preLoaderRoute: typeof AuthorsPersonIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lists/': {
@@ -420,7 +460,9 @@ const rootRouteChildren: RootRouteChildren = {
   ReaderRoute: ReaderRoute,
   SettingsRoute: SettingsRouteWithChildren,
   StatsRoute: StatsRoute,
+  AuthorsPersonIdRoute: AuthorsPersonIdRoute,
   ListsListIdRoute: ListsListIdRoute,
+  AuthorsIndexRoute: AuthorsIndexRoute,
   ListsIndexRoute: ListsIndexRoute,
 }
 export const routeTree = rootRouteImport
