@@ -129,6 +129,35 @@ describe('parseExport', () => {
     expect(parsed.settings).toEqual({ ...DEFAULT_SETTINGS, readingDirection: 'rtl' });
   });
 
+  it('keeps the book reading mode and the cover setting, and refuses other values of them', () => {
+    const parse = (settings: object) => parseExport(JSON.stringify({ version: 1, library: [], settings })).settings;
+
+    expect(parse({ readingMode: 'book', bookCoverAlone: false })).toMatchObject({
+      readingMode: 'book',
+      bookCoverAlone: false,
+    });
+    expect(parse({ readingMode: 'spread', bookCoverAlone: 'no' })).toMatchObject({
+      readingMode: DEFAULT_SETTINGS.readingMode,
+      bookCoverAlone: DEFAULT_SETTINGS.bookCoverAlone,
+    });
+  });
+
+  it('exports and imports the book reading mode with the other settings', () => {
+    const db = createDatabase();
+    const libraryRepo = new LibraryRepository(db);
+    const settingsRepo = new SettingsRepository(db);
+    const readingListRepo = new ReadingListRepository(db);
+    settingsRepo.set('readingMode', 'book');
+    settingsRepo.set('bookCoverAlone', false);
+    const raw = JSON.stringify(buildExport(libraryRepo, settingsRepo, readingListRepo));
+
+    const other = createDatabase();
+    const otherSettings = new SettingsRepository(other);
+    applyImport(other, new LibraryRepository(other), otherSettings, new ReadingListRepository(other), parseExport(raw));
+
+    expect(otherSettings.getAll()).toMatchObject({ readingMode: 'book', bookCoverAlone: false });
+  });
+
   it('ignores unknown settings keys and values of the wrong type', () => {
     const parsed = parseExport(
       JSON.stringify({

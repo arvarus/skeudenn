@@ -34,8 +34,18 @@ export function disabledControls(
   page: number,
   pageCount: number,
 ): { isPrevDisabled: boolean; isNextDisabled: boolean } {
-  const isFirst = page === 0;
-  const isLast = page === pageCount - 1;
+  return disabledAtEnds(direction, page === 0, page === pageCount - 1);
+}
+
+/**
+ * Like {@link disabledControls}, from whether the view is at the start of the book (`isFirst`) and at
+ * its end (`isLast`), for a view of several pages such as a spread.
+ */
+export function disabledAtEnds(
+  direction: AppSettings['readingDirection'],
+  isFirst: boolean,
+  isLast: boolean,
+): { isPrevDisabled: boolean; isNextDisabled: boolean } {
   return direction === 'rtl'
     ? { isPrevDisabled: isLast, isNextDisabled: isFirst }
     : { isPrevDisabled: isFirst, isNextDisabled: isLast };
@@ -80,6 +90,22 @@ export interface PageTurnKeyEvent {
   target: EventTarget | { tagName?: string; isContentEditable?: boolean } | null;
 }
 
+/** Whether a key press isn't the reader's: already handled elsewhere, with Ctrl/Alt/Meta, or typed in a field or a list. */
+function isForeignKey(event: PageTurnKeyEvent): { foreign: boolean; tag: string | undefined } {
+  const target = event.target as { tagName?: string; isContentEditable?: boolean } | null;
+  const tag = target?.tagName?.toUpperCase();
+  const foreign =
+    event.defaultPrevented ||
+    event.ctrlKey ||
+    event.altKey ||
+    event.metaKey ||
+    !!target?.isContentEditable ||
+    tag === 'INPUT' ||
+    tag === 'TEXTAREA' ||
+    tag === 'SELECT';
+  return { foreign, tag };
+}
+
 /**
  * Which page turn a key press asks for, or `null` when it is not the reader's: a key already handled
  * elsewhere, one pressed with Ctrl/Alt/Meta (`Alt+←` is "back", not "previous page"), one typed in a
@@ -87,10 +113,8 @@ export interface PageTurnKeyEvent {
  * the control.
  */
 export function pageTurnForKey(event: PageTurnKeyEvent): 'advance' | 'retreat' | null {
-  if (event.defaultPrevented || event.ctrlKey || event.altKey || event.metaKey) return null;
-  const target = event.target as { tagName?: string; isContentEditable?: boolean } | null;
-  const tag = target?.tagName?.toUpperCase();
-  if (target?.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return null;
+  const { foreign, tag } = isForeignKey(event);
+  if (foreign) return null;
   switch (event.key) {
     case 'ArrowRight':
     case 'PageDown':
@@ -100,6 +124,30 @@ export function pageTurnForKey(event: PageTurnKeyEvent): 'advance' | 'retreat' |
     case 'ArrowLeft':
     case 'PageUp':
       return 'retreat';
+    default:
+      return null;
+  }
+}
+
+/** What the book reader's extra keys ask for, besides the page turns of {@link pageTurnForKey}. */
+export type BookKeyAction = 'first' | 'last' | 'zoomIn' | 'zoomOut';
+
+/**
+ * Which of the book reader's extra keys a key press is (`Home`, `End`, `+`, `-`), under the same
+ * conditions as {@link pageTurnForKey}; `null` for any other key.
+ */
+export function bookKeyAction(event: PageTurnKeyEvent): BookKeyAction | null {
+  if (isForeignKey(event).foreign) return null;
+  switch (event.key) {
+    case 'Home':
+      return 'first';
+    case 'End':
+      return 'last';
+    case '+':
+    case '=':
+      return 'zoomIn';
+    case '-':
+      return 'zoomOut';
     default:
       return null;
   }

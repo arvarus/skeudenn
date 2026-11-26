@@ -32,6 +32,16 @@ const reader: Translation<typeof en> = {
   previousPage: 'Page précédente',
   nextPage: 'Page suivante',
   pages: 'Pages',
+  switchToBook: 'Mode livre (double page)',
+  switchToSingle: 'Page par page',
+  previousSpread: 'Pages précédentes',
+  nextSpread: 'Pages suivantes',
+  firstPage: 'Première page',
+  lastPage: 'Dernière page',
+  slider: 'Position dans le livre',
+  goToPage: 'Aller à la page',
+  zoomIn: 'Zoom avant',
+  zoomOut: 'Zoom arrière',
 };
 
 export default reader;

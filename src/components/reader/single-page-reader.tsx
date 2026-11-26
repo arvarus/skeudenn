@@ -1,26 +1,24 @@
-import { ChevronLeft, ChevronRight, FolderOpen, Loader2, X, ZoomIn } from 'lucide-react';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, FolderOpen, Loader2, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { bookTooltip } from '@/lib/book-tooltip';
 import { FullscreenButton } from '@/components/reader/fullscreen-button';
 import { NextInListButton } from '@/components/reader/next-in-list-button';
 import { ReaderHeader } from '@/components/reader/reader-header';
+import { ReadingModeButton } from '@/components/reader/reading-mode-button';
 import { ReadingProgress } from '@/components/reader/reading-progress';
+import { ZoomSelect } from '@/components/reader/zoom-select';
 import { Button } from '@/components/ui/button';
 import { useImageUpscaler } from '@/hooks/use-image-upscaler';
 import type { NextInList } from '@/hooks/use-next-in-list';
+import { useReaderControls } from '@/hooks/use-reader-controls';
 import { useReadingPace } from '@/hooks/use-reading-pace';
-import { directionalControls, disabledControls, pageTurnForKey, scrollEdgeAfterMove } from '@/lib/reader-navigation';
+import { directionalControls, disabledControls } from '@/lib/reader-navigation';
+import type { Size, Zoom } from '@/lib/reader-zoom';
 import { cn } from '@/lib/utils';
-import { createWheelPager } from '@/lib/wheel-pager';
 import type { ComicInfo } from '@/shared/comic';
 import type { PublicSettings } from '@/shared/settings';
-
-interface Size {
-  width: number;
-  height: number;
-}
 
 /** The size at which `natural` renders under `object-fit: contain` inside `container`. */
 function fitSize(container: Size, natural: Size): Size {
@@ -30,11 +28,6 @@ function fitSize(container: Size, natural: Size): Size {
     ? { width: container.height * naturalRatio, height: container.height }
     : { width: container.width, height: container.width / naturalRatio };
 }
-
-/** `'fit'` scales the page to the available area; a number is a fraction of its actual pixel size. */
-type Zoom = 'fit' | number;
-
-const ZOOM_OPTIONS: Zoom[] = ['fit', 0.5, 0.75, 0.9, 1, 1.1, 1.25, 1.5, 2];
 
 interface SinglePageReaderProps {
   comic: ComicInfo;
@@ -52,6 +45,8 @@ interface SinglePageReaderProps {
   fullscreen: boolean;
   toggleFullscreen: () => void;
   nextInList: NextInList | null;
+  /** Switches to the book reading mode (two pages side by side). */
+  onSwitchToBook: () => void;
 }
 
 export function SinglePageReader({
@@ -69,6 +64,7 @@ export function SinglePageReader({
   fullscreen,
   toggleFullscreen,
   nextInList,
+  onSwitchToBook,
 }: SinglePageReaderProps) {
   const { t } = useTranslation(['reader', 'common']);
   const [zoom, setZoom] = useState<Zoom>('fit');
@@ -115,78 +111,17 @@ export function SinglePageReader({
     return () => observer.disconnect();
   }, []);
 
-  // After a page turn, a zoomed page starts at its top (forward) or bottom (backward) edge
-  // instead of keeping the previous page's scroll position; another book opens at the top of its
-  // page (the component isn't remounted per book, so the zoom stays). The new image only has its
-  // size once decoded, so the edge is remembered here and applied when `naturalSize` arrives.
-  const lastPosition = useRef({ bookId: comic.id, page });
-  const pendingEdge = useRef<'top' | 'bottom' | null>(null);
-  useEffect(() => {
-    const position = { bookId: comic.id, page };
-    const edge = scrollEdgeAfterMove(lastPosition.current, position);
-    if (edge) {
-      pendingEdge.current = edge;
-      lastPosition.current = position;
-    }
-  }, [comic.id, page]);
-  useLayoutEffect(() => {
-    const el = containerRef.current;
-    const edge = pendingEdge.current;
-    if (!el || !naturalSize || !edge) return;
-    pendingEdge.current = null;
-    el.scrollTo({ top: edge === 'top' ? 0 : el.scrollHeight, left: 0 });
-  }, [naturalSize]);
-
-  // Wheel-to-turn-page: while zoomed in, a scroll that can still pan the image is left
-  // alone; only once the pan hits the edge (or in "fit" mode, where there's no pan at
-  // all) does the wheel turn the page. `createWheelPager` keeps one trackpad swipe (many
-  // wheel events, plus the OS's inertia tail) to exactly one page turn. It lives in state,
-  // not inside the effect: `advance`/`retreat` change identity on every render, so the
-  // effect re-runs after each page turn and a fresh pager would forget the gesture in
-  // progress — letting its inertia turn the page again.
-  const [pager] = useState(createWheelPager);
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const inverted = settings.scrollDirection === 'inverted';
-
-    const onWheel = (event: WheelEvent) => {
-      if (event.deltaY === 0) return;
-      // Fed even for events that only pan, so a swipe that pans up to the edge doesn't
-      // then turn the page with its own inertia: that takes a new gesture.
-      const step = pager(event.deltaY, event.timeStamp);
-
-      if (zoomFraction !== null) {
-        const atTop = el.scrollTop <= 0;
-        const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
-        if ((event.deltaY < 0 && !atTop) || (event.deltaY > 0 && !atBottom)) {
-          return;
-        }
-      }
-
-      event.preventDefault();
-      if (step === 0) return;
-
-      const goForward = inverted ? step < 0 : step > 0;
-      if (goForward) advance();
-      else retreat();
-    };
-
-    el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, [zoomFraction, settings.scrollDirection, advance, retreat, pager]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      const turn = pageTurnForKey(event);
-      if (turn === null) return;
-      event.preventDefault();
-      if (turn === 'advance') advance();
-      else retreat();
-    };
-    window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
-  }, [advance, retreat]);
+  // Wheel, keys and the edge a zoomed page lands on after a turn (see `useReaderControls`). The new
+  // image only has its size once decoded, hence `naturalSize` as the readiness.
+  useReaderControls({
+    containerRef,
+    advance,
+    retreat,
+    scrollDirection: settings.scrollDirection,
+    zoomed: zoomFraction !== null,
+    position: { bookId: comic.id, page },
+    ready: naturalSize,
+  });
 
   const displaySize =
     naturalSize &&
@@ -222,25 +157,7 @@ export function SinglePageReader({
         </span>
         <ReadingProgress percent={percent} remainingMinutes={remainingMinutes} />
         {isLast && <NextInListButton nextInList={nextInList} />}
-        <label className="flex items-center gap-1.5 text-white/60">
-          <ZoomIn className="size-4" />
-          <span className="sr-only">{t('zoom')}</span>
-          <select
-            value={String(zoom)}
-            onChange={(event) => setZoom(event.target.value === 'fit' ? 'fit' : Number(event.target.value))}
-            className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-white [color-scheme:dark]"
-          >
-            {ZOOM_OPTIONS.map((option) => (
-              <option key={option} value={option} className="bg-neutral-900 text-white">
-                {option === 'fit'
-                  ? t('zoomFit')
-                  : option === 1
-                    ? t('zoomActual')
-                    : t('zoomPercent', { percent: Math.round(option * 100) })}
-              </option>
-            ))}
-          </select>
-        </label>
+        <ZoomSelect value={zoom} onChange={setZoom} />
         <label
           className={cn(
             'flex items-center gap-1.5',
@@ -267,6 +184,7 @@ export function SinglePageReader({
             t('upscale')
           )}
         </label>
+        <ReadingModeButton mode="single" onClick={onSwitchToBook} />
         <Button variant="ghost" size="icon-sm" onClick={pickAndOpen} title={t('openAnother')}>
           <FolderOpen />
         </Button>

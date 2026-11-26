@@ -189,8 +189,16 @@ export interface AppSettings {
   sidebarCollapsed: boolean;
   /** Mouse/trackpad wheel direction in the reader: scrolling down advances or retreats a page. */
   scrollDirection: 'standard' | 'inverted';
-  /** `single`: one page at a time. `continuous`: pages flow one after another in a vertical scroll. */
-  readingMode: 'single' | 'continuous';
+  /**
+   * `single`: one page at a time. `continuous`: pages flow one after another in a vertical scroll.
+   * `book`: two pages side by side, like an open book (see {@link AppSettings.bookCoverAlone}).
+   */
+  readingMode: 'single' | 'continuous' | 'book';
+  /**
+   * Book mode: whether the first page is a spread of its own (a cover), the pages being paired from
+   * the second one. Off, pages are paired from the first one, for files that start with a double page.
+   */
+  bookCoverAlone: boolean;
   /** Gap in pixels between pages in continuous mode (0 = pages touch). */
   pageSpacing: number;
   /** CSS color behind the pages in the reader (any `<input type="color">` value, i.e. `#rrggbb`). */
@@ -332,6 +340,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   sidebarCollapsed: false,
   scrollDirection: 'standard',
   readingMode: 'single',
+  bookCoverAlone: true,
   pageSpacing: 16,
   readerBackground: '#000000',
   comicVineEnabled: true,
@@ -456,7 +465,9 @@ export const SETTING_VALIDATORS: SettingValidators = {
   homeSections: isHomeSections,
   sidebarCollapsed: isBoolean,
   scrollDirection: (value): value is AppSettings['scrollDirection'] => value === 'standard' || value === 'inverted',
-  readingMode: (value): value is AppSettings['readingMode'] => value === 'single' || value === 'continuous',
+  readingMode: (value): value is AppSettings['readingMode'] =>
+    value === 'single' || value === 'continuous' || value === 'book',
+  bookCoverAlone: isBoolean,
   pageSpacing: (value): value is number =>
     typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= MAX_PAGE_SPACING,
   readerBackground: (value): value is string => isString(value) && /^#[0-9a-fA-F]{6}$/.test(value),

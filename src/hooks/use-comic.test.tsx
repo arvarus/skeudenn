@@ -75,4 +75,24 @@ describe('useComic', () => {
     expect(result.current.comic?.resumePage).toBe(7);
     expect(api.comic.open).toHaveBeenCalledTimes(2);
   });
+
+  it('hands a position over to the page-by-page reader: goTo() moves the page without fetching it, dropping the old image', async () => {
+    const api = installApi(async () => page);
+    const { result, rerender } = renderHook(({ loadPages }) => useComic({ loadPages }), { initialProps: { loadPages: true } });
+    await act(() => result.current.openFile('lib-1'));
+    await waitFor(() => expect(result.current.pageUrl).toBe('blob:page'));
+
+    // A reader that loads its own pages (continuous, book) is on screen.
+    rerender({ loadPages: false });
+    api.comic.readPage.mockClear();
+    act(() => result.current.goTo(8));
+    expect(result.current.page).toBe(8);
+    expect(result.current.pageUrl).toBeNull();
+    expect(api.comic.readPage).not.toHaveBeenCalled();
+
+    // Back to page by page: the page handed over is the one fetched.
+    rerender({ loadPages: true });
+    await waitFor(() => expect(result.current.pageUrl).toBe('blob:page'));
+    expect(api.comic.readPage).toHaveBeenCalledWith('archive-1', 8);
+  });
 });
