@@ -51,7 +51,7 @@ export type LibrarySort = (typeof LIBRARY_SORTS)[number];
 
 /**
  * How much each book row shows, in the library (`AppSettings.libraryView`) and on a reading list's
- * page (`AppSettings.readingListView`): `full` (cover, details, credits, file information, rating,
+ * page (`AppSettings.readingListView`) and an author's page (`AppSettings.authorBooksView`): `full` (cover, details, credits, file information, rating,
  * tags), `medium` (cover, title, series and volume, progress, rating) or `compact` (title, volume
  * and series only).
  */
@@ -168,6 +168,8 @@ export interface AppSettings {
   libraryView: LibraryView;
   /** How much each row of a reading list's page shows, set apart from the library's (see {@link BookRowView}). */
   readingListView: BookRowView;
+  /** How much each row of an author's page shows, set apart from the library's and the lists' (see {@link BookRowView}). */
+  authorBooksView: BookRowView;
   /** Whether the library list is grouped by series, each series behind a heading that can be folded. */
   libraryGroupBySeries: boolean;
   /**
@@ -333,6 +335,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   addOpenedBooksToLibrary: true,
   libraryView: 'full',
   readingListView: 'full',
+  authorBooksView: 'full',
   libraryGroupBySeries: false,
   librarySort: 'lastOpened',
   homeEnabled: true,
@@ -458,6 +461,7 @@ export const SETTING_VALIDATORS: SettingValidators = {
   addOpenedBooksToLibrary: isBoolean,
   libraryView: isLibraryView,
   readingListView: isBookRowView,
+  authorBooksView: isBookRowView,
   libraryGroupBySeries: isBoolean,
   librarySort: (value): value is AppSettings['librarySort'] =>
     isString(value) && (LIBRARY_SORTS as readonly string[]).includes(value),

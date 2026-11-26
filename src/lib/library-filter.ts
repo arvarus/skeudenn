@@ -60,7 +60,7 @@ export function availableLanguages(entries: LibraryEntry[]): string[] {
  * Lowercased and stripped of diacritics, so "pokemon" matches "Pokémon" — the titles come from
  * file names the user didn't necessarily type accented.
  */
-function normalize(value: string): string {
+export function normalize(value: string): string {
   return value
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')

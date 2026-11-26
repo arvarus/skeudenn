@@ -149,3 +149,32 @@ test('a reading list has its own display mode', async () => {
   });
   expect(views).toEqual(['compact', 'full']);
 });
+
+test('the authors index leads to an author page, which opens a book', async () => {
+  const page = await start({
+    books: [
+      { title: 'Alpha', pageCount: 3, credits: [{ firstName: 'Mia', lastName: 'Durand', role: 'writer' }] },
+      { title: 'Beta', pageCount: 3, credits: [{ firstName: 'Mia', lastName: 'Durand', role: 'artist' }] },
+      { title: 'Gamma', pageCount: 3 },
+    ],
+  });
+  await page.getByRole('link', { name: 'Authors' }).click();
+  await expect(page.getByRole('heading', { name: 'Authors', level: 1 })).toBeVisible();
+  // The index lists the person once, with their two books.
+  await page.getByRole('link', { name: /Mia Durand/ }).click();
+  await expect(page.getByRole('heading', { name: 'Mia Durand', level: 1 })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open Alpha' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Open Gamma' })).toBeHidden();
+
+  await page.getByRole('button', { name: 'Open Beta' }).click();
+  await expect(page.getByRole('img', { name: 'Page 1' })).toBeVisible();
+});
+
+test('an author name under a book leads to the author page without opening the book', async () => {
+  const page = await start({
+    books: [{ title: 'Alpha', pageCount: 3, credits: [{ firstName: 'Mia', lastName: 'Durand', role: 'writer' }] }],
+  });
+  await page.getByRole('link', { name: 'Mia Durand' }).click();
+  await expect(page.getByRole('heading', { name: 'Mia Durand', level: 1 })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Page 1' })).toBeHidden();
+});

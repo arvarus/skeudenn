@@ -16,6 +16,7 @@ import { LibraryRepository } from '../src/main/db/library-repository';
 import { ReadingListRepository } from '../src/main/db/reading-list-repository';
 import { migrate } from '../src/main/db/schema';
 import { SettingsRepository } from '../src/main/db/settings-repository';
+import type { CreditInput } from '../src/shared/library';
 import type { AppSettings } from '../src/shared/settings';
 import { buildCbz } from './cbz';
 
@@ -25,6 +26,8 @@ export interface SeedBook {
   pageCount: number;
   /** Page the book was left on (0-based). */
   currentPage?: number;
+  /** People credited on the book. */
+  credits?: CreditInput[];
 }
 
 /** What the app starts with. */
@@ -84,6 +87,7 @@ function seedUserData(userData: string, booksDir: string, seed: Seed): Map<strin
     writeFileSync(file, buildCbz(book.pageCount));
     const entry = library.touch(file, book.title, book.pageCount, book.pageCount, 0);
     if (book.currentPage) library.updateProgress(entry.id, book.currentPage);
+    if (book.credits) library.updateMetadata(entry.id, { credits: book.credits });
     ids.set(book.title, entry.id);
     paths.set(book.title, file);
   }

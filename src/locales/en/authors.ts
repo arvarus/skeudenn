@@ -1,0 +1,20 @@
+// Authors: the /authors index and an author's page.
+export default {
+  title: 'Authors',
+  intro: 'Everyone credited on a book of the library.',
+  searchLabel: 'Search an author',
+  searchPlaceholder: 'Search an author…',
+  noMatch: 'No author matches “{{search}}”.',
+  empty: 'No book has credits yet. Add them with “Look up details” or “Edit details” on a book of the library.',
+  bookCount_one: '{{count}} book',
+  bookCount_other: '{{count}} books',
+  letterHeading: 'Authors starting with {{letter}}',
+  backToIndex: 'Authors',
+  notFound: 'Author not found',
+  notFoundDetail: 'This person is no longer credited on any book of the library.',
+  roles: 'Roles: {{roles}}',
+  readCount: '{{read}} / {{count}} read',
+  roleFilter: 'Filter by role',
+  allRoles: 'All',
+  rolesOnBook: 'Role: {{roles}}',
+};

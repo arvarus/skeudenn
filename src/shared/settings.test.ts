@@ -37,6 +37,7 @@ describe('SETTING_VALIDATORS', () => {
     expect(isValidSetting('sidebarCollapsed', 'yes')).toBe(false);
     expect(isValidSetting('libraryView', 'tiles')).toBe(false);
     expect(isValidSetting('readingListView', 'grid')).toBe(false);
+    expect(isValidSetting('authorBooksView', 'grid')).toBe(false);
     expect(isValidSetting('librarySort', 'random')).toBe(false);
     expect(isValidSetting('comicVineApiKey', null)).toBe(false);
   });
@@ -56,6 +57,7 @@ describe('SETTING_VALIDATORS', () => {
     expect(isValidSetting('libraryView', 'compact')).toBe(true);
     expect(isValidSetting('libraryView', 'grid')).toBe(true);
     expect(isValidSetting('readingListView', 'medium')).toBe(true);
+    expect(isValidSetting('authorBooksView', 'compact')).toBe(true);
     expect(isValidSetting('librarySort', 'releaseAsc')).toBe(true);
     expect(isValidSetting('pageSpacing', 0)).toBe(true);
     expect(isValidSetting('readerBackground', '#F4ECD8')).toBe(true);
