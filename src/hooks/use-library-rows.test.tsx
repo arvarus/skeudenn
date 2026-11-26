@@ -57,4 +57,16 @@ describe('useLibraryRows', () => {
     act(() => result.current.toggleSeries(heading.key));
     expect(result.current.shown).toHaveLength(3);
   });
+
+  it('computes the missing volumes on the whole library, not on the filtered books', () => {
+    const library = [
+      entry('t1', { series: 'Saga', volume: '1', tags: ['mine'] }),
+      entry('t2', { series: 'Saga', volume: '2' }),
+      entry('t4', { series: 'Saga', volume: '4', tags: ['mine'] }),
+    ];
+    // The tag filter hides T2: it is not reported as missing, only T3 is.
+    const { result } = renderHook(() => useLibraryRows(library, { ...EMPTY_FILTERS, tags: ['mine'] }, true, 'lastOpened'));
+    const heading = result.current.rows.find((row) => row.kind === 'series');
+    expect(heading).toMatchObject({ missing: [3], count: 2 });
+  });
 });

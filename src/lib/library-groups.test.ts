@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { gridLines, groupBySeries, NO_SERIES_KEY, seriesKey, ungroupedRows, type LibraryRow } from './library-groups';
+import { gridLines, groupBySeries, missingVolumesBySeries, NO_SERIES_KEY, seriesKey, ungroupedRows, type LibraryRow } from './library-groups';
 import type { LibraryEntry } from '@/shared/library';
 
 function entry(overrides: Partial<LibraryEntry> = {}): LibraryEntry {
@@ -117,5 +117,54 @@ describe('gridLines', () => {
   it('keeps only the heading of a folded series and counts fewer than one column as one', () => {
     const rows = groupBySeries([entry({ id: '1', title: 'a1', series: 'A' }), entry({ id: '2', title: 'b1', series: 'B' })], new Set(['a']));
     expect(titles(gridLines(rows, 0))).toEqual(['# A', '# B', 'b1']);
+  });
+});
+
+describe('missingVolumesBySeries', () => {
+  it('lists the gaps of each series from the entries given', () => {
+    const missing = missingVolumesBySeries([
+      entry({ id: '1', series: 'Saga', volume: '1' }),
+      entry({ id: '3', series: 'Saga', volume: '3' }),
+      entry({ id: 'a', series: 'Complete', volume: '1' }),
+      entry({ id: 'b', series: 'Complete', volume: '2' }),
+      entry({ id: 'c', series: null, volume: '1' }),
+      entry({ id: 'd', series: null, volume: '5' }),
+    ]);
+    expect([...missing]).toEqual([['saga', [2]]]);
+  });
+
+  it('shares the gaps between series names that differ by case or spaces', () => {
+    const missing = missingVolumesBySeries([
+      entry({ id: '1', series: 'Blacksad', volume: '1' }),
+      entry({ id: '2', series: ' blacksad ', volume: '2' }),
+      entry({ id: '4', series: 'BLACKSAD', volume: '4' }),
+    ]);
+    expect(missing.get('blacksad')).toEqual([3]);
+    expect(missing.size).toBe(1);
+  });
+});
+
+describe('groupBySeries missing volumes', () => {
+  const library = [
+    entry({ id: '1', title: 'T1', series: 'Saga', volume: '1' }),
+    entry({ id: '2', title: 'T2', series: 'Saga', volume: '2' }),
+    entry({ id: '4', title: 'T4', series: 'saga', volume: '4' }),
+  ];
+
+  it('gives each heading the gaps of its series', () => {
+    const [header] = groupBySeries(library, new Set(), missingVolumesBySeries(library));
+    expect(header).toMatchObject({ kind: 'series', missing: [3] });
+  });
+
+  it('has no gap for a series that is not in the map', () => {
+    const [header] = groupBySeries(library);
+    expect(header).toMatchObject({ kind: 'series', missing: [] });
+  });
+
+  it('does not report as missing a volume that a filter hides', () => {
+    // T2 is hidden by a filter but is in the library: only T3 is missing.
+    const filtered = library.filter((e) => e.id !== '2');
+    const [header] = groupBySeries(filtered, new Set(), missingVolumesBySeries(library));
+    expect(header).toMatchObject({ kind: 'series', count: 2, missing: [3] });
   });
 });
