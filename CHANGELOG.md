@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here. This file is maintained by [release-please](https://github.com/googleapis/release-please) from the [Conventional Commits](https://www.conventionalcommits.org/) merged into `master`: don't edit released entries by hand. New versions are inserted above the previous ones.
 
+## [0.27.0](https://github.com/arvarus/skeudenn/compare/v0.26.1...v0.27.0) (2026-11-26)
+
+
+### Features
+
+* **authors:** add an author page and an authors index ([#332](https://github.com/arvarus/skeudenn/issues/332)) ([b837779](https://github.com/arvarus/skeudenn/commit/b837779aee7034d0c611eab6a2b1fba0403a5f9b))
+* **library:** add several folders at once, with the choice of not watching them ([#333](https://github.com/arvarus/skeudenn/issues/333)) ([e1867df](https://github.com/arvarus/skeudenn/commit/e1867df7fa5f7bbc48c4051402575b289c0e9247))
+* **library:** show the missing volumes of a series ([#334](https://github.com/arvarus/skeudenn/issues/334)) ([1bf9e6f](https://github.com/arvarus/skeudenn/commit/1bf9e6fab94335caa793ef1f94719e2356532614))
+* **reader:** add a "book" reading mode (double-page spreads) ([#330](https://github.com/arvarus/skeudenn/issues/330)) ([d728856](https://github.com/arvarus/skeudenn/commit/d728856f497159b07d206e3968588ac0b56122fa))
+
 ## [0.26.1](https://github.com/arvarus/skeudenn/compare/v0.26.0...v0.26.1) (2026-11-25)
 
 
