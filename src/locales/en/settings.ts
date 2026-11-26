@@ -61,7 +61,7 @@ export default {
   },
   library: {
     folders: 'Library folders',
-    foldersHint: 'The folders added with “Add a folder…” in the library. Resynchronizing walks them again.',
+    foldersHint: 'The folders added with “Add folders…” in the library. Resynchronizing walks them again.',
     noFolders: 'No folder yet: add one from the library page.',
     removeFolder: 'Forget this folder',
     unlinkedFolders: 'Folders to locate',

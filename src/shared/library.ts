@@ -128,6 +128,22 @@ export interface ScanProgress {
    * (`processed`/`total` then count that step).
    */
   step?: ResyncStep;
+  /**
+   * The folder being scanned when an addition covers several (`library.addFolders()` with two or more): set
+   * on each of its progress, not on a single folder's, so the label can say "Folder 2/5: …". `processed` and
+   * `total` count that folder's files.
+   */
+  folder?: ScanFolder;
+}
+
+/** Which folder of a multi-folder addition a {@link ScanProgress} is about. */
+export interface ScanFolder {
+  /** The folder's place, from 1 to `count`. */
+  index: number;
+  /** How many folders the addition holds. */
+  count: number;
+  /** The folder's name (its last path segment, for the label). */
+  name: string;
 }
 
 /**
@@ -162,14 +178,37 @@ export interface ImageScanProgress {
   total: number;
 }
 
-/** Outcome of `library.addFolder()`. */
+/** One folder picked by `library.pickFolders()`: `path` is for display only, the renderer never sends it back. */
+export interface PickedFolder {
+  /** The folder's name, for a list. */
+  name: string;
+  /** Its full path, shown as a tooltip. */
+  path: string;
+}
+
+/** Outcome of `library.pickFolders()`. */
+export type PickFoldersResult =
+  /** The dialog was closed without a choice. */
+  | { status: 'cancelled' }
+  | {
+      status: 'ok';
+      /** What `library.addFolders()` takes: the picked folders stay in the main process, behind this single-use token. */
+      token: string;
+      /** The folders that will be added (duplicates and folders inside another picked one left out), in the order picked. */
+      folders: PickedFolder[];
+    };
+
+/** Outcome of `library.addFolders()`. */
 export type ScanResult =
   | { status: 'cancelled' }
   /** Another run over the library files is in progress; `message` is in the interface language. */
   | { status: 'error'; message: string }
   | {
       status: 'ok';
+      /** The folder added when there is one; else (several) the folder they share, or the last one when they share none. */
       directory: string;
+      /** How many folders were added (the nested and repeated ones of the pick left out). */
+      folders: number;
       /** Comics added to the library. */
       added: number;
       /** Comics already in the library, left untouched. */
@@ -178,11 +217,11 @@ export type ScanResult =
       failed: number;
       /** The first `MAX_REPORTED_FAILURES` of those files, with the reason each one failed. */
       failures: ScanFailure[];
-      /** Supported files found in the tree, i.e. `added + skipped + failed` unless the scan was stopped. */
+      /** Supported files found in the trees, i.e. `added + skipped + failed` unless the scan was stopped. */
       total: number;
       /**
-       * Stopped (`library:cancel-run`) between two files: the comics added before stay, and nothing was
-       * organized (`organization` is then empty).
+       * Stopped (`library:cancel-run`) between two files: the comics added before stay, the folders not started
+       * were skipped, and nothing was organized (`organization` is then empty).
        */
       cancelled: boolean;
       /** What the library organization did with the comics added. */

@@ -310,7 +310,13 @@ export interface AppSettings {
    * the duplicates search doesn't offer them again unless asked. At most {@link MAX_IGNORED_DUPLICATES}.
    */
   ignoredDuplicates: string[];
-  /** Folder last added with "Ajouter un dossier…" (empty before the first one): where the next folder dialog opens. */
+  /**
+   * State of the "Surveiller ces dossiers" box of the confirmation shown by "Ajouter des dossiers…": whether
+   * the folders added are remembered as library folders, walked by every resynchronization. Remembered from
+   * one addition to the next, checked by default.
+   */
+  watchAddedFolders: boolean;
+  /** Folder last added with "Ajouter des dossiers…" (or the parent they share; empty before the first addition): where the next folder dialog opens. */
   lastScanFolder: string;
 }
 
@@ -350,6 +356,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   trashRetentionDays: 30,
   lastBackupAt: '',
   lastResyncAt: '',
+  watchAddedFolders: true,
   lastScanFolder: '',
   libraryOrganization: 'off',
   libraryOrganizationFolder: '',
@@ -479,6 +486,7 @@ export const SETTING_VALIDATORS: SettingValidators = {
     typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= MAX_TRASH_RETENTION_DAYS,
   lastBackupAt: (value): value is string => isString(value) && (value === '' || !Number.isNaN(Date.parse(value))),
   lastResyncAt: (value): value is string => isString(value) && (value === '' || !Number.isNaN(Date.parse(value))),
+  watchAddedFolders: isBoolean,
   lastScanFolder: isShortString,
   libraryOrganization: (value): value is LibraryOrganization => value === 'off' || value === 'ask' || value === 'always',
   libraryOrganizationFolder: isShortString,

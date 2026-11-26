@@ -1,5 +1,5 @@
 /**
- * The message the library page shows once a folder addition (`library.addFolder()`) or a file
+ * The message the library page shows once a folder addition (`library.addFolders()`) or a file
  * addition (`library.addFile()`) ends.
  * @module
  */
@@ -8,13 +8,24 @@ import type { AddFileResult, ScanResult } from '@/shared/library';
 
 /**
  * The parts of the message for a folder addition that ran, to be joined with " · ": "stopped" first
- * when the scan was stopped, then the comics added, those already there and the unreadable ones; or
- * the single "no comics found" when the folder held none.
+ * when the scan was stopped, then the comics added (from the folder, or from "N folders" when several were
+ * added), those already there and the unreadable ones; or the single "no comics found" when they held none.
  */
 export function folderScanParts(result: Extract<ScanResult, { status: 'ok' }>): string[] {
-  if (result.total === 0) return [t('library:scanNoneFound', { directory: result.directory })];
+  const several = result.folders > 1;
+  if (result.total === 0) {
+    return [
+      several
+        ? t('library:scanNoneFoundFolders', { folders: result.folders })
+        : t('library:scanNoneFound', { directory: result.directory }),
+    ];
+  }
   const parts = result.cancelled ? [t('library:scanStopped')] : [];
-  parts.push(t('library:scanAdded', { count: result.added, directory: result.directory }));
+  parts.push(
+    several
+      ? t('library:scanAddedFolders', { count: result.added, folders: result.folders })
+      : t('library:scanAdded', { count: result.added, directory: result.directory }),
+  );
   if (result.skipped > 0) parts.push(t('library:scanSkipped', { count: result.skipped }));
   if (result.failed > 0) parts.push(t('library:scanFailed', { count: result.failed }));
   return parts;

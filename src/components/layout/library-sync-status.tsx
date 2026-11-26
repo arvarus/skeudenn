@@ -94,7 +94,9 @@ export function LibrarySyncStatus({ collapsed }: { collapsed: boolean }) {
     : progress?.step
       ? resyncStepLabel(progress.step)
       : known
-        ? t('syncProgress', { processed: progress.processed, total: progress.total })
+        ? progress.folder
+          ? t('syncFolderProgress', { ...progress.folder, processed: progress.processed, total: progress.total })
+          : t('syncProgress', { processed: progress.processed, total: progress.total })
         : t('syncRunning');
   const text = running
     ? runningText

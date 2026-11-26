@@ -160,6 +160,9 @@ export const booleanArg: ArgParser<boolean> = (value) => {
   return value;
 };
 
+/** An opaque token handed out by the main process (an organization offer, a pick of folders): non-empty, at most 100 characters. */
+export const tokenArg: ArgParser<string> = (value) => expectNonEmptyString(value, 'token', MAX_ID_LENGTH);
+
 /** A library entry, reading list or open-comic id. */
 export const idArg: ArgParser<string> = (value) => expectNonEmptyString(value, 'id');
 

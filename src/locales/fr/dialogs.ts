@@ -5,7 +5,7 @@ const dialogs: Translation<typeof en> = {
   openComic: 'Ouvrir une BD',
   comicFiles: 'Comics et PDF',
   addFile: 'Ajouter une BD',
-  addFolder: 'Ajouter un dossier de BD',
+  addFolders: 'Ajouter des dossiers de BD',
   chooseDatabaseFolder: 'Choisir le dossier de la base de données',
   chooseOrganizationFolder: 'Choisir le dossier de la bibliothèque organisée',
   relinkFolder: 'Où se trouve le dossier « {{folder}} » sur cet ordinateur ?',

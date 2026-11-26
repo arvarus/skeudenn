@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   IpcArgumentError,
   args,
+  booleanArg,
   idArg,
+  tokenArg,
   pageIndexArg,
   MAX_ID_LENGTH,
   MAX_LIBRARY_IDS,
@@ -115,5 +117,22 @@ describe('args', () => {
     expect(() => args()(['x'])).toThrow(IpcArgumentError);
     expect(() => args(idArg, pageIndexArg)(['a', -1])).toThrow(IpcArgumentError);
     expect(() => args(idArg)([{ path: '/etc/passwd' }])).toThrow(IpcArgumentError);
+  });
+});
+
+describe('tokenArg', () => {
+  it('accepts a token and a flag, as `library:add-folders` takes them', () => {
+    expect(args(tokenArg, booleanArg)(['0b5f9f9e-3a52-4c2e-9d9e-6e2d0a1a7c11', false])).toEqual([
+      '0b5f9f9e-3a52-4c2e-9d9e-6e2d0a1a7c11',
+      false,
+    ]);
+  });
+
+  it('refuses a path in its place, a missing flag, a non-boolean flag, an empty or oversized token', () => {
+    expect(() => args(tokenArg, booleanArg)([['/etc'], true])).toThrow(IpcArgumentError);
+    expect(() => args(tokenArg, booleanArg)(['token'])).toThrow(IpcArgumentError);
+    expect(() => args(tokenArg, booleanArg)(['token', 'yes'])).toThrow(IpcArgumentError);
+    expect(() => tokenArg('')).toThrow(IpcArgumentError);
+    expect(() => tokenArg('x'.repeat(MAX_ID_LENGTH + 1))).toThrow(IpcArgumentError);
   });
 });

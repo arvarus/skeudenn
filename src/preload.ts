@@ -27,6 +27,7 @@ import type {
   LibraryEntry,
   MetadataUpdate,
   OrganizeResult,
+  PickFoldersResult,
   PickOrganizationFolderResult,
   RelinkFolderResult,
   CleanupAnalysisResult,
@@ -93,8 +94,10 @@ export interface LibraryApi {
   list(): Promise<LibraryEntry[]>;
   /** Opens a native file picker, then adds the chosen comic to the library without opening it; an unreadable file resolves to an error result rather than rejecting. The library organization then moves it, or offers to (`organization`). */
   addFile(): Promise<AddFileResult>;
-  /** Opens a native directory picker, then adds every comic found under it, recursively, reporting through `onScanProgress`. The library organization then moves them, or offers to (`organization`). `cancelRun()` stops the scan before its next file (`cancelled: true`): the comics added stay, and none is organized. */
-  addFolder(): Promise<ScanResult>;
+  /** First step of adding folders: opens a native directory picker (several folders can be chosen) and keeps the answer in the main process, which never lets the renderer name a path. Resolves with a single-use `token` and the `folders` to show in the confirmation (those picked, minus repeats and any folder inside another picked one; their paths are for display only), or `cancelled`. */
+  pickFolders(): Promise<PickFoldersResult>;
+  /** Second step: adds every comic found under the folders of a `pickFolders` token, recursively, one folder after the other, reporting through `onScanProgress` (each progress then names the folder, `folder`). With `watch`, the folders become library folders, which `resync` walks again; without, nothing is remembered about them and their comics behave like files added one by one. The library organization then moves them all, or offers to (`organization`, once). `cancelRun()` stops the scan before its next file (`cancelled: true`): the comics added stay, the folders not started are skipped, and none is organized. Resolves with `cancelled` for an unknown, expired or already used token; an error result when another run on the files is in progress. */
+  addFolders(token: string, watch: boolean): Promise<ScanResult>;
   /** Opens a native directory picker and makes the chosen folder the library organization's folder (the `libraryOrganizationFolder` setting, which `settings.set` refuses), also remembered among the folders `resync` walks. */
   pickOrganizationFolder(): Promise<PickOrganizationFolderResult>;
   /** Moves into the organized folder the comics an addition offered to move (`organization.pending.token` of its result), each into its own subfolder; a token works once. */
@@ -109,7 +112,7 @@ export interface LibraryApi {
   applyCleanup(token: string, keptExtensions: string[]): Promise<CleanupResult>;
   /** Stops the step of cleaning the books in progress (`analyzeCleanup` or `applyCleanup`) before its next book; the book being read or rewritten is finished. A stopped analysis resolves with `cancelled` and leaves no plan; a stopped rewrite resolves with `cancelled: true`, the books already cleaned staying so. False when no cleanup is running. */
   cancelCleanup(): Promise<boolean>;
-  /** Stops the run over the library files in progress, whichever it is and whichever window started it: `addFolder`, `organize`, `organizeAll`, `convertCbr`, `countDeflate64`, `convertDeflate64`, `emptyDeleted`, `cleanFolders`, `removeMany`, `resync`, `applyCleanup`, and `analyzeCleanup` too. The run stops before its next item (book, folder, file): the one being moved, rewritten or converted is finished, and what was done stays and is announced. It then resolves with `cancelled: true` (`{ status: 'cancelled' }` for `countDeflate64` and `analyzeCleanup`, which yield no partial result). False when nothing is running or a stop was already asked. */
+  /** Stops the run over the library files in progress, whichever it is and whichever window started it: `addFolders`, `organize`, `organizeAll`, `convertCbr`, `countDeflate64`, `convertDeflate64`, `emptyDeleted`, `cleanFolders`, `removeMany`, `resync`, `applyCleanup`, and `analyzeCleanup` too. The run stops before its next item (book, folder, file): the one being moved, rewritten or converted is finished, and what was done stays and is announced. It then resolves with `cancelled: true` (`{ status: 'cancelled' }` for `countDeflate64` and `analyzeCleanup`, which yield no partial result). False when nothing is running or a stop was already asked. */
   cancelRun(): Promise<boolean>;
   /** How many CBR of the organized folder `convertCbr()` would convert, and what its `.deletedByTankobon` folder holds; an error when the organization is off or its folder unreachable. */
   countConvertible(): Promise<ConvertCountResult>;
@@ -125,7 +128,7 @@ export interface LibraryApi {
   countOrphanFolders(): Promise<OrphanFoldersCountResult>;
   /** Moves those orphan folders to the `.deletedByTankobon` folder of the organized folder; progress arrives through `onScanProgress`. The folders books are added from are never touched. `cancelRun()` stops it before its next folder (`cancelled: true`). */
   cleanFolders(): Promise<CleanFoldersResult>;
-  /** The folders added with `addFolder`, which `resync` walks again, in the order they were added. */
+  /** The folders added with `addFolders` (when watched), which `resync` walks again, in the order they were added. */
   listFolders(): Promise<string[]>;
   /** Forgets one of those folders (a path returned by `listFolders`); its comics stay in the library. */
   removeFolder(folder: string): Promise<void>;
@@ -143,7 +146,7 @@ export interface LibraryApi {
   takeStartupOrganization(): Promise<OrganizationOutcome | null>;
   /** Subscribes to the main process's `library:startup-organization` push, sent when that outcome is waiting (call `takeStartupOrganization` then); returns the unsubscribe function. */
   onStartupOrganization(listener: () => void): () => void;
-  /** Subscribes to the progress of `addFolder`, `resync` (also the one started at launch, sent to every window), `organizeAll`, `analyzeCleanup`, `applyCleanup`, `convertCbr`, `countDeflate64`, `convertDeflate64`, `emptyDeleted`, `cleanFolders` and `removeMany`; returns the unsubscribe function. */
+  /** Subscribes to the progress of `addFolders`, `resync` (also the one started at launch, sent to every window), `organizeAll`, `analyzeCleanup`, `applyCleanup`, `convertCbr`, `countDeflate64`, `convertDeflate64`, `emptyDeleted`, `cleanFolders` and `removeMany`; returns the unsubscribe function. */
   onScanProgress(listener: (progress: ScanProgress) => void): () => void;
   /** Where the background measure of the books' page sizes is now (it runs after an import, a resync or the first opening of a book); resolves with the state a window that loads late missed. */
   imageScanStatus(): Promise<ImageScanProgress>;
@@ -355,7 +358,8 @@ const api: TankobonApi = {
   library: {
     list: () => ipcRenderer.invoke('library:list'),
     addFile: () => ipcRenderer.invoke('library:add-file'),
-    addFolder: () => ipcRenderer.invoke('library:add-folder'),
+    pickFolders: () => ipcRenderer.invoke('library:pick-folders'),
+    addFolders: (token, watch) => ipcRenderer.invoke('library:add-folders', token, watch),
     pickOrganizationFolder: () => ipcRenderer.invoke('library:pick-organization-folder'),
     organize: (token) => ipcRenderer.invoke('library:organize', token),
     countUnorganized: () => ipcRenderer.invoke('library:count-unorganized'),

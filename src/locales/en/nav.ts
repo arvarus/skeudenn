@@ -12,6 +12,7 @@ export default {
   collapseSidebar: 'Collapse the sidebar',
   syncRunning: 'Synchronizing…',
   syncProgress: 'Synchronizing… {{processed}} / {{total}}',
+  syncFolderProgress: 'Folder {{index}}/{{count}}: {{processed}} / {{total}}',
   syncLast: 'Last synchronization: {{date}}',
   syncNever: 'Never synchronized',
   syncStart: 'Synchronize the library',

@@ -63,7 +63,7 @@ const settings: Translation<typeof en> = {
   },
   library: {
     folders: 'Dossiers de la bibliothèque',
-    foldersHint: 'Les dossiers ajoutés avec « Ajouter un dossier… » dans la bibliothèque. La resynchronisation les parcourt à nouveau.',
+    foldersHint: 'Les dossiers ajoutés avec « Ajouter des dossiers… » dans la bibliothèque. La resynchronisation les parcourt à nouveau.',
     noFolders: 'Aucun dossier pour le moment : ajoutez-en un depuis la page Bibliothèque.',
     removeFolder: 'Oublier ce dossier',
     unlinkedFolders: 'Dossiers à localiser',

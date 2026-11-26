@@ -3,7 +3,7 @@ export default {
   openComic: 'Open a comic',
   comicFiles: 'Comics and PDF',
   addFile: 'Add a comic',
-  addFolder: 'Add a comics folder',
+  addFolders: 'Add comics folders',
   chooseDatabaseFolder: 'Choose the database folder',
   chooseOrganizationFolder: 'Choose the organized library folder',
   relinkFolder: 'Where is the folder “{{folder}}” on this computer?',

@@ -3,7 +3,14 @@ export default {
   title: 'Library',
   intro: 'Digital comics manager and reader.',
   addFile: 'Add a file',
-  addFolder: 'Add a folder…',
+  addFolders: 'Add folders…',
+  addFoldersTitle: 'Add these folders?',
+  addFoldersIntro_one: 'This folder will be scanned, subfolders included.',
+  addFoldersIntro_other: 'These {{count}} folders will be scanned, subfolders included.',
+  addFoldersWatch: 'Watch these folders (resynchronization)',
+  addFoldersWatchHint:
+    'Checked, a resynchronization walks them again to find new comics. Unchecked, the comics are added like single files: nothing more is looked for in these folders, and a comic whose file disappears is removed from the library at the next resynchronization.',
+  addFoldersConfirm: 'Add',
   fileAdded: '“{{title}}” added to the library',
   fileExists: '“{{title}}” is already in the library',
   scanAdded_one: '{{count}} comic added from {{directory}}',
@@ -13,6 +20,11 @@ export default {
   scanFailed_one: '{{count}} unreadable',
   scanFailed_other: '{{count}} unreadable',
   scanNoneFound: 'No comics found in {{directory}}',
+  scanAddedFolders_one: '{{count}} comic added from {{folders}} folders',
+  scanAddedFolders_other: '{{count}} comics added from {{folders}} folders',
+  scanNoneFoundFolders: 'No comics found in these {{folders}} folders',
+  // The label of the progress while several folders are added: which one is being scanned.
+  scanFolderLabel: 'Folder {{index}}/{{count}}: {{name}}',
   // The folder addition was stopped from its progress bar: the comics found later were not looked at.
   scanStopped: 'Scan stopped before the end',
   organizeMoved_one: '{{count}} moved to the organized folder',

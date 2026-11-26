@@ -8,6 +8,7 @@ import {
   MAX_COVER_BYTES,
   type AddFileResult,
   type ImageScanProgress,
+  type PickFoldersResult,
   type PickOrganizationFolderResult,
   type RelinkFolderResult,
   type ScanProgress,
@@ -24,6 +25,7 @@ import type { ImageStatsScanner } from '../services/image-stats-scanner';
 import type { CbrConverter } from '../services/cbr-conversion';
 import type { Deflate64Converter } from '../services/deflate64-conversion';
 import type { FolderCleaner } from '../services/folder-cleanup';
+import { normalizeFolders } from '../services/folder-selection';
 import { addFolderToLibrary } from '../services/library-add-folder';
 import type { LibraryCleaner } from '../services/library-cleanup';
 import type { LibraryRemover } from '../services/library-removal';
@@ -36,6 +38,7 @@ import { lastOpenedDirectory } from './comic';
 import type { NotifyDataChange } from './data-changes';
 import { existingDirectory, openDialogFor } from './dialogs';
 import { handle } from './handle';
+import { PickedFolders } from './picked-folders';
 import {
   MAX_PATH_LENGTH,
   args,
@@ -48,14 +51,16 @@ import {
   expectStringArray,
   idArg,
   pageIndexArg,
+  tokenArg,
 } from './validate';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const LIBRARY_CHANNELS = {
   list: 'library:list',
   addFile: 'library:add-file',
-  addFolder: 'library:add-folder',
-  /** Main → renderer, while `addFolder` runs. */
+  pickFolders: 'library:pick-folders',
+  addFolders: 'library:add-folders',
+  /** Main → renderer, while `addFolders` runs. */
   scanProgress: 'library:scan-progress',
   remove: 'library:remove',
   removeMany: 'library:remove-many',
@@ -177,6 +182,8 @@ export function registerLibraryIpc({
   activeUser,
   startupOrganization,
 }: LibraryIpcDependencies): void {
+  /** The folders of a dialog waiting for its confirmation (`pickFolders`, then `addFolders`). */
+  const pickedFolders = new PickedFolders();
   /** Announces the new state of entries a handler just wrote (the ones that still exist). */
   const notifyUpserted = (...ids: string[]) => {
     const upserted = ids.flatMap((id) => repo.get(id) ?? []);
@@ -228,21 +235,36 @@ export function registerLibraryIpc({
     }
   });
 
-  handle(LIBRARY_CHANNELS.addFolder, args(), async (event): Promise<ScanResult> => {
+  // First step of adding folders: the native dialog (several folders), whose answer stays here. The renderer only gets
+  // the names to confirm and a token; it sends the token back, with the watch choice, to `addFolders`.
+  handle(LIBRARY_CHANNELS.pickFolders, args(), async (event): Promise<PickFoldersResult> => {
     const options: Electron.OpenDialogOptions = {
-      title: t('dialogs:addFolder'),
-      properties: ['openDirectory'],
-      // Where the previous folder was added, when it is still there.
+      title: t('dialogs:addFolders'),
+      properties: ['openDirectory', 'multiSelections'],
+      // Where the previous folders were added, when it is still there.
       defaultPath: await existingDirectory(settingsRepo.getAll().lastScanFolder),
     };
     const { canceled, filePaths } = await openDialogFor(event, options);
-    if (canceled || filePaths.length === 0) {
+    // The same list the addition scans, so the confirmation shows what will happen.
+    const picked = normalizeFolders(filePaths);
+    if (canceled || picked.length === 0) {
       return { status: 'cancelled' };
     }
+    return {
+      status: 'ok',
+      token: pickedFolders.add(picked),
+      folders: picked.map((folder) => ({ name: path.basename(folder) || folder, path: folder })),
+    };
+  });
 
+  handle(LIBRARY_CHANNELS.addFolders, args(tokenArg, booleanArg), async (event, token, watch): Promise<ScanResult> => {
+    // An unknown, expired or already used token: nothing was picked, nothing to add.
+    const picked = pickedFolders.take(token);
+    if (!picked) return { status: 'cancelled' };
     return addFolderToLibrary(
       { repo, folders, settings: settingsRepo, decoder, notify, imageScanner, organizer, activeUser },
-      filePaths[0],
+      picked,
+      { watch },
       scanProgressTo(event),
     );
   });
