@@ -6,7 +6,7 @@ import { useMemo, useState } from 'react';
 
 import { availableLanguages, availableTags, filterEntries, type LibraryFilters } from '@/lib/library-filter';
 import { collapseEditions, editionGroups } from '@/lib/library-editions';
-import { groupBySeries, ungroupedRows, type LibraryRow } from '@/lib/library-groups';
+import { groupBySeries, missingVolumesBySeries, ungroupedRows, type LibraryRow } from '@/lib/library-groups';
 import { sortEntries } from '@/lib/library-sort';
 import { QUICK_TAGS } from '@/lib/reading-list';
 import type { LibraryEntry } from '@/shared/library';
@@ -47,9 +47,12 @@ export function useLibraryRows(
   const tags = useMemo(() => availableTags(entries, QUICK_TAGS), [entries]);
   const languages = useMemo(() => availableLanguages(entries), [entries]);
   const [collapsedSeries, setCollapsedSeries] = useState<ReadonlySet<string>>(() => new Set());
+  // The gaps come from the whole library, so a filter hiding a volume doesn't report it as missing;
+  // computed once per library change, not on each keystroke of the search.
+  const missing = useMemo(() => (grouped ? missingVolumesBySeries(entries) : new Map<string, number[]>()), [grouped, entries]);
   const rows = useMemo(
-    () => (grouped ? groupBySeries(visible, collapsedSeries) : ungroupedRows(sortEntries(visible, sort))),
-    [grouped, visible, collapsedSeries, sort],
+    () => (grouped ? groupBySeries(visible, collapsedSeries, missing) : ungroupedRows(sortEntries(visible, sort))),
+    [grouped, visible, collapsedSeries, missing, sort],
   );
   const toggleSeries = (key: string) =>
     setCollapsedSeries((current) => {

@@ -1,6 +1,7 @@
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+import { formatMissingVolumes } from '@/lib/missing-volumes';
 import { cn } from '@/lib/utils';
 import type { SeriesHeaderRow } from '@/lib/library-groups';
 
@@ -27,6 +28,7 @@ export function SeriesHeader({
   const { t } = useTranslation('library');
   const name = row.series ?? t('noSeries');
   const Chevron = row.collapsed ? ChevronRight : ChevronDown;
+  const missing = formatMissingVolumes(row.missing);
   return (
     <li
       ref={ref}
@@ -59,6 +61,16 @@ export function SeriesHeader({
         <span className="ml-auto shrink-0 text-xs text-muted-foreground">
           {t('seriesProgress', { finished: row.finished, count: row.count })}
         </span>
+        {row.missing.length > 0 && (
+          <span
+            title={t('seriesMissingHint', { list: missing.full })}
+            className="min-w-0 shrink truncate text-xs text-muted-foreground"
+          >
+            {missing.hidden > 0
+              ? t('seriesMissingMore', { list: missing.shown, count: missing.hidden })
+              : t('seriesMissing', { list: missing.shown })}
+          </span>
+        )}
       </button>
     </li>
   );
