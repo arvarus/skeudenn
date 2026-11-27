@@ -39,9 +39,11 @@ export interface ReaderControlsOptions {
  * - **Wheel**: while zoomed in, a scroll that can still pan the content is left alone; only once the
  *   pan hits the edge (or unzoomed, where there is no pan at all) does the wheel turn the page.
  *   `createWheelPager` keeps one trackpad swipe (many wheel events, plus the OS's inertia tail) to
- *   exactly one page turn. It lives in state, not inside the effect: `advance`/`retreat` change
- *   identity on every render, so the effect re-runs after each page turn and a fresh pager would
- *   forget the gesture in progress, letting its inertia turn the page again.
+ *   exactly one page turn. The pager lives in state, not in an effect, so nothing can reset it in
+ *   the middle of a gesture. The wheel and key listeners are attached once and call the latest
+ *   `advance`/`retreat` through a ref refreshed by a layout effect: re-attaching them from a passive
+ *   effect on each render left a window after the commit in which an event met the previous render's
+ *   (stale) `advance` and the turn was lost.
  * - **Keys**: `pageTurnForKey()`.
  * - **Scroll edge**: after a turn, zoomed content starts at its top (forward) or bottom (backward)
  *   edge instead of keeping the previous page's scroll position; another book opens at the top (the
@@ -79,13 +81,24 @@ export function useReaderControls({
   }, [containerRef, ready]);
 
   const [pager] = useState(createWheelPager);
+  // The listeners below are attached once and read the latest options through this ref, which a layout
+  // effect refreshes in the very commit that changes them. Re-attaching them from a passive effect
+  // instead left a window between the commit (the new spread is on screen) and the effect's flush,
+  // where a wheel or a key reached the previous render's listener: its `advance` was closed over the
+  // previous spread (none, while the pages loaded), so the turn was silently lost.
+  const latest = useRef({ advance, retreat, scrollDirection, zoomed });
+  useLayoutEffect(() => {
+    latest.current = { advance, retreat, scrollDirection, zoomed };
+  });
+
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const inverted = scrollDirection === 'inverted';
 
     const onWheel = (event: WheelEvent) => {
       if (event.deltaY === 0) return;
+      const { advance, retreat, scrollDirection, zoomed } = latest.current;
+      const inverted = scrollDirection === 'inverted';
       // Fed even for events that only pan, so a swipe that pans up to the edge doesn't
       // then turn the page with its own inertia: that takes a new gesture.
       const step = pager(event.deltaY, event.timeStamp);
@@ -108,17 +121,17 @@ export function useReaderControls({
 
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [containerRef, zoomed, scrollDirection, advance, retreat, pager]);
+  }, [containerRef, pager]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const turn = pageTurnForKey(event);
       if (turn === null) return;
       event.preventDefault();
-      if (turn === 'advance') advance();
-      else retreat();
+      if (turn === 'advance') latest.current.advance();
+      else latest.current.retreat();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [advance, retreat]);
+  }, []);
 }

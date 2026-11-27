@@ -105,6 +105,21 @@ async function showing(...alts: string[]) {
   await waitFor(() => expect(shown()).toEqual(alts));
 }
 
+/**
+ * Resolves in the microtask that follows the commit showing these pages, before React flushes the
+ * passive effects of that commit: the earliest moment a user (or a test) can act on the spread.
+ */
+function shownAtCommit(...alts: string[]) {
+  return new Promise<void>((resolve) => {
+    const observer = new MutationObserver(() => {
+      if (JSON.stringify(shown()) !== JSON.stringify(alts)) return;
+      observer.disconnect();
+      resolve();
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  });
+}
+
 const button = (name: string) => screen.getByRole('button', { name });
 
 describe('BookReader layout', () => {
@@ -301,6 +316,23 @@ describe('BookReader navigation', () => {
     await showing('Page 4', 'Page 5');
     fireEvent.wheel(screen.getByRole('region', { name: 'Pages' }), { deltaY: 100 });
     await showing('Page 2', 'Page 3');
+  });
+
+  // The wheel and key listeners used to be re-attached by a passive effect, so an event between the
+  // commit that showed the spread and that effect met the previous render's `advance`, which knew no
+  // spread yet and did nothing: the turn was lost (it made the two wheel tests above flaky under load).
+  it('turns with a wheel fired as soon as the spread is on screen', async () => {
+    renderReader({ startPage: 3 });
+    await shownAtCommit('Page 4', 'Page 5');
+    fireEvent.wheel(screen.getByRole('region', { name: 'Pages' }), { deltaY: 100 });
+    await showing('Page 6', 'Page 7');
+  });
+
+  it('turns with a key pressed as soon as the spread is on screen', async () => {
+    renderReader({ startPage: 3 });
+    await shownAtCommit('Page 4', 'Page 5');
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    await showing('Page 6', 'Page 7');
   });
 
   it('lets a zoomed spread scroll before the wheel turns it', async () => {
