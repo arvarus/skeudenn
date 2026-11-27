@@ -40,7 +40,7 @@ function ProfileForm({ user }: { user: UserProfile }) {
   const saveNickname = async () => {
     setBusy(true);
     try {
-      const result = await window.tankobon.users.rename(nickname);
+      const result = await window.skeudenn.users.rename(nickname);
       setMessage(result.status === 'ok' ? { kind: 'ok', text: t('saved') } : { kind: 'error', text: result.message });
     } finally {
       setBusy(false);
@@ -50,7 +50,7 @@ function ProfileForm({ user }: { user: UserProfile }) {
   const chooseImage = async () => {
     setBusy(true);
     try {
-      const picked = await window.tankobon.users.pickAvatar();
+      const picked = await window.skeudenn.users.pickAvatar();
       if (picked.status === 'cancelled') return;
       if (picked.status === 'error') {
         setMessage({ kind: 'error', text: picked.message });
@@ -63,7 +63,7 @@ function ProfileForm({ user }: { user: UserProfile }) {
         setMessage({ kind: 'error', text: t('imageError') });
         return;
       }
-      const result = await window.tankobon.users.setAvatar(small);
+      const result = await window.skeudenn.users.setAvatar(small);
       setMessage(result.status === 'ok' ? { kind: 'ok', text: t('saved') } : { kind: 'error', text: result.message });
     } finally {
       setBusy(false);
@@ -73,7 +73,7 @@ function ProfileForm({ user }: { user: UserProfile }) {
   const removeImage = async () => {
     setBusy(true);
     try {
-      await window.tankobon.users.removeAvatar();
+      await window.skeudenn.users.removeAvatar();
       setMessage(null);
     } finally {
       setBusy(false);
@@ -89,7 +89,7 @@ function ProfileForm({ user }: { user: UserProfile }) {
     if (!confirmed) return;
     setBusy(true);
     try {
-      const result = await window.tankobon.users.remove();
+      const result = await window.skeudenn.users.remove();
       if (result.status === 'error') setMessage({ kind: 'error', text: result.message });
       // The app is now on another user: the page shown belonged to the deleted one.
       else void navigate({ to: '/' });
@@ -173,7 +173,7 @@ function ReadingHistory() {
 
   useEffect(() => {
     let cancelled = false;
-    void window.tankobon.stats.history().then((history) => {
+    void window.skeudenn.stats.history().then((history) => {
       if (!cancelled) setEntries(history);
     });
     return () => {
@@ -188,7 +188,7 @@ function ReadingHistory() {
       action: t('confirmAction'),
     });
     if (!confirmed) return;
-    await window.tankobon.stats.clearHistory();
+    await window.skeudenn.stats.clearHistory();
     setEntries([]);
   };
 

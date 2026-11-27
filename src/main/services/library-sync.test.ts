@@ -17,7 +17,7 @@ afterEach(async () => {
 });
 
 async function tree(files: string[]): Promise<string> {
-  const root = await mkdtemp(path.join(tmpdir(), 'tankobon-sync-'));
+  const root = await mkdtemp(path.join(tmpdir(), 'skeudenn-sync-'));
   roots.push(root);
   for (const file of files) {
     const fullPath = path.join(root, file);
@@ -114,7 +114,7 @@ describe('resyncLibrary', () => {
   });
 
   it('skips a folder that cannot be read instead of emptying it', async () => {
-    const missingRoot = path.join(tmpdir(), 'tankobon-sync-unplugged');
+    const missingRoot = path.join(tmpdir(), 'skeudenn-sync-unplugged');
     const repo = repository();
     repo.register(path.join(missingRoot, 'a.cbz'), 'a', 10, 10, 0);
 

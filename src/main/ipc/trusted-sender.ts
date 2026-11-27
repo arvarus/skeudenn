@@ -1,7 +1,7 @@
 /**
  * Which pages may call the IPC handlers: the application's own page, in its main frame, and nothing
  * else. The window can't navigate elsewhere (see `main.ts`), so this is defence in depth: should a
- * foreign page or a sub-frame ever load, `window.tankobon` still couldn't reach the main process.
+ * foreign page or a sub-frame ever load, `window.skeudenn` still couldn't reach the main process.
  * @module
  */
 import type { IpcMainInvokeEvent } from 'electron';

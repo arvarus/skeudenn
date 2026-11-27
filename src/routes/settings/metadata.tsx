@@ -21,7 +21,7 @@ function MetadataSettingsPage() {
 
   useEffect(() => {
     let cancelled = false;
-    void window.tankobon.settings.getApiKeys().then((keys) => {
+    void window.skeudenn.settings.getApiKeys().then((keys) => {
       if (!cancelled) setApiKeys(keys);
     });
     return () => {
@@ -31,7 +31,7 @@ function MetadataSettingsPage() {
 
   const updateApiKey = (key: ApiKeySetting, value: string) => {
     setApiKeys((keys) => (keys ? { ...keys, [key]: value } : keys));
-    void window.tankobon.settings.set(key, value);
+    void window.skeudenn.settings.set(key, value);
   };
 
   return (

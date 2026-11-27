@@ -12,7 +12,7 @@ import type { DatabaseLocation } from '../../shared/data';
 import { t } from '../../shared/i18n';
 
 /** Name of the database file unless the user chose another. */
-export const DEFAULT_DB_FILE_NAME = 'tankobon.db';
+export const DEFAULT_DB_FILE_NAME = 'skeudenn.db';
 /** Longest file name accepted, extension included. */
 export const MAX_DB_FILE_NAME_LENGTH = 100;
 const POINTER_FILE_NAME = 'db-location.json';
@@ -77,12 +77,12 @@ export function writeLocationPointer(userDataDir: string, directory: string | nu
   writePointer(userDataDir, { ...readPointer(userDataDir), directory });
 }
 
-/** Names the database file `fileName` (as returned by {@link normalizeDatabaseFileName}), or `tankobon.db` when given null. The directory is kept. */
+/** Names the database file `fileName` (as returned by {@link normalizeDatabaseFileName}), or `skeudenn.db` when given null. The directory is kept. */
 export function writeFileNamePointer(userDataDir: string, fileName: string | null): void {
   writePointer(userDataDir, { ...readPointer(userDataDir), fileName });
 }
 
-/** The database location the pointer file designates: its directory (else `userData` itself) and its file name (else `tankobon.db`). */
+/** The database location the pointer file designates: its directory (else `userData` itself) and its file name (else `skeudenn.db`). */
 export function resolveDatabaseLocation(userDataDir: string): DatabaseLocation {
   const pointer = readPointer(userDataDir);
   const directory = pointer.directory ?? userDataDir;

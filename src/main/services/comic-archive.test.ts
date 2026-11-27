@@ -52,7 +52,7 @@ describe('readWholeFile', () => {
     await Promise.all(directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
   });
   async function fileOf(size: number): Promise<string> {
-    const directory = await mkdtemp(path.join(tmpdir(), 'tankobon-whole-file-'));
+    const directory = await mkdtemp(path.join(tmpdir(), 'skeudenn-whole-file-'));
     directories.push(directory);
     const file = path.join(directory, 'book.cbr');
     await writeFile(file, Buffer.alloc(size));

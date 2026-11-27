@@ -27,7 +27,7 @@ export function UserMenu({ collapsed }: { collapsed: boolean }) {
   if (!state || !active) return null;
 
   const switchTo = async (id: string) => {
-    const result = await window.tankobon.users.switch(id).catch(() => null);
+    const result = await window.skeudenn.users.switch(id).catch(() => null);
     if (result?.status === 'ok') void navigate({ to: '/' });
   };
 

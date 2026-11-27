@@ -2,7 +2,7 @@
  * Converting the CBR of the organized library to CBZ. A RAR can't be rewritten, so the books in that
  * format miss the options that edit the archive (cleaning…). Each CBR of the organized folder is
  * written as a CBZ beside it, the entry follows (same id: progress, rating, tags and lists are kept)
- * and the CBR goes to `.deletedByTankobon` at the root of the organized folder, from where the user
+ * and the CBR goes to `.deletedBySkeudenn` at the root of the organized folder, from where the user
  * empties it when they want. Kept out of the IPC layer, which only calls it, so it runs under Vitest.
  * @module
  */
@@ -36,7 +36,7 @@ export interface ConversionDecoder {
 
 /** The conversion as the handlers use it; built once in `main.ts`. */
 export interface CbrConverter {
-  /** How many CBR of the organized folder can be converted, and what `.deletedByTankobon` holds. An error when the organization is off or its folder unreachable. */
+  /** How many CBR of the organized folder can be converted, and what `.deletedBySkeudenn` holds. An error when the organization is off or its folder unreachable. */
   count(): Promise<ConvertCountResult>;
   /**
    * Converts them one at a time, reporting each through `onProgress`. Holds the shared lock, whose `cancel()`
@@ -44,12 +44,12 @@ export interface CbrConverter {
    */
   convert(onProgress?: (progress: ScanProgress) => void): Promise<ConvertCbrResult>;
   /**
-   * Deletes everything in `.deletedByTankobon` for good, one item at a time, reporting each through `onProgress`.
+   * Deletes everything in `.deletedBySkeudenn` for good, one item at a time, reporting each through `onProgress`.
    * Holds the shared lock, whose `cancel()` stops it before its next item, with `cancelled` set.
    */
   emptyDeleted(onProgress?: (progress: ScanProgress) => void): Promise<EmptyDeletedResult>;
   /**
-   * Deletes for good what has been in `.deletedByTankobon` for `days` days or more (the automatic emptying).
+   * Deletes for good what has been in `.deletedBySkeudenn` for `days` days or more (the automatic emptying).
    * Does nothing, returning `null`, when the organization is off, the folder unreachable or another run holds the lock.
    * Holds the lock too, so `cancel()` stops it like `emptyDeleted()`.
    */

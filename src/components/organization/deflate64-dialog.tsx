@@ -31,7 +31,7 @@ export function Deflate64Dialog({ onClose }: ActionDialogProps) {
     setRunning('check');
     let answer: Deflate64CountResult;
     try {
-      answer = await run.start(() => window.tankobon.library.countDeflate64());
+      answer = await run.start(() => window.skeudenn.library.countDeflate64());
     } catch {
       setError(tCommon('run.failed'));
       return;
@@ -47,7 +47,7 @@ export function Deflate64Dialog({ onClose }: ActionDialogProps) {
     setRunning('convert');
     let answer: ConvertDeflate64Result;
     try {
-      answer = await run.start(() => window.tankobon.library.convertDeflate64());
+      answer = await run.start(() => window.skeudenn.library.convertDeflate64());
     } catch {
       setError(tCommon('run.failed'));
       return;

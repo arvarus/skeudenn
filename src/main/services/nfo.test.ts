@@ -84,7 +84,7 @@ describe('parseNfo on hostile input', () => {
 
 describe('readNfoFor', () => {
   async function dir(): Promise<string> {
-    const d = await mkdtemp(path.join(tmpdir(), 'tankobon-nfo-'));
+    const d = await mkdtemp(path.join(tmpdir(), 'skeudenn-nfo-'));
     dirs.push(d);
     return d;
   }
@@ -140,7 +140,7 @@ describe('writeNfo', () => {
   const base = { title: 'Un', series: null, volume: null, releaseDate: null, language: null, credits: [] };
 
   it('replaces the sidecar, leaving no temporary file', async () => {
-    const d = await mkdtemp(path.join(tmpdir(), 'tankobon-nfo-'));
+    const d = await mkdtemp(path.join(tmpdir(), 'skeudenn-nfo-'));
     dirs.push(d);
     const comic = path.join(d, 'Tome 1.cbz');
     await writeFile(nfoPathFor(comic), '<title>Ancien</title>');
@@ -150,7 +150,7 @@ describe('writeNfo', () => {
   });
 
   it('does not write through a symbolic link planted as the sidecar', async (ctx) => {
-    const d = await mkdtemp(path.join(tmpdir(), 'tankobon-nfo-'));
+    const d = await mkdtemp(path.join(tmpdir(), 'skeudenn-nfo-'));
     dirs.push(d);
     const comic = path.join(d, 'Tome 1.cbz');
     const precious = path.join(d, 'precious.txt');
@@ -171,7 +171,7 @@ describe('writeNfo', () => {
   });
 
   it('returns false when the folder is missing', async () => {
-    expect(await writeNfo({ ...base, path: path.join(tmpdir(), 'tankobon-nfo-none', 'a.cbz') })).toBe(false);
+    expect(await writeNfo({ ...base, path: path.join(tmpdir(), 'skeudenn-nfo-none', 'a.cbz') })).toBe(false);
   });
 });
 
@@ -179,7 +179,7 @@ describe('writeNfoIfMissing', () => {
   const base = { title: 'Un', series: null, volume: null, releaseDate: null, language: null, credits: [] };
 
   it('creates the sidecar, then never overwrites it', async () => {
-    const d = await mkdtemp(path.join(tmpdir(), 'tankobon-nfo-'));
+    const d = await mkdtemp(path.join(tmpdir(), 'skeudenn-nfo-'));
     dirs.push(d);
     const comic = path.join(d, 'Tome 1.cbz');
     expect(await writeNfoIfMissing({ ...base, path: comic })).toBe(true);
@@ -190,6 +190,6 @@ describe('writeNfoIfMissing', () => {
   });
 
   it('returns false when the folder is missing', async () => {
-    expect(await writeNfoIfMissing({ ...base, path: path.join(tmpdir(), 'tankobon-nfo-none', 'a.cbz') })).toBe(false);
+    expect(await writeNfoIfMissing({ ...base, path: path.join(tmpdir(), 'skeudenn-nfo-none', 'a.cbz') })).toBe(false);
   });
 });

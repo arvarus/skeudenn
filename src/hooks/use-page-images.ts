@@ -25,7 +25,7 @@ const EMPTY: PageImages = { images: new Map(), failed: new Set() };
 
 /** Reads page `page` of the open archive `comicId` and decodes it, to know its size. */
 async function readImage(comicId: string, page: number): Promise<PageImage> {
-  const { data, mimeType } = await window.tankobon.comic.readPage(comicId, page);
+  const { data, mimeType } = await window.skeudenn.comic.readPage(comicId, page);
   const url = URL.createObjectURL(new Blob([data], { type: mimeType }));
   try {
     const image = new Image();

@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { RemoveEntriesResult } from '@/shared/library';
 import { libraryEntry } from '@/test/fixtures';
 import { deferred, scanProgressChannel } from '@/test/runs';
-import { renderWithTankobon, type FakeTankobon } from '@/test/tankobon';
+import { renderWithSkeudenn, type FakeSkeudenn } from '@/test/skeudenn';
 import { DuplicatesDialog } from './duplicates-dialog';
 
 afterEach(cleanup);
@@ -13,10 +13,10 @@ afterEach(cleanup);
 const entries = [libraryEntry('keep', { title: 'Astérix' }), libraryEntry('copy', { title: 'Astérix' }), libraryEntry('alone', { title: 'Tintin' })];
 
 /** Opens the dialog on `entries` and runs the search. */
-function search(library: FakeTankobon['library'] = {}) {
+function search(library: FakeSkeudenn['library'] = {}) {
   const channel = scanProgressChannel();
   const set = vi.fn(async () => undefined);
-  renderWithTankobon(<DuplicatesDialog entries={entries} onClose={vi.fn()} />, {
+  renderWithSkeudenn(<DuplicatesDialog entries={entries} onClose={vi.fn()} />, {
     library: { onScanProgress: channel.onScanProgress, ...library },
     settings: { set: set as never },
   });
@@ -44,7 +44,7 @@ describe('DuplicatesDialog', () => {
   });
 
   it('says so when there is no duplicate', async () => {
-    renderWithTankobon(<DuplicatesDialog entries={[libraryEntry('alone')]} onClose={vi.fn()} />);
+    renderWithSkeudenn(<DuplicatesDialog entries={[libraryEntry('alone')]} onClose={vi.fn()} />);
     fireEvent.click(screen.getByRole('button', { name: 'Rechercher' }));
     expect(await screen.findByText('Aucun doublon trouvé.')).toBeTruthy();
   });

@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { i18n } from '@/shared/i18n';
 import type { ScanProgress } from '@/shared/library';
 import { deferred } from '@/test/runs';
-import { renderWithTankobon } from '@/test/tankobon';
+import { renderWithSkeudenn } from '@/test/skeudenn';
 import { ScanProgressBar } from './scan-progress-bar';
 
 afterEach(cleanup);
@@ -22,7 +22,7 @@ describe('ScanProgressBar', () => {
   it('stops the run from its button, which says it is stopping until the run ends', () => {
     const cancelRun = vi.fn(async () => true);
     const onClose = vi.fn();
-    const { rerender } = renderWithTankobon(<ScanProgressBar progress={importing} onClose={onClose} />, {
+    const { rerender } = renderWithSkeudenn(<ScanProgressBar progress={importing} onClose={onClose} />, {
       library: { cancelRun },
     });
     expect(screen.queryByRole('button', { name: 'Fermer' })).toBeNull();
@@ -46,7 +46,7 @@ describe('ScanProgressBar', () => {
 
   it('gives the button back when there was nothing left to stop', async () => {
     const answer = deferred<boolean>();
-    renderWithTankobon(<ScanProgressBar progress={importing} onClose={() => undefined} />, {
+    renderWithSkeudenn(<ScanProgressBar progress={importing} onClose={() => undefined} />, {
       library: { cancelRun: () => answer.promise },
     });
 

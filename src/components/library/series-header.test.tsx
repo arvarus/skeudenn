@@ -3,7 +3,7 @@ import { cleanup, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import type { SeriesHeaderRow } from '@/lib/library-groups';
-import { renderWithTankobon } from '@/test/tankobon';
+import { renderWithSkeudenn } from '@/test/skeudenn';
 import { SeriesHeader } from './series-header';
 
 afterEach(cleanup);
@@ -23,7 +23,7 @@ function heading(overrides: Partial<SeriesHeaderRow> = {}): SeriesHeaderRow {
 }
 
 function show(row: SeriesHeaderRow) {
-  return renderWithTankobon(
+  return renderWithSkeudenn(
     <ul>
       <SeriesHeader row={row} ref={() => undefined} index={0} start={0} onToggle={() => undefined} selectedCount={0} onSelect={() => undefined} />
     </ul>,

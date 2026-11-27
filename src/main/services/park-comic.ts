@@ -1,27 +1,27 @@
 /**
  * Parking a comic removed from the library without deleting it. A file left in place would be added
- * back by the next resynchronization, so it goes to a `.deletedByTankobon` folder (which the walk skips)
+ * back by the next resynchronization, so it goes to a `.deletedBySkeudenn` folder (which the walk skips)
  * with its cover and `.nfo`: at the root of the organized folder when the comic is inside it (where the
  * user empties it), else beside the comic. Free of Electron, so it runs under Vitest.
  * @module
  */
 import path from 'node:path';
 
-import { DELETED_BY_TANKOBON_FOLDER } from '../../shared/library';
+import { DELETED_BY_SKEUDENN_FOLDER } from '../../shared/library';
 import { isInside } from '../path-containment';
 import { coverSidecarPath } from './cover-sidecar';
 import { moveFile } from './library-organizer';
 import { nfoPathFor } from './nfo';
 import { firstFreeName, markParked, pathExists, requireTrashFolder } from './organized-folder';
 
-/** The folder holding the `.deletedByTankobon` folder a comic goes to: the organized folder when the comic lives there, else its own folder. */
+/** The folder holding the `.deletedBySkeudenn` folder a comic goes to: the organized folder when the comic lives there, else its own folder. */
 function parkingBase(comicPath: string, organizedRoot: string): string {
   return organizedRoot !== '' && isInside(organizedRoot, comicPath) ? organizedRoot : path.dirname(comicPath);
 }
 
-/** The `.deletedByTankobon` folder a comic goes to: the organized folder's when it lives there, else its own folder's. */
+/** The `.deletedBySkeudenn` folder a comic goes to: the organized folder's when it lives there, else its own folder's. */
 export function parkingFolder(comicPath: string, organizedRoot: string): string {
-  return path.join(parkingBase(comicPath, organizedRoot), DELETED_BY_TANKOBON_FOLDER);
+  return path.join(parkingBase(comicPath, organizedRoot), DELETED_BY_SKEUDENN_FOLDER);
 }
 
 /**

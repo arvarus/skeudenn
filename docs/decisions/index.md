@@ -27,13 +27,14 @@ An ADR records one structural decision: the context, what was decided, and what 
 | [0021](./0021-metadata-lookup-dialog-rework.md) | Metadata lookup dialog: explicit search, more page sources, saved to the `.nfo` | Accepted |
 | [0022](./0022-per-user-library-folders-and-settings-groups.md) | Watched folders per user, and settings split in two groups | Accepted |
 | [0023](./0023-clean-books-rewrite-cbz.md) | Cleaning the books by rewriting the CBZ archives | Accepted |
-| [0024](./0024-database-backups.md) | Database backups in a `.tankobon` folder, restored at start-up | Accepted |
+| [0024](./0024-database-backups.md) | Database backups in a `.skeudenn` folder, restored at start-up | Accepted |
 | [0025](./0025-convert-cbr-to-cbz.md) | Converting the CBR of the organized library to CBZ | Accepted |
 | [0029](./0029-rewrite-deflate64-cbz.md) | Rewriting the Deflate64 CBZ with standard compression | Accepted |
 | [0026](./0026-bedetheque-series-search.md) | Bédéthèque: finding the album from the series name | Accepted |
 | [0027](./0027-cheaper-library-reloads.md) | Cheaper library reloads: deltas and projections before SQL search | Proposed |
 | [0028](./0028-separate-background-decoder-process.md) | A second decoder process for background work, the reader keeps its own | Proposed |
 | [0030](./0030-stopping-library-runs-through-the-lock.md) | Stopping every run over the library files through the run lock | Accepted |
+| [0031](./0031-full-rename-to-skeudenn.md) | Full rename to Skeudenn, without migration | Accepted |
 
 These first four ADRs were written after the fact, from the code and its comments, then checked by the maintainer.
 

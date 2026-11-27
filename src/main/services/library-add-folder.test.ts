@@ -23,7 +23,7 @@ afterEach(async () => {
 });
 
 async function folderWith(files: string[]): Promise<string> {
-  const root = await mkdtemp(path.join(tmpdir(), 'tankobon-add-folder-'));
+  const root = await mkdtemp(path.join(tmpdir(), 'skeudenn-add-folder-'));
   roots.push(root);
   for (const file of files) await writeFile(path.join(root, file), '');
   return root;

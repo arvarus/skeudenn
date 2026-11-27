@@ -5,7 +5,7 @@
 
 ## Context
 
-[ADR 0001](./0001-electron-process-isolation.md) isolates the renderer, but everything it sends over `window.tankobon` still reaches handlers that trusted the TypeScript types of `TankobonApi`. Types don't exist at run time: a buggy or compromised renderer could call `library.updateTags(id, null)` (stored as the string `"null"`, which then crashed the library page), `comic.open()` on any path of the disk, or `settings.set()` with any key and value. The JSON import had the same weakness for settings (`readingMode: "webtoon"`, `pageSpacing: -400` were accepted since only the `typeof` was checked). And `settings:get-all` handed the metadata API keys to every view.
+[ADR 0001](./0001-electron-process-isolation.md) isolates the renderer, but everything it sends over `window.skeudenn` still reaches handlers that trusted the TypeScript types of `SkeudennApi`. Types don't exist at run time: a buggy or compromised renderer could call `library.updateTags(id, null)` (stored as the string `"null"`, which then crashed the library page), `comic.open()` on any path of the disk, or `settings.set()` with any key and value. The JSON import had the same weakness for settings (`readingMode: "webtoon"`, `pageSpacing: -400` were accepted since only the `typeof` was checked). And `settings:get-all` handed the metadata API keys to every view.
 
 ## Decision
 

@@ -18,7 +18,7 @@ describe('createDeflate64Converter', () => {
   let repo: LibraryRepository;
 
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'tankobon-deflate64-conversion-'));
+    dir = await mkdtemp(join(tmpdir(), 'skeudenn-deflate64-conversion-'));
     const db = new DatabaseSync(':memory:');
     migrate(db);
     repo = new LibraryRepository(db);

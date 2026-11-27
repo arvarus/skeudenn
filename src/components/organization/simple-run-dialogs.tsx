@@ -15,13 +15,13 @@ export function OrganizeAllDialog({ onClose }: ActionDialogProps) {
     <CountedRunDialog
       title={t('actions.organizeAll.title')}
       description={t('organizeAllHint')}
-      count={() => window.tankobon.library.countUnorganized()}
+      count={() => window.skeudenn.library.countUnorganized()}
       intro={({ count, folder }) =>
         count === 0 ? { text: t('organizeAllNone'), ready: false } : { text: t('organizeAllCount', { count, folder }), ready: true }
       }
       startLabel={t('organizeAllAction')}
       progressLabel={t('organizeAllRunning')}
-      start={() => window.tankobon.library.organizeAll()}
+      start={() => window.skeudenn.library.organizeAll()}
       report={(result) => ({
         summary: [t('organizeAllDone', { count: result.moved })],
         problems: result.failed > 0 ? [t('organizeAllFailed', { count: result.failed })] : [],
@@ -38,13 +38,13 @@ export function ConvertCbrDialog({ onClose }: ActionDialogProps) {
     <CountedRunDialog
       title={t('actions.convertCbr.title')}
       description={t('convertCbrHint')}
-      count={() => window.tankobon.library.countConvertible()}
+      count={() => window.skeudenn.library.countConvertible()}
       intro={({ count, folder }) =>
         count === 0 ? { text: t('convertCbrNone'), ready: false } : { text: t('convertCbrCount', { count, folder }), ready: true }
       }
       startLabel={t('convertCbrAction')}
       progressLabel={t('convertCbrRunning')}
-      start={() => window.tankobon.library.convertCbr()}
+      start={() => window.skeudenn.library.convertCbr()}
       report={(result) => ({
         summary: [t('convertCbrDone', { count: result.converted })],
         problems: result.failed > 0 ? [t('convertCbrFailed', { count: result.failed })] : [],
@@ -54,14 +54,14 @@ export function ConvertCbrDialog({ onClose }: ActionDialogProps) {
   );
 }
 
-/** "Vider le dossier .deletedByTankobon": deletes its content for good, the intro saying so before anything starts. */
+/** "Vider le dossier .deletedBySkeudenn": deletes its content for good, the intro saying so before anything starts. */
 export function EmptyDeletedDialog({ onClose }: ActionDialogProps) {
   const { t } = useTranslation('settings', { keyPrefix: 'library' });
   return (
     <CountedRunDialog
       title={t('actions.emptyDeleted.title')}
       description={t('emptyDeletedHint')}
-      count={() => window.tankobon.library.countConvertible()}
+      count={() => window.skeudenn.library.countConvertible()}
       intro={({ deletedFiles, deletedBytes }) =>
         deletedFiles === 0
           ? { text: t('emptyDeletedNone'), ready: false }
@@ -69,7 +69,7 @@ export function EmptyDeletedDialog({ onClose }: ActionDialogProps) {
       }
       startLabel={t('emptyDeletedAction')}
       progressLabel={t('emptyDeletedRunning')}
-      start={() => window.tankobon.library.emptyDeleted()}
+      start={() => window.skeudenn.library.emptyDeleted()}
       report={(result) => ({
         summary: [t('emptyDeletedDone', { count: result.deleted, size: formatFileSize(result.bytesFreed) })],
         problems: result.failed > 0 ? [t('emptyDeletedFailed', { count: result.failed })] : [],
@@ -79,20 +79,20 @@ export function EmptyDeletedDialog({ onClose }: ActionDialogProps) {
   );
 }
 
-/** "Nettoyer les dossiers": moves the orphan folders of the organized folder to `.deletedByTankobon`. */
+/** "Nettoyer les dossiers": moves the orphan folders of the organized folder to `.deletedBySkeudenn`. */
 export function CleanFoldersDialog({ onClose }: ActionDialogProps) {
   const { t } = useTranslation('settings', { keyPrefix: 'library' });
   return (
     <CountedRunDialog
       title={t('actions.cleanFolders.title')}
       description={t('cleanFoldersHint')}
-      count={() => window.tankobon.library.countOrphanFolders()}
+      count={() => window.skeudenn.library.countOrphanFolders()}
       intro={({ count, folder }) =>
         count === 0 ? { text: t('cleanFoldersNone'), ready: false } : { text: t('cleanFoldersCount', { count, folder }), ready: true }
       }
       startLabel={t('cleanFoldersAction')}
       progressLabel={t('cleanFoldersRunning')}
-      start={() => window.tankobon.library.cleanFolders()}
+      start={() => window.skeudenn.library.cleanFolders()}
       report={(result) => ({
         summary: [t('cleanFoldersDone', { count: result.moved })],
         problems: result.failed > 0 ? [t('cleanFoldersFailed', { count: result.failed })] : [],

@@ -26,12 +26,12 @@ export function NewUserDialog({ open, onOpenChange }: { open: boolean; onOpenCha
     setBusy(true);
     setError(null);
     try {
-      const created = await window.tankobon.users.create(nickname);
+      const created = await window.skeudenn.users.create(nickname);
       if (created.status === 'error') {
         setError(created.message);
         return;
       }
-      const switched = await window.tankobon.users.switch(created.user.id);
+      const switched = await window.skeudenn.users.switch(created.user.id);
       if (switched.status === 'error') {
         setError(switched.message);
         return;

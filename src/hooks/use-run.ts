@@ -50,7 +50,7 @@ export function useRun({ resync = false, cancel }: RunOptions = {}): Run {
 
   useEffect(() => {
     mounted.current = true;
-    const unsubscribe = window.tankobon.library.onScanProgress((p) => {
+    const unsubscribe = window.skeudenn.library.onScanProgress((p) => {
       if (!armed.current || Boolean(p.step) !== resync) return;
       setProgress(p.phase === 'done' ? null : p);
     });
@@ -79,7 +79,7 @@ export function useRun({ resync = false, cancel }: RunOptions = {}): Run {
 
   const stop = useCallback(() => {
     setStopping(true);
-    const library = window.tankobon.library;
+    const library = window.skeudenn.library;
     const request = cancel ?? (() => (resync ? library.cancelResync() : library.cancelRun()));
     // False when the step ended meanwhile: its answer is on its way.
     void request()

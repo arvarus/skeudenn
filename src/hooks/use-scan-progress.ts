@@ -15,11 +15,11 @@ export function useScanProgress(): ScanProgress | null {
   const [progress, setProgress] = useState<ScanProgress | null>(null);
   useEffect(() => {
     let pushed = false;
-    const unsubscribe = window.tankobon.library.onScanProgress((p) => {
+    const unsubscribe = window.skeudenn.library.onScanProgress((p) => {
       pushed = true;
       setProgress(p.phase === 'done' ? null : p);
     });
-    void window.tankobon.library.resyncStatus().then((status) => {
+    void window.skeudenn.library.resyncStatus().then((status) => {
       if (!pushed) setProgress(status);
     });
     return unsubscribe;

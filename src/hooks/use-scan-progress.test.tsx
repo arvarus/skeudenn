@@ -8,7 +8,7 @@ import { useScanProgress } from './use-scan-progress';
 const step = { index: 2, count: 4, name: 'covers', folder: '' } as const;
 const atLaunch: ScanProgress = { phase: 'importing', processed: 3, total: 10, currentFile: '/bd/a.cbz', step };
 
-/** A stand-in for `window.tankobon.library`: `push` plays the main process sending a progress. */
+/** A stand-in for `window.skeudenn.library`: `push` plays the main process sending a progress. */
 function installApi(status: Promise<ScanProgress | null>) {
   let listener: ((progress: ScanProgress) => void) | null = null;
   const library = {
@@ -20,7 +20,7 @@ function installApi(status: Promise<ScanProgress | null>) {
     }),
     resyncStatus: vi.fn(() => status),
   };
-  Object.assign(window, { tankobon: { library } });
+  Object.assign(window, { skeudenn: { library } });
   return { push: (progress: ScanProgress) => listener?.(progress), library };
 }
 

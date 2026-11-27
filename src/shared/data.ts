@@ -8,13 +8,13 @@
 export interface DatabaseLocation {
   /** Directory holding the database file. */
   directory: string;
-  /** Name of the database file inside {@link directory} (`tankobon.db` unless the user chose another). */
+  /** Name of the database file inside {@link directory} (`skeudenn.db` unless the user chose another). */
   fileName: string;
   /** Full path of the database file itself, for display. */
   filePath: string;
   /** Whether that's Electron's `userData` directory, i.e. the app's default location. */
   isDefault: boolean;
-  /** Whether the file has the default name, `tankobon.db`. */
+  /** Whether the file has the default name, `skeudenn.db`. */
   isDefaultFileName: boolean;
 }
 
@@ -24,9 +24,9 @@ export type DatabaseLocationResult =
   | { status: 'changed'; location: DatabaseLocation }
   | { status: 'error'; message: string };
 
-/** A copy of the database kept in the `.tankobon` directory beside it. */
+/** A copy of the database kept in the `.skeudenn` directory beside it. */
 export interface BackupInfo {
-  /** File name inside the backup directory (`tankobon-AAAAMMJJ-HHMMSS.db`): the identifier the restoration takes. */
+  /** File name inside the backup directory (`skeudenn-AAAAMMJJ-HHMMSS.db`): the identifier the restoration takes. */
   name: string;
   /** When the copy was made (ISO 8601). */
   createdAt: string;

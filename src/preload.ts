@@ -55,7 +55,7 @@ import type { ApiKeys, AppSettings, PublicSettings } from './shared/settings';
 import type { ReadingHistoryEntry, ReadingStats } from './shared/stats';
 import type { PickAvatarResult, UserResult, UsersState } from './shared/users';
 
-/** The app itself (versions, OS languages, project links), as `window.tankobon.app`. */
+/** The app itself (versions, OS languages, project links), as `window.skeudenn.app`. */
 export interface AppApi {
   /** Versions of the app, Electron, Chromium, Node.js and V8, and the OS and CPU architecture. */
   getInfo(): Promise<AppInfo>;
@@ -71,7 +71,7 @@ export interface AppApi {
   onLaunchFile(listener: () => void): () => void;
 }
 
-/** Opening and reading comics, as `window.tankobon.comic`. */
+/** Opening and reading comics, as `window.skeudenn.comic`. */
 export interface ComicApi {
   /** Opens a native file picker; resolves to an opaque token for the chosen file (to pass to `open`), or null if cancelled. The renderer never learns the path.
    * `addToLibrary` is true for the library's "add a file" (opening the token then always adds the book) and false for the reader's "open a file" (the book is added only if the `addOpenedBooksToLibrary` setting is on).
@@ -88,7 +88,7 @@ export interface ComicApi {
   close(id: string): Promise<void>;
 }
 
-/** The library and its per-entry fields, as `window.tankobon.library`. */
+/** The library and its per-entry fields, as `window.skeudenn.library`. */
 export interface LibraryApi {
   /** Every library entry, most recently opened first. */
   list(): Promise<LibraryEntry[]>;
@@ -114,19 +114,19 @@ export interface LibraryApi {
   cancelCleanup(): Promise<boolean>;
   /** Stops the run over the library files in progress, whichever it is and whichever window started it: `addFolders`, `organize`, `organizeAll`, `convertCbr`, `countDeflate64`, `convertDeflate64`, `emptyDeleted`, `cleanFolders`, `removeMany`, `resync`, `applyCleanup`, and `analyzeCleanup` too. The run stops before its next item (book, folder, file): the one being moved, rewritten or converted is finished, and what was done stays and is announced. It then resolves with `cancelled: true` (`{ status: 'cancelled' }` for `countDeflate64` and `analyzeCleanup`, which yield no partial result). False when nothing is running or a stop was already asked. */
   cancelRun(): Promise<boolean>;
-  /** How many CBR of the organized folder `convertCbr()` would convert, and what its `.deletedByTankobon` folder holds; an error when the organization is off or its folder unreachable. */
+  /** How many CBR of the organized folder `convertCbr()` would convert, and what its `.deletedBySkeudenn` folder holds; an error when the organization is off or its folder unreachable. */
   countConvertible(): Promise<ConvertCountResult>;
-  /** Writes each CBR of the organized folder as a CBZ beside it, points the book at it (progress, rating, tags and lists are kept) and moves the CBR to `.deletedByTankobon` at the root of the organized folder. Progress goes over `onScanProgress`; `cancelRun()` stops it before its next book (`cancelled: true`). */
+  /** Writes each CBR of the organized folder as a CBZ beside it, points the book at it (progress, rating, tags and lists are kept) and moves the CBR to `.deletedBySkeudenn` at the root of the organized folder. Progress goes over `onScanProgress`; `cancelRun()` stops it before its next book (`cancelled: true`). */
   convertCbr(): Promise<ConvertCbrResult>;
   /** How many CBZ of the library use the Deflate64 compression, which the reader can't inflate (`convertDeflate64()` rewrites them). Opens every CBZ, so progress goes over `onScanProgress`; an error result when another run on the files is in progress. Stopped by `cancelRun()`, it resolves with `cancelled` and keeps nothing for the next conversion. */
   countDeflate64(): Promise<Deflate64CountResult>;
   /** Rewrites each Deflate64 CBZ of the library with standard compression, in place: the book keeps its path, progress, rating, tags and lists. The original is replaced only once the new archive has been checked. Progress goes over `onScanProgress`; an error result when another run on the files is in progress. `cancelRun()` stops it before its next book (`cancelled: true`). */
   convertDeflate64(): Promise<ConvertDeflate64Result>;
-  /** Deletes for good everything in the `.deletedByTankobon` folder of the organized folder, one item at a time; progress goes over `onScanProgress`, and `cancelRun()` stops it. */
+  /** Deletes for good everything in the `.deletedBySkeudenn` folder of the organized folder, one item at a time; progress goes over `onScanProgress`, and `cancelRun()` stops it. */
   emptyDeleted(): Promise<EmptyDeletedResult>;
   /** How many folders of the organized folder `cleanFolders()` would move: those holding no book, only `.nfo` files and cover images; an error when the organization is off or its folder unreachable. */
   countOrphanFolders(): Promise<OrphanFoldersCountResult>;
-  /** Moves those orphan folders to the `.deletedByTankobon` folder of the organized folder; progress arrives through `onScanProgress`. The folders books are added from are never touched. `cancelRun()` stops it before its next folder (`cancelled: true`). */
+  /** Moves those orphan folders to the `.deletedBySkeudenn` folder of the organized folder; progress arrives through `onScanProgress`. The folders books are added from are never touched. `cancelRun()` stops it before its next folder (`cancelled: true`). */
   cleanFolders(): Promise<CleanFoldersResult>;
   /** The folders added with `addFolders` (when watched), which `resync` walks again, in the order they were added. */
   listFolders(): Promise<string[]>;
@@ -152,9 +152,9 @@ export interface LibraryApi {
   imageScanStatus(): Promise<ImageScanProgress>;
   /** Subscribes to the progress of that background measure; returns the unsubscribe function. */
   onImageScanProgress(listener: (progress: ImageScanProgress) => void): () => void;
-  /** Removes an entry from the library. The file on disk is moved, with its cover and `.nfo` sidecars, to a `.deletedByTankobon` folder (the organized folder's when it lives there, else beside it) so that a resynchronization doesn't add it back, unless `deleteFile` is true: it then goes to the OS trash. An `error` result means the entry is gone from the library but the file could not be moved or trashed. */
+  /** Removes an entry from the library. The file on disk is moved, with its cover and `.nfo` sidecars, to a `.deletedBySkeudenn` folder (the organized folder's when it lives there, else beside it) so that a resynchronization doesn't add it back, unless `deleteFile` is true: it then goes to the OS trash. An `error` result means the entry is gone from the library but the file could not be moved or trashed. */
   remove(id: string, deleteFile?: boolean): Promise<RemoveEntryResult>;
-  /** Removes several entries from the library, one at a time with progress over `onScanProgress`; with `deleteFiles`, their files (and the covers beside them) are also moved to the system trash, otherwise they are parked in `.deletedByTankobon` like `remove()` does. A file that can't be trashed is counted as failed, its entry is removed anyway. An error result when another run over the library files is in progress; `cancelRun()` stops it between two books. */
+  /** Removes several entries from the library, one at a time with progress over `onScanProgress`; with `deleteFiles`, their files (and the covers beside them) are also moved to the system trash, otherwise they are parked in `.deletedBySkeudenn` like `remove()` does. A file that can't be trashed is counted as failed, its entry is removed anyway. An error result when another run over the library files is in progress; `cancelRun()` stops it between two books. */
   removeMany(ids: string[], deleteFiles: boolean): Promise<RemoveEntriesResult>;
   /** Saves the last page read (0-based) of a library entry. */
   updateProgress(id: string, currentPage: number): Promise<void>;
@@ -172,7 +172,7 @@ export interface LibraryApi {
   setCover(id: string, image: Uint8Array): Promise<SetCoverResult>;
 }
 
-/** Reading lists (ordered piles of library entries), as `window.tankobon.readingLists`. */
+/** Reading lists (ordered piles of library entries), as `window.skeudenn.readingLists`. */
 export interface ReadingListApi {
   /** Every reading list, in the user's order (new lists last), each with its library entry ids in reading order. */
   list(): Promise<ReadingList[]>;
@@ -194,7 +194,7 @@ export interface ReadingListApi {
   reorderLists(listIds: string[]): Promise<ReadingListOrderResult>;
 }
 
-/** The achievements the user has earned, as `window.tankobon.achievements`. */
+/** The achievements the user has earned, as `window.skeudenn.achievements`. */
 export interface AchievementsApi {
   /** Every achievement earned so far, with the moment it was earned. */
   list(): Promise<UnlockedAchievement[]>;
@@ -202,7 +202,7 @@ export interface AchievementsApi {
   unlock(ids: AchievementId[]): Promise<UnlockedAchievement[]>;
 }
 
-/** Book information lookups in public APIs, as `window.tankobon.metadata`. */
+/** Book information lookups in public APIs, as `window.skeudenn.metadata`. */
 export interface MetadataApi {
   /** Looks a book up in the public APIs enabled in the settings (Comic Vine, Google Books), or only in those named by `query.sources`. */
   search(query: MetadataQuery): Promise<MetadataSearchResult>;
@@ -214,7 +214,7 @@ export interface MetadataApi {
   apply(id: string, update: MetadataUpdate, coverUrl: string | null): Promise<LibraryEntry | null>;
 }
 
-/** The user's settings, as `window.tankobon.settings`. */
+/** The user's settings, as `window.skeudenn.settings`. */
 export interface SettingsApi {
   /** Every setting except the API keys, with defaults for the ones never stored. */
   getAll(): Promise<PublicSettings>;
@@ -224,7 +224,7 @@ export interface SettingsApi {
   set<K extends keyof AppSettings>(key: K, value: AppSettings[K]): Promise<void>;
 }
 
-/** Reading history for the statistics page, as `window.tankobon.stats`. */
+/** Reading history for the statistics page, as `window.skeudenn.stats`. */
 export interface StatsApi {
   /** The reading history: the dates at which books were finished and the reading time per day, oldest first. */
   get(): Promise<ReadingStats>;
@@ -236,7 +236,7 @@ export interface StatsApi {
   clearHistory(): Promise<void>;
 }
 
-/** JSON export and import of the library and settings, and clearing the library, as `window.tankobon.data`. */
+/** JSON export and import of the library and settings, and clearing the library, as `window.skeudenn.data`. */
 export interface DataApi {
   /** Opens a native save dialog and writes a JSON export there; an error (full or read-only disk…) comes back as a result, not a rejection. */
   export(): Promise<ExportResult>;
@@ -251,7 +251,7 @@ export interface DataApi {
 }
 
 /**
- * The people sharing the app, as `window.tankobon.users`. Each has a nickname and a picture (no
+ * The people sharing the app, as `window.skeudenn.users`. Each has a nickname and a picture (no
  * password); ratings, tags, progress, reading lists, history, achievements and most settings are
  * personal, the library and its organization are common. Edits always concern the active user.
  */
@@ -274,7 +274,7 @@ export interface UsersApi {
   remove(): Promise<UserResult>;
 }
 
-/** Where the database file lives, as `window.tankobon.database`. */
+/** Where the database file lives, as `window.skeudenn.database`. */
 export interface DatabaseApi {
   /** Where the database file currently lives. */
   getLocation(): Promise<DatabaseLocation>;
@@ -282,7 +282,7 @@ export interface DatabaseApi {
   chooseLocation(): Promise<DatabaseLocationResult>;
   /** Points the app back at the default location; takes effect on the next start. */
   resetLocation(): Promise<DatabaseLocation>;
-  /** Names the database file (`.db` is added when missing; null goes back to `tankobon.db`); an invalid name comes back as an error result. Like the folder, it takes effect on the next start and the existing file is not renamed. */
+  /** Names the database file (`.db` is added when missing; null goes back to `skeudenn.db`); an invalid name comes back as an error result. Like the folder, it takes effect on the next start and the existing file is not renamed. */
   setFileName(fileName: string | null): Promise<DatabaseLocationResult>;
   /** Restarts the app, e.g. to open the database from its new location. */
   relaunch(): Promise<void>;
@@ -297,11 +297,11 @@ export interface DatabaseApi {
 }
 
 /**
- * Type of the `window.tankobon` object the renderer uses to reach the main process (see
+ * Type of the `window.skeudenn` object the renderer uses to reach the main process (see
  * `src/global.d.ts`), one member per area. Each method maps to one IPC channel, listed in the
  * generated IPC reference.
  */
-export interface TankobonApi {
+export interface SkeudennApi {
   /** The app itself: versions, OS languages and project links. */
   app: AppApi;
   /** Opening and reading comics. */
@@ -340,7 +340,7 @@ function subscribe<T = void>(channel: string, listener: (payload: T) => void): (
 
 // Mirror of the CHANNELS constants in main/ipc/*.ts (preload cannot import main code). The method
 // descriptions live on the interfaces above, where TypeDoc and the IPC reference read them.
-const api: TankobonApi = {
+const api: SkeudennApi = {
   app: {
     getInfo: () => ipcRenderer.invoke('app:get-info'),
     getSystemLanguages: () => ipcRenderer.invoke('app:get-system-languages'),
@@ -459,4 +459,4 @@ const api: TankobonApi = {
   },
 };
 
-contextBridge.exposeInMainWorld('tankobon', api);
+contextBridge.exposeInMainWorld('skeudenn', api);

@@ -121,7 +121,7 @@ function mainChannels() {
   return channels;
 }
 
-// The descriptions come from the TSDoc of the interfaces typing `api` (`TankobonApi` and the
+// The descriptions come from the TSDoc of the interfaces typing `api` (`SkeudennApi` and the
 // per-namespace interfaces its members point to), the same comments TypeDoc renders.
 function preloadDocs(source, file) {
   const interfaces = new Map();
@@ -142,9 +142,9 @@ function preloadDocs(source, file) {
     }
     interfaces.set(name, members);
   }
-  const root = interfaces.get('TankobonApi');
+  const root = interfaces.get('SkeudennApi');
   if (!root) {
-    errors.push(`${file}: interface TankobonApi not found`);
+    errors.push(`${file}: interface SkeudennApi not found`);
     return new Map();
   }
   // namespace → (method → doc)
@@ -155,8 +155,8 @@ function preloadChannels() {
   const file = 'src/preload.ts';
   const source = read(file);
   const docs = preloadDocs(source, file);
-  const apiStart = source.indexOf('const api: TankobonApi = {');
-  if (apiStart === -1) errors.push(`${file}: \`const api: TankobonApi = {\` not found`);
+  const apiStart = source.indexOf('const api: SkeudennApi = {');
+  if (apiStart === -1) errors.push(`${file}: \`const api: SkeudennApi = {\` not found`);
   const lines = source.slice(Math.max(apiStart, 0)).split('\n');
   const channels = new Map();
   let namespace = null;
@@ -173,7 +173,7 @@ function preloadChannels() {
     const call = line.match(/(?:ipcRenderer\.(?:invoke|on)|subscribe(?:<\w+>)?)\('([^']+)'/);
     if (call && namespace && method) {
       const doc = docs.get(namespace)?.get(method)?.doc ?? '';
-      channels.set(call[1], { method: `window.tankobon.${namespace}.${method}`, doc });
+      channels.set(call[1], { method: `window.skeudenn.${namespace}.${method}`, doc });
     }
   }
   if (channels.size === 0) errors.push(`${file}: no ipcRenderer.invoke/on or subscribe call found`);
@@ -192,7 +192,7 @@ function generateIpc() {
   }
 
   let md = `${HEADER}# IPC channels\n\n`;
-  md += 'Every channel between the renderer and the main process, from the `*_CHANNELS` constants in `src/main/ipc/` and the `window.tankobon` API in `src/preload.ts` (whose type is [`TankobonApi`](./api/preload/interfaces/TankobonApi.md)).\n\n';
+  md += 'Every channel between the renderer and the main process, from the `*_CHANNELS` constants in `src/main/ipc/` and the `window.skeudenn` API in `src/preload.ts` (whose type is [`SkeudennApi`](./api/preload/interfaces/SkeudennApi.md)).\n\n';
   md += '| Channel | Direction | Preload API | Handler | Description |\n|---|---|---|---|---|\n';
   for (const channel of [...main.keys()].sort()) {
     const { file, ref, direction } = main.get(channel);

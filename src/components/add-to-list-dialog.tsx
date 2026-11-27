@@ -44,7 +44,7 @@ export function AddToListDialog({ entries, onClose }: { entries: LibraryEntry[];
 
   const addAll = async (list: ReadingList) => {
     const request = bulkAddRequest(list, ids);
-    const result = request.ids.length > 0 ? await window.tankobon.readingLists.addEntries(list.id, request.ids) : null;
+    const result = request.ids.length > 0 ? await window.skeudenn.readingLists.addEntries(list.id, request.ids) : null;
     setFeedback(bulkAddFeedback(list, request, result));
   };
 
@@ -56,17 +56,17 @@ export function AddToListDialog({ entries, onClose }: { entries: LibraryEntry[];
     const [book] = books;
     apply(
       list.entryIds.includes(book.id)
-        ? await window.tankobon.readingLists.removeEntry(list.id, book.id)
-        : await window.tankobon.readingLists.addEntry(list.id, book.id),
+        ? await window.skeudenn.readingLists.removeEntry(list.id, book.id)
+        : await window.skeudenn.readingLists.addEntry(list.id, book.id),
     );
   };
 
   const create = async () => {
-    const created = apply(await window.tankobon.readingLists.create(newName));
+    const created = apply(await window.skeudenn.readingLists.create(newName));
     if (!created) return;
     setNewName('');
     if (books.length > 1) await addAll(created);
-    else apply(await window.tankobon.readingLists.addEntry(created.id, books[0].id));
+    else apply(await window.skeudenn.readingLists.addEntry(created.id, books[0].id));
   };
 
   return (

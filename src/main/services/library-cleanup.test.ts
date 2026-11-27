@@ -99,7 +99,7 @@ describe('createLibraryCleaner', () => {
   });
 
   it('names the books that could not be rewritten, with the reason', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'tankobon-cleanup-failed-'));
+    const dir = await mkdtemp(join(tmpdir(), 'skeudenn-cleanup-failed-'));
     try {
       const good = join(dir, 'good.cbz');
       const bad = join(dir, 'bad.cbz');
@@ -131,7 +131,7 @@ describe('createLibraryCleaner', () => {
   });
 
   it('keeps the exact count but cuts the list of failures', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'tankobon-cleanup-many-'));
+    const dir = await mkdtemp(join(tmpdir(), 'skeudenn-cleanup-many-'));
     try {
       const repo = repository();
       for (let i = 0; i <= MAX_REPORTED_FAILURES; i++) {
@@ -171,7 +171,7 @@ describe('createLibraryCleaner', () => {
   });
 
   it('refuses to rewrite while another run holds the library lock, keeping the analysis', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'tankobon-cleanup-lock-'));
+    const dir = await mkdtemp(join(tmpdir(), 'skeudenn-cleanup-lock-'));
     const file = join(dir, 'a.cbz');
     await writeFile(file, 'x');
     const repo = repository();
@@ -198,7 +198,7 @@ describe('createLibraryCleaner', () => {
   });
 
   it('rewrites the archives except the kinds kept, and updates the entry', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'tankobon-cleanup-'));
+    const dir = await mkdtemp(join(tmpdir(), 'skeudenn-cleanup-'));
     try {
       const file = join(dir, 'real.cbz');
       const zip = new ZipFile();
@@ -254,7 +254,7 @@ describe('createLibraryCleaner', () => {
   });
 
   it('stops a rewrite between two books, keeping and reporting the books already cleaned', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'tankobon-cleanup-stop-'));
+    const dir = await mkdtemp(join(tmpdir(), 'skeudenn-cleanup-stop-'));
     try {
       const repo = repository();
       const files = ['1.cbz', '2.cbz', '3.cbz'].map((name) => join(dir, name));
@@ -302,7 +302,7 @@ describe('createLibraryCleaner', () => {
   });
 
   it('stops a rewrite through the shared lock (library:cancel-run) like through cancel()', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'tankobon-cleanup-stop-lock-'));
+    const dir = await mkdtemp(join(tmpdir(), 'skeudenn-cleanup-stop-lock-'));
     try {
       const repo = repository();
       const files = ['1.cbz', '2.cbz'].map((name) => join(dir, name));

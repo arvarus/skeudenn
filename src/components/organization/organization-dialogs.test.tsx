@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { ConvertDeflate64Result, Deflate64CountResult, OrganizeResult, ResyncResult } from '@/shared/library';
 import { deferred, scanProgressChannel } from '@/test/runs';
-import { renderWithTankobon, type FakeTankobon } from '@/test/tankobon';
+import { renderWithSkeudenn, type FakeSkeudenn } from '@/test/skeudenn';
 import { Deflate64Dialog } from './deflate64-dialog';
 import { ResyncDialog } from './resync-dialog';
 import { EmptyDeletedDialog, OrganizeAllDialog } from './simple-run-dialogs';
@@ -12,9 +12,9 @@ import { EmptyDeletedDialog, OrganizeAllDialog } from './simple-run-dialogs';
 afterEach(cleanup);
 
 /** Renders `dialog` with `library` faked and a progress channel the test pushes through. */
-function open(dialog: React.ReactElement, library: FakeTankobon['library'] = {}, settings: FakeTankobon['settings'] = {}) {
+function open(dialog: React.ReactElement, library: FakeSkeudenn['library'] = {}, settings: FakeSkeudenn['settings'] = {}) {
   const channel = scanProgressChannel();
-  renderWithTankobon(dialog, {
+  renderWithSkeudenn(dialog, {
     library: { onScanProgress: channel.onScanProgress, ...library },
     settings: { getAll: vi.fn(async () => ({})) as never, ...settings },
   });

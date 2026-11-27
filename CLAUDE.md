@@ -8,8 +8,8 @@ Skeudenn is an Electron app (Vite + Electron Forge, React 19, TypeScript) that m
 
 - **Main process** (`src/main.ts`, `src/main/`): the window, the SQLite database (`node:sqlite`, `src/main/db/`) and IPC handlers (`src/main/ipc/`). It never parses a comic file.
 - **Decoder process** (`src/main/decoder/`, `src/main/services/`): a `utilityProcess` that does the archive decoding and thumbnails; the main process reaches it only through `DecoderClient`.
-- **Preload** (`src/preload.ts`): the only bridge, exposing `window.tankobon` via `contextBridge`. Channel strings are duplicated from `src/main/ipc/` by hand: keep both sides in sync (`npm run docs:gen` fails otherwise).
-- **Renderer** (`src/renderer.tsx`, `src/routes/`, `src/hooks/`, `src/components/`, `src/lib/`): React UI, reaches main only through `window.tankobon`.
+- **Preload** (`src/preload.ts`): the only bridge, exposing `window.skeudenn` via `contextBridge`. Channel strings are duplicated from `src/main/ipc/` by hand: keep both sides in sync (`npm run docs:gen` fails otherwise).
+- **Renderer** (`src/renderer.tsx`, `src/routes/`, `src/hooks/`, `src/components/`, `src/lib/`): React UI, reaches main only through `window.skeudenn`.
 - **Shared types** (`src/shared/`): everything that crosses the IPC boundary.
 
 The detailed architecture, including the build gotchas that don't fail the build but break the packaged app, is imported below. Read the relevant section before touching the database, archives, packaging or the reader.

@@ -11,21 +11,21 @@ import { appData } from '@/lib/app-data';
 import type { DataChange } from '@/shared/data-changes';
 import type { LibraryEntry } from '@/shared/library';
 import { DEFAULT_SETTINGS, toPublicSettings } from '@/shared/settings';
-import { installTankobon, type FakeTankobon } from '@/test/tankobon';
+import { installSkeudenn, type FakeSkeudenn } from '@/test/skeudenn';
 
 /** The fake main process of {@link startAppData}. */
 export interface LibraryFake {
-  /** The fake `window.tankobon`, to pass to `renderWithTankobon()`. */
-  fake: FakeTankobon;
+  /** The fake `window.skeudenn`, to pass to `renderWithSkeudenn()`. */
+  fake: FakeSkeudenn;
   /** Replaces the library and tells the store, as the main process does after a bulk write. */
   setLibrary(entries: LibraryEntry[]): Promise<void>;
 }
 
-/** Installs a fake `window.tankobon` serving `library` and starts `appData` on it, once the settings are loaded. */
+/** Installs a fake `window.skeudenn` serving `library` and starts `appData` on it, once the settings are loaded. */
 export async function startAppData(library: LibraryEntry[]): Promise<LibraryFake> {
   let current = library;
   let notify: (change: DataChange) => void = () => undefined;
-  const fake: FakeTankobon = {
+  const fake: FakeSkeudenn = {
     settings: { getAll: () => Promise.resolve(toPublicSettings(DEFAULT_SETTINGS)), set: () => Promise.resolve() },
     library: { list: () => Promise.resolve(current) },
     readingLists: { list: () => Promise.resolve([]) },
@@ -38,7 +38,7 @@ export async function startAppData(library: LibraryEntry[]): Promise<LibraryFake
       },
     },
   };
-  installTankobon(fake);
+  installSkeudenn(fake);
   appData.start();
   await appData.ready;
   return {

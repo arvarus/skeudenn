@@ -65,7 +65,7 @@ describe('parseStructuredPage', () => {
 describe('fetchStructuredPage', () => {
   const http = (body: string, status = 200): HttpOptions => ({
     fetch: vi.fn(async () => new Response(body, { status })) as unknown as typeof fetch,
-    userAgent: 'Tankobon/test',
+    userAgent: 'Skeudenn/test',
     timeoutMs: 1000,
   });
 

@@ -22,7 +22,7 @@ export function ScanProgressBar({ progress, onClose }: { progress: ScanProgress;
   const stop = () => {
     setStopping(true);
     // False when nothing holds the lock any more (the run just ended): nothing to wait for.
-    void window.tankobon.library
+    void window.skeudenn.library
       .cancelRun()
       .then((asked) => {
         if (!asked) setStopping(false);

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { renderWithTankobon } from '@/test/tankobon';
+import { renderWithSkeudenn } from '@/test/skeudenn';
 
 import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -18,7 +18,7 @@ const FOLDERS: PickedFolder[] = [
 function open(initialWatch: boolean, folders = FOLDERS) {
   const onConfirm = vi.fn();
   const onCancel = vi.fn();
-  renderWithTankobon(<AddFoldersDialog folders={folders} initialWatch={initialWatch} onConfirm={onConfirm} onCancel={onCancel} />);
+  renderWithSkeudenn(<AddFoldersDialog folders={folders} initialWatch={initialWatch} onConfirm={onConfirm} onCancel={onCancel} />);
   return { onConfirm, onCancel };
 }
 

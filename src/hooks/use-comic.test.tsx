@@ -9,7 +9,7 @@ function comicInfo(id: string, resumePage = 0): ComicInfo {
   return { id, path: '/bd/a.cbz', title: 'A', pageCount: 10, fileCount: 10, libraryId: 'lib-1', resumePage };
 }
 
-/** A stand-in for `window.tankobon`: opening hands out a new archive id each time. */
+/** A stand-in for `window.skeudenn`: opening hands out a new archive id each time. */
 function installApi(readPage: (id: string, page: number) => Promise<{ data: Uint8Array; mimeType: string }>) {
   let opened = 0;
   const open = vi.fn(async (): Promise<OpenComicResult> => ({ status: 'ok', comic: comicInfo(`archive-${++opened}`, 3) }));
@@ -17,7 +17,7 @@ function installApi(readPage: (id: string, page: number) => Promise<{ data: Uint
     comic: { open, readPage: vi.fn(readPage), close: vi.fn(async () => undefined), pickFile: vi.fn() },
     library: { updateProgress: vi.fn(async () => undefined) },
   };
-  Object.assign(window, { tankobon: api });
+  Object.assign(window, { skeudenn: api });
   return api;
 }
 

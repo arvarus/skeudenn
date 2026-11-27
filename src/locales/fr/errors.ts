@@ -55,7 +55,7 @@ const errors: Translation<typeof en> = {
     dataRunning: 'La bibliothèque est en cours d’effacement ou d’import.',
     organizeRunning: 'Une autre opération sur les fichiers de la bibliothèque (ajout, resynchronisation ou organisation) est déjà en cours.',
     notComicFile: "Le livre a été retiré de la bibliothèque, mais son fichier a été laissé en place, car ce n'est pas une bande dessinée : {{file}}",
-    parkFailed: "Le livre a été retiré de la bibliothèque, mais son fichier n'a pas pu être déplacé dans le dossier .deletedByTankobon : {{message}}",
+    parkFailed: "Le livre a été retiré de la bibliothèque, mais son fichier n'a pas pu être déplacé dans le dossier .deletedBySkeudenn : {{message}}",
     trashFailed: "Le livre a été retiré de la bibliothèque, mais son fichier n'a pas pu être mis à la corbeille : {{message}}",
     trashFolderLinked: "Le dossier {{folder}} est un lien ou se trouve hors de son dossier : rien n'y est déplacé ni supprimé.",
   },

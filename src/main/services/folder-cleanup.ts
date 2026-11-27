@@ -1,7 +1,7 @@
 /**
  * Cleaning the orphan folders of the organized library. Moving, converting or deleting books leaves
  * folders behind that hold no book any more, only their `.nfo` and cover images. Each such folder is
- * moved to `.deletedByTankobon` at the root of the organized folder, from where the user empties it
+ * moved to `.deletedBySkeudenn` at the root of the organized folder, from where the user empties it
  * when they want. Only the organized folder is walked: the folders books are added from are never
  * touched. Kept out of the IPC layer, which only calls it, so it runs under Vitest.
  * @module
@@ -11,7 +11,7 @@ import path from 'node:path';
 
 import { isSupportedComicFile } from '../../shared/comic';
 import {
-  DELETED_BY_TANKOBON_FOLDER,
+  isHiddenFolderName,
   type CleanFoldersResult,
   type OrphanFoldersCountResult,
   type ScanProgress,
@@ -28,7 +28,7 @@ export interface FolderCleaner {
   /** How many orphan folders the organized folder holds. An error when the organization is off or its folder unreachable. */
   count(): Promise<OrphanFoldersCountResult>;
   /**
-   * Moves them to `.deletedByTankobon`, reporting each through `onProgress`. Holds the shared lock, whose `cancel()`
+   * Moves them to `.deletedBySkeudenn`, reporting each through `onProgress`. Holds the shared lock, whose `cancel()`
    * stops it before its next folder (the one being moved is finished), with `cancelled` set.
    */
   clean(onProgress?: (progress: ScanProgress) => void): Promise<CleanFoldersResult>;
@@ -36,8 +36,9 @@ export interface FolderCleaner {
 
 /**
  * The orphan folders under `root`, outermost first: a folder that holds no book, only sidecars, covers
- * and other orphan folders. `root` itself and `.deletedByTankobon` are never listed; a folder that can't
- * be read, or holds any other file (or a link), is kept.
+ * and other orphan folders. `root` itself is never listed; hidden folders (`.deletedBySkeudenn` included) are neither
+ * entered nor listed, and keep the folder holding one; a folder that can't be read, or holds any other file (or a
+ * link), is kept.
  */
 export async function findOrphanFolders(root: string): Promise<string[]> {
   /** `orphan` when nothing in `dir` is worth keeping; else `found`, the orphans inside it. */
@@ -48,7 +49,12 @@ export async function findOrphanFolders(root: string): Promise<string[]> {
     const found: string[] = [];
     for (const entry of entries) {
       if (entry.isDirectory()) {
-        if (isRoot && entry.name === DELETED_BY_TANKOBON_FOLDER) continue;
+        // A hidden folder (the parking one, a `.cache`…) is never entered nor listed; one inside a folder keeps that
+        // folder, which would otherwise be moved with it.
+        if (isHiddenFolderName(entry.name)) {
+          blocked = true;
+          continue;
+        }
         const child = path.join(dir, entry.name);
         const result = await scan(child, false);
         if (result.orphan) found.push(child);

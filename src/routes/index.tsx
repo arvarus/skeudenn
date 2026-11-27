@@ -138,7 +138,7 @@ function ContinueReading({ section }: { section: ResolvedHomeSection }) {
     if (!confirmed) return;
     void appData
       .patchEntry(entry.id, { currentPage: 0 }, () =>
-        window.tankobon.library.updateProgress(entry.id, 0),
+        window.skeudenn.library.updateProgress(entry.id, 0),
       )
       .catch(() => undefined);
   };

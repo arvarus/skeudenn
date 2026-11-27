@@ -40,7 +40,7 @@ export const DATABASE_CHANNELS = {
 /**
  * Changing the location only rewrites the pointer file: the database already open stays open, and
  * the new one is picked up on the next start. Moving the existing file is deliberately not done —
- * pointing at a directory that already holds a `tankobon.db` (a synced folder, another machine)
+ * pointing at a directory that already holds a `skeudenn.db` (a synced folder, another machine)
  * has to keep that database rather than overwrite it.
  */
 export function registerDatabaseIpc(makeBackup: MakeBackup, settings: SettingsRepository, notify: NotifyDataChange): void {

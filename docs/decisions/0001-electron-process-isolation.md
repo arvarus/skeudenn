@@ -11,8 +11,8 @@ The app reads files the user picks from anywhere on disk (comic archives, PDFs, 
 
 - The window is created with `contextIsolation: true`, `nodeIntegration: false` and `sandbox: true` (`src/main.ts`).
 - The main process owns every privileged resource: the SQLite database, the filesystem, archive decoding and native dialogs.
-- `src/preload.ts` is the only bridge: it exposes one explicit object, `window.tankobon`, through `contextBridge`, never the raw `ipcRenderer`. Its type, `TankobonApi`, is what the renderer sees (`src/global.d.ts`).
-- The renderer only ever calls `window.tankobon.*`.
+- `src/preload.ts` is the only bridge: it exposes one explicit object, `window.skeudenn`, through `contextBridge`, never the raw `ipcRenderer`. Its type, `SkeudennApi`, is what the renderer sees (`src/global.d.ts`).
+- The renderer only ever calls `window.skeudenn.*`.
 - The window can't leave the app: `will-navigate` is cancelled for any other URL, `setWindowOpenHandler` denies every new window, and the renderer cancels the default of `dragover`/`drop` on the document, so a file dropped on the window is never opened by Chromium. The CSP also sets `base-uri 'none'`, `form-action 'none'` and `object-src 'none'`.
 
 ## Consequences

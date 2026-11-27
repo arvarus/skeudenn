@@ -243,9 +243,9 @@ export interface AppSettings {
   backupIntervalDays: number;
   /** How many copies of the database are kept (1 to {@link MAX_BACKUP_KEEP}); the oldest ones are deleted. */
   backupKeep: number;
-  /** Whether what `.deletedByTankobon` holds is deleted for good once it is {@link AppSettings.trashRetentionDays} days old (off by default). */
+  /** Whether what `.deletedBySkeudenn` holds is deleted for good once it is {@link AppSettings.trashRetentionDays} days old (off by default). */
   trashAutoEmpty: boolean;
-  /** Days an item stays in `.deletedByTankobon` before the automatic emptying deletes it (1 to {@link MAX_TRASH_RETENTION_DAYS}); only used when `trashAutoEmpty` is on. */
+  /** Days an item stays in `.deletedBySkeudenn` before the automatic emptying deletes it (1 to {@link MAX_TRASH_RETENTION_DAYS}); only used when `trashAutoEmpty` is on. */
   trashRetentionDays: number;
   /** When the last copy of the database was made (ISO 8601); empty when there has been none. */
   lastBackupAt: string;
@@ -390,7 +390,7 @@ export const MAX_BACKUP_INTERVAL_DAYS = 31;
 /** Most copies of the database that can be kept. */
 export const MAX_BACKUP_KEEP = 50;
 
-/** Longest retention of `.deletedByTankobon` the automatic emptying accepts, in days. */
+/** Longest retention of `.deletedBySkeudenn` the automatic emptying accepts, in days. */
 export const MAX_TRASH_RETENTION_DAYS = 45;
 
 /**

@@ -23,8 +23,8 @@ describe('backup-service', () => {
   let db: DatabaseSync;
 
   beforeEach(() => {
-    root = mkdtempSync(path.join(tmpdir(), 'tankobon-backup-'));
-    dbFile = path.join(root, 'tankobon.db');
+    root = mkdtempSync(path.join(tmpdir(), 'skeudenn-backup-'));
+    dbFile = path.join(root, 'skeudenn.db');
     db = new DatabaseSync(dbFile);
     db.exec("CREATE TABLE t (v TEXT); INSERT INTO t VALUES ('one')");
   });
@@ -34,19 +34,19 @@ describe('backup-service', () => {
     rmSync(root, { recursive: true, force: true });
   });
 
-  it('writes a readable copy in .tankobon beside the database', () => {
+  it('writes a readable copy in .skeudenn beside the database', () => {
     const backup = createBackup(db, root, new Date(2026, 0, 2, 3, 4, 5));
-    expect(backup.name).toBe('tankobon-20260102-030405.db');
-    expect(backupDirectory(root)).toBe(path.join(root, '.tankobon'));
-    const copy = new DatabaseSync(path.join(root, '.tankobon', backup.name));
+    expect(backup.name).toBe('skeudenn-20260102-030405.db');
+    expect(backupDirectory(root)).toBe(path.join(root, '.skeudenn'));
+    const copy = new DatabaseSync(path.join(root, '.skeudenn', backup.name));
     expect(copy.prepare('SELECT v FROM t').get()).toEqual({ v: 'one' });
     copy.close();
   });
 
   it('copies a database file through a connection of its own, while the app\'s stays open and writable', () => {
     const backup = backupDatabaseFile(dbFile, root, new Date(2026, 0, 2, 3, 4, 5));
-    expect(backup.name).toBe('tankobon-20260102-030405.db');
-    const copy = new DatabaseSync(path.join(root, '.tankobon', backup.name));
+    expect(backup.name).toBe('skeudenn-20260102-030405.db');
+    const copy = new DatabaseSync(path.join(root, '.skeudenn', backup.name));
     expect(copy.prepare('SELECT v FROM t').get()).toEqual({ v: 'one' });
     copy.close();
     // The source was only read: the app's connection still writes, and the copy doesn't follow.
@@ -56,7 +56,7 @@ describe('backup-service', () => {
 
   it('fails without leaving a temporary file when the database file is missing', () => {
     expect(() => backupDatabaseFile(path.join(root, 'missing.db'), root)).toThrow();
-    expect(existsSync(path.join(root, '.tankobon'))).toBe(false);
+    expect(existsSync(path.join(root, '.skeudenn'))).toBe(false);
   });
 
   it('never overwrites a copy made in the same second', () => {
@@ -70,14 +70,14 @@ describe('backup-service', () => {
   it('lists the copies most recent first and ignores other files', () => {
     createBackup(db, root, new Date(2026, 0, 1, 10, 0, 0));
     createBackup(db, root, new Date(2026, 0, 3, 10, 0, 0));
-    writeFileSync(path.join(root, '.tankobon', 'notes.txt'), 'x');
-    expect(listBackups(root).map((b) => b.name)).toEqual(['tankobon-20260103-100000.db', 'tankobon-20260101-100000.db']);
+    writeFileSync(path.join(root, '.skeudenn', 'notes.txt'), 'x');
+    expect(listBackups(root).map((b) => b.name)).toEqual(['skeudenn-20260103-100000.db', 'skeudenn-20260101-100000.db']);
   });
 
   it('keeps only the most recent copies', () => {
     for (let day = 1; day <= 4; day++) createBackup(db, root, new Date(2026, 0, day, 10, 0, 0));
     expect(pruneBackups(root, 2)).toBe(2);
-    expect(listBackups(root).map((b) => b.name)).toEqual(['tankobon-20260104-100000.db', 'tankobon-20260103-100000.db']);
+    expect(listBackups(root).map((b) => b.name)).toEqual(['skeudenn-20260104-100000.db', 'skeudenn-20260103-100000.db']);
     expect(pruneBackups(root, 0)).toBe(1);
   });
 
@@ -91,9 +91,9 @@ describe('backup-service', () => {
   });
 
   it('only accepts generated names', () => {
-    expect(isBackupName('tankobon-20260102-030405.db')).toBe(true);
-    expect(isBackupName('../tankobon-20260102-030405.db')).toBe(false);
-    expect(isBackupName('tankobon.db')).toBe(false);
+    expect(isBackupName('skeudenn-20260102-030405.db')).toBe(true);
+    expect(isBackupName('../skeudenn-20260102-030405.db')).toBe(false);
+    expect(isBackupName('skeudenn.db')).toBe(false);
   });
 
   it('restores a copy over the database file at start-up', () => {
@@ -113,7 +113,7 @@ describe('backup-service', () => {
   });
 
   it('refuses to schedule an unknown or path-like name', () => {
-    expect(scheduleRestore(root, root, 'tankobon-20260102-030405.db')).not.toBeNull();
+    expect(scheduleRestore(root, root, 'skeudenn-20260102-030405.db')).not.toBeNull();
     expect(scheduleRestore(root, root, '../../etc/passwd')).not.toBeNull();
     expect(pendingRestore(root)).toBeNull();
   });

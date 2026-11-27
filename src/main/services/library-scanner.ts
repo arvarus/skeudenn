@@ -6,7 +6,7 @@ import { readdir, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 import { isSupportedComicFile } from '../../shared/comic';
-import { DELETED_BY_TANKOBON_FOLDER, MAX_REPORTED_FAILURES, type ScanFailure, type ScanProgress } from '../../shared/library';
+import { isHiddenFolderName, MAX_REPORTED_FAILURES, type ScanFailure, type ScanProgress } from '../../shared/library';
 import { errorText } from '../../shared/errors';
 import type { ArchiveSummary } from '../decoder/protocol';
 import type { LibraryRepository } from '../db/library-repository';
@@ -29,7 +29,8 @@ export interface ScanSummary {
 /**
  * Every supported comic under `directory`, recursively, sorted so a scan walks a series in a
  * predictable order. Directories that can't be read (permissions, a disconnected network share)
- * are skipped rather than failing the whole scan. Symlinks are never followed: `isDirectory()` is
+ * are skipped rather than failing the whole scan, and so are the hidden folders (names starting
+ * with a dot), at any depth. Symlinks are never followed: `isDirectory()` is
  * false for them, which also rules out cycles.
  */
 export async function collectComicFiles(directory: string): Promise<string[]> {
@@ -45,8 +46,8 @@ export async function collectComicFiles(directory: string): Promise<string[]> {
     for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
       const fullPath = path.join(current, entry.name);
       if (entry.isDirectory()) {
-        // Where the CBR replaced by a CBZ wait to be emptied: not part of the library any more.
-        if (entry.name !== DELETED_BY_TANKOBON_FOLDER) await walk(fullPath);
+        // A hidden folder (`.cache`, `.git`, the folder where parked books wait to be emptied…) is not part of the library.
+        if (!isHiddenFolderName(entry.name)) await walk(fullPath);
       } else if (entry.isFile() && isSupportedComicFile(entry.name)) {
         found.push(fullPath);
       }

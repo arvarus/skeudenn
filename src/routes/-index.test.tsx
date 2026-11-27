@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The leading `-` keeps the router plugin from taking this file for a route.
-import { installTankobon, renderWithTankobon } from '@/test/tankobon';
+import { installSkeudenn, renderWithSkeudenn } from '@/test/skeudenn';
 
 import { act, cleanup, screen, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
@@ -72,11 +72,11 @@ describe('home page', () => {
         },
       },
     };
-    installTankobon(fake);
+    installSkeudenn(fake);
     appData.start();
     await appData.ready;
     const HomePage = Route.options.component as () => ReactNode;
-    renderWithTankobon(<HomePage />, fake);
+    renderWithSkeudenn(<HomePage />, fake);
 
     expect(await screen.findByLabelText('Ouvrir Beta')).toBeTruthy();
     expect(screen.queryByLabelText('Ouvrir Alpha')).toBeNull();

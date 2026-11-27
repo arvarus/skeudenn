@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The leading `-` keeps the router plugin from taking this file for a route.
-import { renderWithTankobon } from '@/test/tankobon';
+import { renderWithSkeudenn } from '@/test/skeudenn';
 
 import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
@@ -48,7 +48,7 @@ beforeAll(async () => {
 });
 
 const AuthorPage = Route.options.component as () => ReactNode;
-const renderPage = () => renderWithTankobon(<AuthorPage />, app.fake);
+const renderPage = () => renderWithSkeudenn(<AuthorPage />, app.fake);
 const openButtons = () => screen.getAllByRole('button', { name: /^Ouvrir / }).map((button) => button.getAttribute('aria-label'));
 
 describe('author page', () => {

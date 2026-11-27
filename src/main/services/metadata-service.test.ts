@@ -24,7 +24,7 @@ function fakeFetch(routes: [RegExp, unknown, number?][]) {
 }
 
 function http(fetch: ReturnType<typeof fakeFetch>): HttpOptions {
-  return { fetch: fetch as unknown as typeof globalThis.fetch, userAgent: 'Tankobon/test', timeoutMs: 1000 };
+  return { fetch: fetch as unknown as typeof globalThis.fetch, userAgent: 'Skeudenn/test', timeoutMs: 1000 };
 }
 
 const comicVineOk = <T>(results: T) => ({ status_code: 1, error: 'OK', results });
@@ -186,7 +186,7 @@ describe('searchMetadata', () => {
     });
     const urls = fetch.mock.calls.map(([url]) => String(url));
     expect(urls.every((url) => !url.includes('comicvine') || url.includes('api_key=KEY'))).toBe(true);
-    expect(fetch.mock.calls[0][1]).toMatchObject({ headers: { 'User-Agent': 'Tankobon/test' } });
+    expect(fetch.mock.calls[0][1]).toMatchObject({ headers: { 'User-Agent': 'Skeudenn/test' } });
   });
 
   it('drops a release date that does not exist instead of storing it', async () => {

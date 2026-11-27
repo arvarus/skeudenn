@@ -95,7 +95,7 @@ function LibraryPage() {
   // Subscribed for the whole page's life rather than around each scan: the main process starts
   // sending progress as soon as the folders are confirmed, which is before `addFolders()` resolves.
   // A resynchronization (it carries a `step`) is the sidebar's to show, wherever it was started.
-  useEffect(() => window.tankobon.library.onScanProgress((p) => !p.step && setScan(p)), []);
+  useEffect(() => window.skeudenn.library.onScanProgress((p) => !p.step && setScan(p)), []);
 
   // The bar stays on its final state once the scan is done, until the user closes it.
   const scanning = scan !== null && scan.phase !== 'done';
@@ -104,14 +104,14 @@ function LibraryPage() {
   const [pickedFolders, setPickedFolders] = useState<Extract<PickFoldersResult, { status: 'ok' }> | null>(null);
 
   const pickFolders = async () => {
-    const picked = await window.tankobon.library.pickFolders();
+    const picked = await window.skeudenn.library.pickFolders();
     if (picked.status === 'ok') setPickedFolders(picked);
   };
 
   const addFolders = async (token: string, watch: boolean) => {
     setScanStatus(null);
     setFailures(null);
-    const result = await window.tankobon.library.addFolders(token, watch);
+    const result = await window.skeudenn.library.addFolders(token, watch);
     if (result.status === 'cancelled') {
       setScan(null);
       return;
@@ -132,7 +132,7 @@ function LibraryPage() {
 
   const addFile = async () => {
     setScanStatus(null);
-    const result = await window.tankobon.library.addFile();
+    const result = await window.skeudenn.library.addFile();
     const parts = fileAddParts(result);
     if (!parts) return;
     setScanStatus(parts.join(' · '));
@@ -150,7 +150,7 @@ function LibraryPage() {
       checkbox: t('deleteFile'),
     });
     if (!confirmed) return;
-    const result = await window.tankobon.library.remove(entry.id, checked);
+    const result = await window.skeudenn.library.remove(entry.id, checked);
     if (result.status === 'error') setScanStatus(result.message);
   };
 
@@ -165,7 +165,7 @@ function LibraryPage() {
     });
     if (!confirmed) return;
     try {
-      const result = await window.tankobon.library.removeMany(
+      const result = await window.skeudenn.library.removeMany(
         entries.map((entry) => entry.id),
         checked,
       );

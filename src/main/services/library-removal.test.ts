@@ -20,7 +20,7 @@ describe('createLibraryRemover', () => {
   let settings: SettingsRepository;
 
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'tankobon-removal-'));
+    dir = await mkdtemp(join(tmpdir(), 'skeudenn-removal-'));
     const db = new DatabaseSync(':memory:');
     migrate(db);
     repo = new LibraryRepository(db);
@@ -202,7 +202,7 @@ describe('createLibraryRemover', () => {
       removal.files = { trash: removal.files.trash };
 
       expect(await removeEntry(removal, a, false)).toMatchObject({ status: 'parked' });
-      expect(await readdir(join(dir, '.deletedByTankobon'))).toEqual(['a.cbz']);
+      expect(await readdir(join(dir, '.deletedBySkeudenn'))).toEqual(['a.cbz']);
     });
 
     it('takes a file already gone as removed, without trashing or parking it', async () => {

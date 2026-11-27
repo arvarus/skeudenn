@@ -40,7 +40,7 @@ describe('ComicService', () => {
   let file: string;
 
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'tankobon-service-'));
+    dir = await mkdtemp(join(tmpdir(), 'skeudenn-service-'));
     file = join(dir, 'book.cbz');
     await writeFile(file, buildZip('001.jpg', Buffer.alloc(100, 1)));
   });

@@ -18,7 +18,7 @@ export function useReadingTime(libraryId: string | null): void {
   useEffect(() => {
     if (!libraryId) return;
     const accumulator = createReadingTimeAccumulator((seconds) => {
-      void window.tankobon.stats.addReadingTime(libraryId, seconds).catch(() => undefined);
+      void window.skeudenn.stats.addReadingTime(libraryId, seconds).catch(() => undefined);
     });
     const interval = window.setInterval(() => {
       accumulator.tick(document.visibilityState === 'visible' && document.hasFocus(), TICK_SECONDS);

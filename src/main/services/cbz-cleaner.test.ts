@@ -99,7 +99,7 @@ describe('cbz-cleaner', () => {
   let file: string;
 
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'tankobon-clean-'));
+    dir = await mkdtemp(join(tmpdir(), 'skeudenn-clean-'));
     file = join(dir, 'book.cbz');
     await writeZip(file, {
       '002.jpg': Buffer.alloc(5_000, 2),

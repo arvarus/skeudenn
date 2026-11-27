@@ -27,7 +27,7 @@ describe('parseExport', () => {
     expect(() => parseExport('not json')).toThrow(/JSON valide/);
   });
 
-  it('rejects JSON that is not a Tankobon export', () => {
+  it('rejects JSON that is not a Skeudenn export', () => {
     expect(() => parseExport('{"hello":"world"}')).toThrow(/export Skeudenn/);
     expect(() => parseExport('{"version":2,"library":[]}')).toThrow(/export Skeudenn/);
   });
@@ -410,7 +410,7 @@ describe('applyImport', () => {
 
 describe('readExportFile', () => {
   it('reads a file, and refuses one above the limit before reading it', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'tankobon-import-'));
+    const dir = await mkdtemp(join(tmpdir(), 'skeudenn-import-'));
     try {
       const file = join(dir, 'export.json');
       await writeFile(file, '{"version":1}');

@@ -47,9 +47,9 @@ export interface RunningApp {
 
 /** The executable of the copy of the packaged app made by `global-setup.ts`. */
 function executablePath(): string {
-  const root = process.env.TANKOBON_E2E_APP;
-  if (!root) throw new Error('TANKOBON_E2E_APP is not set: run the tests through `npm run test:e2e`.');
-  if (process.platform === 'linux') return path.join(root, 'tankobon');
+  const root = process.env.SKEUDENN_E2E_APP;
+  if (!root) throw new Error('SKEUDENN_E2E_APP is not set: run the tests through `npm run test:e2e`.');
+  if (process.platform === 'linux') return path.join(root, 'skeudenn');
   const product = readdirSync(root).find((name) => name.endsWith(process.platform === 'win32' ? '.exe' : '.app'));
   if (!product) throw new Error(`No executable in ${root}`);
   return process.platform === 'win32' ? path.join(root, product) : path.join(root, product, 'Contents/MacOS', path.basename(product, '.app'));
@@ -70,7 +70,7 @@ async function freePort(): Promise<number> {
 function seedUserData(userData: string, booksDir: string, seed: Seed): Map<string, string> {
   mkdirSync(userData, { recursive: true });
   mkdirSync(booksDir, { recursive: true });
-  const db = new DatabaseSync(path.join(userData, 'tankobon.db'));
+  const db = new DatabaseSync(path.join(userData, 'skeudenn.db'));
   migrate(db);
   const library = new LibraryRepository(db);
   const lists = new ReadingListRepository(db);
@@ -126,7 +126,7 @@ async function stop(child: ChildProcess): Promise<void> {
 
 /** Seeds a user data directory, starts the packaged app on it and waits for its window. */
 export async function launchApp(seed: Seed): Promise<RunningApp> {
-  const root = mkdtempSync(path.join(os.tmpdir(), 'tankobon-e2e-'));
+  const root = mkdtempSync(path.join(os.tmpdir(), 'skeudenn-e2e-'));
   const userData = path.join(root, 'user-data');
   const paths = seedUserData(userData, path.join(root, 'books'), seed);
 

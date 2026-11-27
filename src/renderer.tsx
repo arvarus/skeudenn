@@ -1,5 +1,5 @@
 // Renderer entry point, loaded by Vite. Runs in a sandboxed browser context:
-// no Node.js access here — go through `window.tankobon` (see preload.ts).
+// no Node.js access here — go through `window.skeudenn` (see preload.ts).
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider, createRouter, createMemoryHistory } from '@tanstack/react-router';

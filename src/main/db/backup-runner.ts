@@ -14,7 +14,7 @@ import { createBackup } from './backup-service';
 export interface BackupJob {
   /** The database file to copy (read through a connection of its own). */
   databaseFile: string;
-  /** The database's folder: the copy goes to its `.tankobon` subfolder. */
+  /** The database's folder: the copy goes to its `.skeudenn` subfolder. */
   directory: string;
 }
 

@@ -7,7 +7,7 @@ import { lstat, realpath, stat, utimes } from 'node:fs/promises';
 import path from 'node:path';
 
 import { t } from '../../shared/i18n';
-import { DELETED_BY_TANKOBON_FOLDER } from '../../shared/library';
+import { DELETED_BY_SKEUDENN_FOLDER } from '../../shared/library';
 import type { LibraryOrganization } from '../../shared/settings';
 import { isInside } from '../path-containment';
 
@@ -54,14 +54,14 @@ export async function markParked(target: string): Promise<void> {
 }
 
 /**
- * The `.deletedByTankobon` folder of `root`, or `null` when it must not be used. It is usable when it doesn't
+ * The `.deletedBySkeudenn` folder of `root`, or `null` when it must not be used. It is usable when it doesn't
  * exist yet (parking creates it) or when it is a real directory: not a symbolic link nor a Windows junction
  * (which `lstat` reports as links), and inside `root` once both are resolved. A link planted there (a shared
  * or synced organized folder) would otherwise make the emptying delete, the size count read and the parking
  * move files wherever it points. Any other error reading it counts as unusable.
  */
 export async function usableTrashFolder(root: string): Promise<string | null> {
-  const folder = path.join(root, DELETED_BY_TANKOBON_FOLDER);
+  const folder = path.join(root, DELETED_BY_SKEUDENN_FOLDER);
   let info;
   try {
     info = await lstat(folder);
@@ -80,7 +80,7 @@ export async function usableTrashFolder(root: string): Promise<string | null> {
 export async function requireTrashFolder(root: string): Promise<string> {
   const folder = await usableTrashFolder(root);
   if (folder === null) {
-    throw new Error(t('errors:library.trashFolderLinked', { folder: path.join(root, DELETED_BY_TANKOBON_FOLDER) }));
+    throw new Error(t('errors:library.trashFolderLinked', { folder: path.join(root, DELETED_BY_SKEUDENN_FOLDER) }));
   }
   return folder;
 }

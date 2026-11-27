@@ -11,7 +11,7 @@ import { assertTrustedSender, isAppUrl, setAppUrl, UntrustedSenderError } from '
 import { args } from './validate';
 
 const DEV = new URL('http://localhost:5173/');
-const PACKAGED = new URL('file:///opt/Tankobon/resources/app.asar/.vite/renderer/main_window/index.html');
+const PACKAGED = new URL('file:///opt/Skeudenn/resources/app.asar/.vite/renderer/main_window/index.html');
 
 describe('isAppUrl', () => {
   it('matches the dev server by origin, whatever the path, query or fragment', () => {
@@ -24,7 +24,7 @@ describe('isAppUrl', () => {
 
   it('matches the packaged page by file', () => {
     expect(isAppUrl(`${PACKAGED.href}#/library`, PACKAGED)).toBe(true);
-    expect(isAppUrl('file:///opt/Tankobon/resources/app.asar/.vite/renderer/main_window/other.html', PACKAGED)).toBe(false);
+    expect(isAppUrl('file:///opt/Skeudenn/resources/app.asar/.vite/renderer/main_window/other.html', PACKAGED)).toBe(false);
     expect(isAppUrl('file:///tmp/evil.html', PACKAGED)).toBe(false);
     expect(isAppUrl('about:blank', PACKAGED)).toBe(false);
     expect(isAppUrl('not a url', PACKAGED)).toBe(false);

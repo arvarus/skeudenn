@@ -62,7 +62,7 @@ export function useComic({ loadPages = true }: UseComicOptions = {}) {
     const id = state.comic?.id;
     setState(initialState);
     if (id) {
-      await window.tankobon.comic.close(id);
+      await window.skeudenn.comic.close(id);
     }
   }, [state.comic?.id]);
 
@@ -71,7 +71,7 @@ export function useComic({ loadPages = true }: UseComicOptions = {}) {
     const request = ++openRequest.current;
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
-      const result = await window.tankobon.comic.open(ref);
+      const result = await window.skeudenn.comic.open(ref);
       const stale = !mounted.current || request !== openRequest.current;
       if (result.status === 'error') {
         if (!stale) setState((s) => ({ ...s, loading: false, error: result.message }));
@@ -80,7 +80,7 @@ export function useComic({ loadPages = true }: UseComicOptions = {}) {
       const { comic } = result;
       if (stale) {
         // The reader was left or another open started meanwhile: nobody will use this archive.
-        void window.tankobon.comic.close(comic.id);
+        void window.skeudenn.comic.close(comic.id);
         return;
       }
       revokeCurrentUrl();
@@ -94,7 +94,7 @@ export function useComic({ loadPages = true }: UseComicOptions = {}) {
   }, [loadPages]);
 
   const pickAndOpen = useCallback(async () => {
-    const token = await window.tankobon.comic.pickFile(false);
+    const token = await window.skeudenn.comic.pickFile(false);
     if (token) {
       await openFile(token);
     }
@@ -129,7 +129,7 @@ export function useComic({ loadPages = true }: UseComicOptions = {}) {
     if (!comicId || !loadPages) return;
     let cancelled = false;
 
-    window.tankobon.comic
+    window.skeudenn.comic
       .readPage(comicId, page)
       .then(({ data, mimeType }) => {
         if (cancelled) return;
@@ -158,7 +158,7 @@ export function useComic({ loadPages = true }: UseComicOptions = {}) {
   const libraryId = state.comic?.libraryId;
   useEffect(() => {
     if (!libraryId) return;
-    void window.tankobon.library.updateProgress(libraryId, page);
+    void window.skeudenn.library.updateProgress(libraryId, page);
   }, [libraryId, page]);
 
   // Release the archive and blob URL on unmount.
@@ -166,7 +166,7 @@ export function useComic({ loadPages = true }: UseComicOptions = {}) {
     return () => {
       revokeCurrentUrl();
       if (comicId) {
-        void window.tankobon.comic.close(comicId);
+        void window.skeudenn.comic.close(comicId);
       }
     };
   }, [comicId]);

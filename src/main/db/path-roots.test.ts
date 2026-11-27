@@ -105,7 +105,7 @@ describe('fileRootsStore', () => {
     for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true });
   });
   const tempDirectory = () => {
-    const directory = mkdtempSync(path.join(tmpdir(), 'tankobon-roots-'));
+    const directory = mkdtempSync(path.join(tmpdir(), 'skeudenn-roots-'));
     directories.push(directory);
     return directory;
   };

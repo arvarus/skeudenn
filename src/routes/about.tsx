@@ -31,7 +31,7 @@ function AboutPage() {
 
   useEffect(() => {
     let cancelled = false;
-    void window.tankobon.app.getInfo().then((result) => {
+    void window.skeudenn.app.getInfo().then((result) => {
       if (!cancelled) setInfo(result);
     });
     return () => {
@@ -48,7 +48,7 @@ function AboutPage() {
   const checkNow = async () => {
     setChecking(true);
     setUpdateResult(null);
-    setUpdateResult(await window.tankobon.app.checkUpdate());
+    setUpdateResult(await window.skeudenn.app.checkUpdate());
     setChecking(false);
   };
 
@@ -105,7 +105,7 @@ function AboutPage() {
           {updateResult?.status === 'available' && (
             <>
               <span className="text-sm">{t('updateAvailable', { version: updateResult.version })}</span>
-              <Button size="sm" onClick={() => void window.tankobon.app.openLink('releases')}>
+              <Button size="sm" onClick={() => void window.skeudenn.app.openLink('releases')}>
                 <Download />
                 {t('download')}
               </Button>
@@ -117,7 +117,7 @@ function AboutPage() {
       <SettingsSection title={t('links')}>
         <div className="flex flex-wrap gap-2">
           {LINKS.map(({ link, icon: Icon }) => (
-            <Button key={link} variant="outline" onClick={() => void window.tankobon.app.openLink(link)}>
+            <Button key={link} variant="outline" onClick={() => void window.skeudenn.app.openLink(link)}>
               <Icon />
               {t(link)}
             </Button>
@@ -130,7 +130,7 @@ function AboutPage() {
         <p className="text-sm">{t('licenseName')}</p>
         <p className="text-sm text-muted-foreground">{t('disclaimer')}</p>
         <div>
-          <Button variant="outline" size="sm" onClick={() => void window.tankobon.app.openLink('license')}>
+          <Button variant="outline" size="sm" onClick={() => void window.skeudenn.app.openLink('license')}>
             <Scale />
             {t('licenseLink')}
           </Button>

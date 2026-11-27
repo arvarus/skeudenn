@@ -31,7 +31,7 @@ export function UserChooser() {
     if (dontAsk) update('askUserOnStartup', false);
     markUserChoiceDone();
     if (id !== state.activeId) {
-      const result = await window.tankobon.users.switch(id).catch(() => null);
+      const result = await window.skeudenn.users.switch(id).catch(() => null);
       if (result?.status !== 'ok') return;
       void navigate({ to: '/' });
     }

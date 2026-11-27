@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useRun } from '@/hooks/use-run';
 import type { ScanFailure } from '@/shared/library';
 import { deferred, scanProgressChannel } from '@/test/runs';
-import { renderWithTankobon } from '@/test/tankobon';
+import { renderWithSkeudenn } from '@/test/skeudenn';
 import { RunDialog, RunReport } from './run-dialog';
 
 afterEach(cleanup);
@@ -43,7 +43,7 @@ function Harness({ task, resync = false, onClose }: { task: () => Promise<Outcom
 function open(task: () => Promise<Outcome>, library: Record<string, unknown> = {}, resync = false) {
   const channel = scanProgressChannel();
   const onClose = vi.fn();
-  renderWithTankobon(<Harness task={task} resync={resync} onClose={onClose} />, {
+  renderWithSkeudenn(<Harness task={task} resync={resync} onClose={onClose} />, {
     library: { onScanProgress: channel.onScanProgress, ...library },
   });
   return { ...channel, onClose };

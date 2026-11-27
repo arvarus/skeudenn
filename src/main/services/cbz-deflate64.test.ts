@@ -42,7 +42,7 @@ describe('Deflate64 CBZ', () => {
   const info = Buffer.from('<ComicInfo>hello hello hello hello</ComicInfo>');
 
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'tankobon-deflate64-'));
+    dir = await mkdtemp(join(tmpdir(), 'skeudenn-deflate64-'));
     file = join(dir, 'book.cbz');
   });
   afterEach(() => rm(dir, { recursive: true, force: true }));

@@ -55,7 +55,7 @@ beforeEach(() => {
     // The page is in the size of the data, which is all a `Blob` shows synchronously.
     return { data: new Uint8Array(page + 1), mimeType: 'image/png' };
   });
-  Object.assign(window, { tankobon: { comic: { readPage } } });
+  Object.assign(window, { skeudenn: { comic: { readPage } } });
   URL.createObjectURL = vi.fn((blob: Blob) => `blob:page-${blob.size - 1}`);
   URL.revokeObjectURL = vi.fn();
   vi.stubGlobal('Image', FakeImage);

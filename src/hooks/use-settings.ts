@@ -18,7 +18,7 @@ let systemLanguages: readonly string[] = navigator.languages;
  */
 export async function loadSystemLanguages(): Promise<void> {
   try {
-    systemLanguages = await window.tankobon.app.getSystemLanguages();
+    systemLanguages = await window.skeudenn.app.getSystemLanguages();
   } catch {
     // Keeps `navigator.languages`.
   }
@@ -79,7 +79,7 @@ export function useSettings() {
 
   const update = useCallback(<K extends keyof PublicSettings>(key: K, value: AppSettings[K] & PublicSettings[K]) => {
     // A refused write is rolled back by the store; nothing more to show here.
-    void appData.updateSetting(key, value, () => window.tankobon.settings.set(key, value)).catch(() => undefined);
+    void appData.updateSetting(key, value, () => window.skeudenn.settings.set(key, value)).catch(() => undefined);
   }, []);
 
   return {

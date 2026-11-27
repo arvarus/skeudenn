@@ -5,7 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { applyLanguage } from '../../shared/i18n';
-import { DELETED_BY_TANKOBON_FOLDER, type ScanProgress } from '../../shared/library';
+import { DELETED_BY_SKEUDENN_FOLDER, type ScanProgress } from '../../shared/library';
 import { migrate } from '../db/schema';
 import { SettingsRepository } from '../db/settings-repository';
 import { createFolderCleaner, findOrphanFolders } from './folder-cleanup';
@@ -19,7 +19,7 @@ describe('folder cleanup', () => {
   let settings: SettingsRepository;
 
   beforeEach(async () => {
-    root = await mkdtemp(join(tmpdir(), 'tankobon-folder-cleanup-'));
+    root = await mkdtemp(join(tmpdir(), 'skeudenn-folder-cleanup-'));
     const db = new DatabaseSync(':memory:');
     migrate(db);
     settings = new SettingsRepository(db);
@@ -53,20 +53,46 @@ describe('folder cleanup', () => {
     ]);
   });
 
-  it('never lists the root nor .deletedByTankobon', async () => {
-    await file(`${DELETED_BY_TANKOBON_FOLDER}/old.nfo`);
+  it('never lists the root nor .deletedBySkeudenn', async () => {
+    await file(`${DELETED_BY_SKEUDENN_FOLDER}/old.nfo`);
     expect(await findOrphanFolders(root)).toEqual([]);
   });
 
-  it('moves the orphans to .deletedByTankobon, renaming on a collision', async () => {
-    await file('Alive/book.cbz');
+  it('ignores the hidden folders, whatever their name', async () => {
+    await file('.deletedByTankobon/old.nfo'); // the parking folder of an earlier version
+    await file(`${DELETED_BY_SKEUDENN_FOLDER}/old.nfo`);
+    await file('.cache/x.cbz');
+    await file('.git/config');
     await file('Dead/book.nfo');
-    await file(`${DELETED_BY_TANKOBON_FOLDER}/Dead/older.nfo`);
+    expect((await findOrphanFolders(root)).map((f) => f.slice(root.length + 1))).toEqual(['Dead']);
+  });
+
+  it('keeps a folder that holds a hidden folder, instead of moving the hidden content with it', async () => {
+    await file('Serie/book.nfo');
+    await file('Serie/.hidden/keep.txt');
+    expect(await findOrphanFolders(root)).toEqual([]);
+  });
+
+  it('leaves an old .deletedByTankobon and the parking folder alone', async () => {
+    await file('.deletedByTankobon/Old/book.nfo');
+    await file(`${DELETED_BY_SKEUDENN_FOLDER}/Parked/book.nfo`);
+    await file('Dead/book.nfo');
     const cleaner = createFolderCleaner(settings, createLibraryRunLock());
     expect(await cleaner.count()).toMatchObject({ status: 'ok', count: 1 });
     expect(await cleaner.clean()).toEqual({ status: 'ok', moved: 1, failed: 0, cancelled: false });
-    expect((await readdir(root)).sort()).toEqual([DELETED_BY_TANKOBON_FOLDER, 'Alive']);
-    expect((await readdir(join(root, DELETED_BY_TANKOBON_FOLDER))).sort()).toEqual(['Dead', 'Dead (2)']);
+    expect((await readdir(join(root, '.deletedByTankobon'))).sort()).toEqual(['Old']);
+    expect((await readdir(join(root, DELETED_BY_SKEUDENN_FOLDER))).sort()).toEqual(['Dead', 'Parked']);
+  });
+
+  it('moves the orphans to .deletedBySkeudenn, renaming on a collision', async () => {
+    await file('Alive/book.cbz');
+    await file('Dead/book.nfo');
+    await file(`${DELETED_BY_SKEUDENN_FOLDER}/Dead/older.nfo`);
+    const cleaner = createFolderCleaner(settings, createLibraryRunLock());
+    expect(await cleaner.count()).toMatchObject({ status: 'ok', count: 1 });
+    expect(await cleaner.clean()).toEqual({ status: 'ok', moved: 1, failed: 0, cancelled: false });
+    expect((await readdir(root)).sort()).toEqual([DELETED_BY_SKEUDENN_FOLDER, 'Alive']);
+    expect((await readdir(join(root, DELETED_BY_SKEUDENN_FOLDER))).sort()).toEqual(['Dead', 'Dead (2)']);
     expect(await cleaner.count()).toMatchObject({ count: 0 });
   });
 
@@ -90,16 +116,16 @@ describe('folder cleanup', () => {
       if (p.phase === 'importing' && p.processed === 0) expect(lock.cancel()).toBe(true);
     });
     expect(await cleaner.clean(onProgress)).toEqual({ status: 'ok', moved: 1, failed: 0, cancelled: true });
-    expect(await readdir(join(root, DELETED_BY_TANKOBON_FOLDER))).toHaveLength(1);
+    expect(await readdir(join(root, DELETED_BY_SKEUDENN_FOLDER))).toHaveLength(1);
     expect(await cleaner.count()).toMatchObject({ count: 1 });
     expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ phase: 'done' }));
     expect(lock.tryStart('folders')).not.toBeNull();
   });
 
-  it.for(FOLDER_LINK_KINDS)('moves nothing into a .deletedByTankobon that is a link (%s)', async (kind, { skip }) => {
-    const outside = await mkdtemp(join(tmpdir(), 'tankobon-folder-cleanup-outside-'));
+  it.for(FOLDER_LINK_KINDS)('moves nothing into a .deletedBySkeudenn that is a link (%s)', async (kind, { skip }) => {
+    const outside = await mkdtemp(join(tmpdir(), 'skeudenn-folder-cleanup-outside-'));
     try {
-      await linkFolderOrSkip(outside, join(root, DELETED_BY_TANKOBON_FOLDER), kind, skip);
+      await linkFolderOrSkip(outside, join(root, DELETED_BY_SKEUDENN_FOLDER), kind, skip);
       await file('Dead/book.nfo');
       const cleaner = createFolderCleaner(settings, createLibraryRunLock());
 

@@ -64,7 +64,7 @@ function ReadingListPage() {
     if (!reordered) return;
     // The ids missing from the library keep their place at the end; the repository wants them all.
     const missing = list.entryIds.filter((id) => !order.includes(id));
-    apply(await window.tankobon.readingLists.reorder(list.id, [...reordered, ...missing]));
+    apply(await window.skeudenn.readingLists.reorder(list.id, [...reordered, ...missing]));
   };
 
   /** The nearest unfinished book's index from `index` in direction `step`, for the arrow buttons. */
@@ -77,7 +77,7 @@ function ReadingListPage() {
 
   const rename = async () => {
     if (renaming === null) return;
-    apply(await window.tankobon.readingLists.rename(list.id, renaming));
+    apply(await window.skeudenn.readingLists.rename(list.id, renaming));
     setRenaming(null);
   };
 
@@ -88,7 +88,7 @@ function ReadingListPage() {
       action: t('confirmDeleteAction'),
     });
     if (!confirmed) return;
-    await window.tankobon.readingLists.remove(list.id);
+    await window.skeudenn.readingLists.remove(list.id);
     void navigate({ to: '/lists' });
   };
 
@@ -244,7 +244,7 @@ function ReadingListPage() {
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    onClick={async () => apply(await window.tankobon.readingLists.removeEntry(list.id, entry.id))}
+                    onClick={async () => apply(await window.skeudenn.readingLists.removeEntry(list.id, entry.id))}
                     title={t('removeFromList')}
                     aria-label={t('removeFromList')}
                   >

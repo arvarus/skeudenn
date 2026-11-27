@@ -1,6 +1,6 @@
 # Skeudenn
 
-**Skeudenn, lecteur de BD, mangas et comics** (formerly Tankōbon). Desktop library manager and reader for digital comics, BD and manga (CBZ, CBR and PDF). Everything stays on your machine: the library, reading progress, ratings, tags, reading lists and book information live in a local SQLite file. Looking a book up in Comic Vine or Google Books, or reading its Bédéthèque page from a pasted link, is optional and only sends the search text or fetches that page.
+**Skeudenn, lecteur de BD, mangas et comics**. Desktop library manager and reader for digital comics, BD and manga (CBZ, CBR and PDF). Everything stays on your machine: the library, reading progress, ratings, tags, reading lists and book information live in a local SQLite file. Looking a book up in Comic Vine or Google Books, or reading its Bédéthèque page from a pasted link, is optional and only sends the search text or fetches that page.
 
 Built with Electron, React 19 and TypeScript.
 

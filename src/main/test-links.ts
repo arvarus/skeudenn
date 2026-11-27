@@ -1,5 +1,5 @@
 /**
- * Test support: making a folder that is a link, both kinds a planted `.deletedByTankobon` can be. Only the
+ * Test support: making a folder that is a link, both kinds a planted `.deletedBySkeudenn` can be. Only the
  * tests import it.
  * @module
  */
