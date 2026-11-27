@@ -122,7 +122,8 @@ describe('addFolderToLibrary', () => {
 
       expect(result).toMatchObject({ status: 'ok', folders: 3, added: 5, skipped: 0, failed: 0, total: 5, cancelled: false });
       expect(repo.list()).toHaveLength(5);
-      expect(folders.list()).toEqual([a, b, c]);
+      // Folders added together can share a timestamp, so `list()` may order them by their (random) path.
+      expect([...folders.list()].sort()).toEqual([a, b, c].sort());
       expect(afterAdd).toHaveBeenCalledTimes(1);
       const offered = (afterAdd.mock.calls[0] as unknown as [{ id: string; path: string }[]])[0];
       expect(offered.map((entry) => path.basename(entry.path)).sort()).toEqual(['a1.cbz', 'a2.cbz', 'b1.cbz', 'c1.cbz', 'c2.pdf']);
