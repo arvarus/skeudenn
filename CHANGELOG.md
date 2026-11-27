@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented here. This file is maintained by [release-please](https://github.com/googleapis/release-please) from the [Conventional Commits](https://www.conventionalcommits.org/) merged into `master`: don't edit released entries by hand. New versions are inserted above the previous ones.
 
+## [0.27.1](https://github.com/arvarus/skeudenn/compare/v0.27.0...v0.27.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* **library:** stabilize the flaky several-folders add test ([#339](https://github.com/arvarus/skeudenn/issues/339)) ([b5a6cc9](https://github.com/arvarus/skeudenn/commit/b5a6cc98744839a2adbaabef17b6879ef82ab78f))
+* **reader:** attach the wheel and key listeners once so no turn is lost ([#337](https://github.com/arvarus/skeudenn/issues/337)) ([b36233c](https://github.com/arvarus/skeudenn/commit/b36233ce957ba50d7d7bf4735cf597fb6a17c11d))
+
 ## [0.27.0](https://github.com/arvarus/skeudenn/compare/v0.26.1...v0.27.0) (2026-11-26)
 
 
