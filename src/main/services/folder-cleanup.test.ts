@@ -58,6 +58,30 @@ describe('folder cleanup', () => {
     expect(await findOrphanFolders(root)).toEqual([]);
   });
 
+  it('ignores the hidden folders, whatever their name', async () => {
+    await file('.deletedByTankobon/old.nfo');
+    await file('.cache/x.cbz');
+    await file('.git/config');
+    await file('Dead/book.nfo');
+    expect((await findOrphanFolders(root)).map((f) => f.slice(root.length + 1))).toEqual(['Dead']);
+  });
+
+  it('keeps a folder that holds a hidden folder, instead of moving the hidden content with it', async () => {
+    await file('Serie/book.nfo');
+    await file('Serie/.hidden/keep.txt');
+    expect(await findOrphanFolders(root)).toEqual([]);
+  });
+
+  it('leaves an old .deletedByTankobon and the parking folder alone', async () => {
+    await file('.deletedByTankobon/Old/book.nfo');
+    await file(`${DELETED_BY_TANKOBON_FOLDER}/Parked/book.nfo`);
+    await file('Dead/book.nfo');
+    const cleaner = createFolderCleaner(settings, createLibraryRunLock());
+    expect(await cleaner.count()).toMatchObject({ status: 'ok', count: 1 });
+    expect(await cleaner.clean()).toEqual({ status: 'ok', moved: 1, failed: 0, cancelled: false });
+    expect((await readdir(join(root, '.deletedByTankobon'))).sort()).toEqual(['Dead', 'Old', 'Parked']);
+  });
+
   it('moves the orphans to .deletedByTankobon, renaming on a collision', async () => {
     await file('Alive/book.cbz');
     await file('Dead/book.nfo');

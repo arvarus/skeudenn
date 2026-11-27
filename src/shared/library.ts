@@ -299,8 +299,16 @@ export type OrganizeResult =
 /** Result of `library.countUnorganized()`: how many library comics aren't in their place in the organized `folder` yet. */
 export type UnorganizedCountResult = { status: 'ok'; count: number; folder: string } | { status: 'error'; message: string };
 
-/** Name of the folder, at the root of the organized folder, where the CBR replaced by a CBZ are moved (see `library.convertCbr()`); a scan never walks it. */
+/** Name of the folder, at the root of the organized folder, where the CBR replaced by a CBZ are moved (see `library.convertCbr()`); a hidden folder, so a scan never walks it. */
 export const DELETED_BY_TANKOBON_FOLDER = '.deletedByTankobon';
+
+/**
+ * Whether a folder is hidden: its name starts with a dot (`.cache`, `.git`, `.Trash`, the parking folder…). The walks of
+ * the library (the scan and the resynchronization, the search for orphan folders) never go into one, at any depth.
+ */
+export function isHiddenFolderName(name: string): boolean {
+  return name.startsWith('.');
+}
 
 /** Result of `library.countConvertible()`: the CBR of the organized `folder` that could become CBZ, and what its `.deletedByTankobon` folder holds. */
 export type ConvertCountResult =

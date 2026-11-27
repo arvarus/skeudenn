@@ -50,6 +50,28 @@ describe('collectComicFiles', () => {
     expect(await collectComicFiles(root)).toEqual([path.join(root, 'a.cbz')]);
   });
 
+  it('does not walk any hidden folder, at any depth', async () => {
+    const root = await tree([
+      'a.cbz',
+      '.cache/x.cbz',
+      '.git/objects/y.cbz',
+      'serie/.Trash/z.cbz',
+      'serie/.hidden/deep/w.cbz',
+      'serie/b.cbz',
+      '.hidden-file.cbz',
+    ]);
+    expect(await collectComicFiles(root)).toEqual([
+      path.join(root, '.hidden-file.cbz'),
+      path.join(root, 'a.cbz'),
+      path.join(root, 'serie', 'b.cbz'),
+    ]);
+  });
+
+  it('walks the folder it is given even when that folder is hidden', async () => {
+    const root = await tree(['.library/a.cbz', '.library/.cache/b.cbz']);
+    expect(await collectComicFiles(path.join(root, '.library'))).toEqual([path.join(root, '.library', 'a.cbz')]);
+  });
+
   it('finds comics recursively and ignores everything else', async () => {
     const root = await tree([
       'tome-1.cbz',
