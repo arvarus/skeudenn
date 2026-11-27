@@ -56,13 +56,6 @@ if (started) {
   app.quit();
 }
 
-// Electron derives `userData` from the product name, which changed with the rename to Skeudenn:
-// keep the folder the database, the roots file and the thumbnails already live in. An explicit
-// `--user-data-dir` wins (the e2e tests start the app on a throw-away directory).
-if (!app.commandLine.hasSwitch('user-data-dir')) {
-  app.setPath('userData', path.join(app.getPath('appData'), 'Tankōbon'));
-}
-
 // One instance at a time: a second one would open the same database file and its decoder process on
 // the same library. Launching the app again brings the running window forward instead.
 const isFirstInstance = app.requestSingleInstanceLock();
@@ -81,7 +74,7 @@ app.on('open-file', (event, filePath) => {
 });
 
 // Development mode (`npm run dev`, see forge.config.ts): only there are DevTools opened.
-const isDevMode = !app.isPackaged && process.env.TANKOBON_DEV === '1';
+const isDevMode = !app.isPackaged && process.env.SKEUDENN_DEV === '1';
 
 // The window icon (taskbar and title bar on Linux; Windows and macOS take the executable's own).
 // Packaged, the PNG is copied next to the app by `extraResource` (forge.config.ts).
@@ -106,7 +99,7 @@ const createWindow = () => {
   });
 
   // The window only ever shows the app itself: no navigation away from it (a dropped file or a
-  // clicked link would replace the UI, and a page loaded there could reach `window.tankobon`),
+  // clicked link would replace the UI, and a page loaded there could reach `window.skeudenn`),
   // and no new window. Links go through `app:open-link` instead.
   mainWindow.webContents.on('will-navigate', (event, url) => {
     if (url !== mainWindow.webContents.getURL()) {
@@ -276,7 +269,7 @@ app.whenReady().then(() => {
   backupTimer.unref();
   app.on('will-quit', () => clearInterval(backupTimer));
 
-  // The automatic emptying of `.deletedByTankobon` (the active user's setting), at start-up then every hour.
+  // The automatic emptying of `.deletedBySkeudenn` (the active user's setting), at start-up then every hour.
   const emptyTrashIfDue = () => {
     const { trashAutoEmpty, trashRetentionDays } = settingsRepo.getAll();
     if (trashAutoEmpty) void cbrConverter.emptyDeletedOlderThan(trashRetentionDays).catch(() => undefined);

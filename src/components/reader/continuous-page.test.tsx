@@ -56,7 +56,7 @@ afterEach(() => {
 
 function renderPage(readPage: () => Promise<unknown>, onRetry = vi.fn()) {
   const readPageMock = vi.fn(readPage);
-  Object.assign(window, { tankobon: { comic: { readPage: readPageMock } } });
+  Object.assign(window, { skeudenn: { comic: { readPage: readPageMock } } });
   render(
     <I18nextProvider i18n={i18n}>
       <ContinuousPage

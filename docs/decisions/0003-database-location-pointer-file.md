@@ -16,7 +16,7 @@ Users may want the database somewhere other than Electron's `userData` directory
 
 ## Consequences
 
-- Pointing at a directory that already holds a `tankobon.db` (another machine, a synced folder) uses that database as is, rather than overwriting it.
+- Pointing at a directory that already holds a `skeudenn.db` (another machine, a synced folder) uses that database as is, rather than overwriting it.
 - A user who wants to carry their data to the new location has to export it first and import it afterwards; the settings page says so.
 - The pointer-file functions are pure (they take the `userData` path as a parameter), so they are unit-tested without Electron (`src/main/db/db-location.test.ts`).
 

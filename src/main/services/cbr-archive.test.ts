@@ -23,7 +23,7 @@ describe('CbrArchive', () => {
   let dir: string;
 
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'tankobon-cbr-'));
+    dir = await mkdtemp(join(tmpdir(), 'skeudenn-cbr-'));
   });
 
   afterEach(async () => {

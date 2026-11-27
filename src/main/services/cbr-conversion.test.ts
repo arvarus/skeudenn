@@ -5,7 +5,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { applyLanguage } from '../../shared/i18n';
-import { DELETED_BY_TANKOBON_FOLDER, type ScanProgress } from '../../shared/library';
+import { DELETED_BY_SKEUDENN_FOLDER, type ScanProgress } from '../../shared/library';
 import { LibraryRepository } from '../db/library-repository';
 import { migrate } from '../db/schema';
 import { SettingsRepository } from '../db/settings-repository';
@@ -21,7 +21,7 @@ describe('createCbrConverter', () => {
   let settings: SettingsRepository;
 
   beforeEach(async () => {
-    root = await mkdtemp(join(tmpdir(), 'tankobon-cbr-conversion-'));
+    root = await mkdtemp(join(tmpdir(), 'skeudenn-cbr-conversion-'));
     const db = new DatabaseSync(':memory:');
     migrate(db);
     repo = new LibraryRepository(db);
@@ -67,7 +67,7 @@ describe('createCbrConverter', () => {
     expect(repo.get(id)).toMatchObject({ path: cbz, fileCount: 4, fileSize: 4 });
     expect(await readdir(join(root, 'Serie'))).toContain('book.cbz');
     expect(await readdir(join(root, 'Serie'))).not.toContain('book.cbr');
-    expect(await readdir(join(root, DELETED_BY_TANKOBON_FOLDER))).toEqual(['book.cbr']);
+    expect(await readdir(join(root, DELETED_BY_SKEUDENN_FOLDER))).toEqual(['book.cbr']);
     expect(notify).toHaveBeenCalledWith({ scope: 'library' });
     expect(await converter.count()).toMatchObject({ count: 0, deletedFiles: 1, deletedBytes: 4 });
   });
@@ -85,7 +85,7 @@ describe('createCbrConverter', () => {
   });
 
   it('ignores a CBR outside the organized folder', async () => {
-    const outside = await mkdtemp(join(tmpdir(), 'tankobon-cbr-outside-'));
+    const outside = await mkdtemp(join(tmpdir(), 'skeudenn-cbr-outside-'));
     try {
       repo.register(join(outside, 'x.cbr'), 'x', 1, 1, 1);
       const { converter } = setup();
@@ -123,7 +123,7 @@ describe('createCbrConverter', () => {
     expect(await converter.convert()).toEqual({ status: 'ok', converted: 0, failed: 1, cancelled: false });
     expect(repo.get(id)?.path).toBe(cbr);
     expect(await readdir(join(root, 'Serie'))).toEqual(['book.cbr']);
-    expect(await readdir(join(root, DELETED_BY_TANKOBON_FOLDER)).catch(() => [])).toEqual([]);
+    expect(await readdir(join(root, DELETED_BY_SKEUDENN_FOLDER)).catch(() => [])).toEqual([]);
     expect(notify).not.toHaveBeenCalled();
   });
 
@@ -139,7 +139,7 @@ describe('createCbrConverter', () => {
     expect(await converter.convert()).toMatchObject({ converted: 0, failed: 1 });
     expect(repo.get(id)?.path).toBe(join(root, 'Serie', 'book.cbz'));
     expect(await readdir(join(root, 'Serie'))).toEqual(['book.cbz']);
-    expect(await readdir(join(root, DELETED_BY_TANKOBON_FOLDER))).toEqual(['book.cbr']);
+    expect(await readdir(join(root, DELETED_BY_SKEUDENN_FOLDER))).toEqual(['book.cbr']);
   });
 
   it('picks another name when the CBZ already exists', async () => {
@@ -159,10 +159,10 @@ describe('createCbrConverter', () => {
     expect(await converter.convert()).toMatchObject({ status: 'error' });
   });
 
-  it('empties .deletedByTankobon for good', async () => {
-    await mkdir(join(root, DELETED_BY_TANKOBON_FOLDER));
-    await writeFile(join(root, DELETED_BY_TANKOBON_FOLDER, 'a.cbr'), '12345');
-    await writeFile(join(root, DELETED_BY_TANKOBON_FOLDER, 'b.cbr'), '123');
+  it('empties .deletedBySkeudenn for good', async () => {
+    await mkdir(join(root, DELETED_BY_SKEUDENN_FOLDER));
+    await writeFile(join(root, DELETED_BY_SKEUDENN_FOLDER, 'a.cbr'), '12345');
+    await writeFile(join(root, DELETED_BY_SKEUDENN_FOLDER, 'b.cbr'), '123');
     const { converter } = setup();
 
     expect(await converter.emptyDeleted()).toEqual({ status: 'ok', deleted: 2, bytesFreed: 8, failed: 0, cancelled: false });
@@ -170,13 +170,13 @@ describe('createCbrConverter', () => {
   });
 
   it('automatically empties only what has been parked for long enough', async () => {
-    await mkdir(join(root, DELETED_BY_TANKOBON_FOLDER));
-    await writeFile(join(root, DELETED_BY_TANKOBON_FOLDER, 'a.cbr'), '12345');
+    await mkdir(join(root, DELETED_BY_SKEUDENN_FOLDER));
+    await writeFile(join(root, DELETED_BY_SKEUDENN_FOLDER, 'a.cbr'), '12345');
     const { converter } = setup();
     const inTenDays = new Date(Date.now() + 10 * 24 * 60 * 60 * 1000);
 
     expect(await converter.emptyDeletedOlderThan(20, inTenDays)).toEqual({ status: 'ok', deleted: 0, bytesFreed: 0, failed: 0, cancelled: false });
-    expect(await readdir(join(root, DELETED_BY_TANKOBON_FOLDER))).toEqual(['a.cbr']);
+    expect(await readdir(join(root, DELETED_BY_SKEUDENN_FOLDER))).toEqual(['a.cbr']);
 
     expect(await converter.emptyDeletedOlderThan(5, inTenDays)).toEqual({ status: 'ok', deleted: 1, bytesFreed: 5, failed: 0, cancelled: false });
     expect(await readdir(root)).toEqual([]);
@@ -206,26 +206,26 @@ describe('createCbrConverter', () => {
     expect(lock.tryStart('convert')).not.toBeNull();
   });
 
-  it('empties .deletedByTankobon item by item, reporting each, and stops when the run is cancelled', async () => {
-    await mkdir(join(root, DELETED_BY_TANKOBON_FOLDER));
-    await writeFile(join(root, DELETED_BY_TANKOBON_FOLDER, 'a.cbr'), '12345');
-    await writeFile(join(root, DELETED_BY_TANKOBON_FOLDER, 'b.cbr'), '123');
+  it('empties .deletedBySkeudenn item by item, reporting each, and stops when the run is cancelled', async () => {
+    await mkdir(join(root, DELETED_BY_SKEUDENN_FOLDER));
+    await writeFile(join(root, DELETED_BY_SKEUDENN_FOLDER, 'a.cbr'), '12345');
+    await writeFile(join(root, DELETED_BY_SKEUDENN_FOLDER, 'b.cbr'), '123');
     const { converter, lock } = setup();
 
     const onProgress = vi.fn((p: ScanProgress) => {
       if (p.phase === 'importing' && p.processed === 0) expect(lock.cancel()).toBe(true);
     });
     expect(await converter.emptyDeleted(onProgress)).toMatchObject({ status: 'ok', deleted: 1, failed: 0, cancelled: true });
-    expect(await readdir(join(root, DELETED_BY_TANKOBON_FOLDER))).toHaveLength(1);
+    expect(await readdir(join(root, DELETED_BY_SKEUDENN_FOLDER))).toHaveLength(1);
     expect(onProgress.mock.calls.map(([p]) => p.phase)).toEqual(['importing', 'done']);
     expect(onProgress.mock.calls[0][0]).toMatchObject({ processed: 0, total: 2 });
     expect(lock.tryStart('convert')).not.toBeNull();
   });
 
-  describe.for(FOLDER_LINK_KINDS)('with a .deletedByTankobon that is a link (%s) to a folder outside', (kind) => {
+  describe.for(FOLDER_LINK_KINDS)('with a .deletedBySkeudenn that is a link (%s) to a folder outside', (kind) => {
     let outside: string;
     beforeEach(async () => {
-      outside = await mkdtemp(join(tmpdir(), 'tankobon-cbr-conversion-outside-'));
+      outside = await mkdtemp(join(tmpdir(), 'skeudenn-cbr-conversion-outside-'));
       await writeFile(join(outside, 'precious.docx'), 'precious');
       await mkdir(join(outside, 'Photos'));
       await writeFile(join(outside, 'Photos', 'a.jpg'), 'x');
@@ -234,7 +234,7 @@ describe('createCbrConverter', () => {
       await rm(outside, { recursive: true, force: true });
     });
 
-    const link = (skip: () => void) => linkFolderOrSkip(outside, join(root, DELETED_BY_TANKOBON_FOLDER), kind, skip);
+    const link = (skip: () => void) => linkFolderOrSkip(outside, join(root, DELETED_BY_SKEUDENN_FOLDER), kind, skip);
     const untouched = async () => {
       expect((await readdir(outside)).sort()).toEqual(['Photos', 'precious.docx']);
       expect(await readdir(join(outside, 'Photos'))).toEqual(['a.jpg']);

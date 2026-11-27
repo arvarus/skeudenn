@@ -32,7 +32,7 @@ export function useOrganizationOffer(
           action: t('organizeConfirmAction'),
         });
         if (accepted) {
-          const result = await window.tankobon.library.organize(token);
+          const result = await window.skeudenn.library.organize(token);
           if (result.status === 'error') parts.push(result.message);
           else {
             moved += result.moved;

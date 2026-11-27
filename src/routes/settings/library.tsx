@@ -28,7 +28,7 @@ function LibrarySettingsPage() {
   // Read again when the organized folder changes: choosing it adds it to the list.
   useEffect(() => {
     let cancelled = false;
-    void window.tankobon.library.listFolders().then((list) => {
+    void window.skeudenn.library.listFolders().then((list) => {
       if (!cancelled) setFolders(list);
     });
     return () => {
@@ -38,29 +38,29 @@ function LibrarySettingsPage() {
 
   // The folders of a library made on another computer, which have no path here yet.
   const loadUnlinked = useCallback(() => {
-    void window.tankobon.library.listUnlinkedFolders().then(setUnlinked);
+    void window.skeudenn.library.listUnlinkedFolders().then(setUnlinked);
   }, []);
   useEffect(loadUnlinked, [loadUnlinked]);
 
   const relinkFolder = async (id: string) => {
-    const result = await window.tankobon.library.relinkFolder(id);
+    const result = await window.skeudenn.library.relinkFolder(id);
     if (result.status === 'error') setStatus({ message: result.message, error: true });
     if (result.status === 'ok') {
       loadUnlinked();
-      setFolders(await window.tankobon.library.listFolders());
+      setFolders(await window.skeudenn.library.listFolders());
     }
   };
 
   // Shows a run started anywhere, to keep the folders from changing under it.
-  useEffect(() => window.tankobon.library.onScanProgress((p) => setProgress(p.phase === 'done' ? null : p)), []);
+  useEffect(() => window.skeudenn.library.onScanProgress((p) => setProgress(p.phase === 'done' ? null : p)), []);
 
   const removeFolder = async (folder: string) => {
-    await window.tankobon.library.removeFolder(folder);
+    await window.skeudenn.library.removeFolder(folder);
     setFolders((list) => list?.filter((f) => f !== folder) ?? list);
   };
 
   // The folder is set by the main process (it is where files get moved): the renderer only opens the dialog.
-  const pickOrganizationFolder = () => void window.tankobon.library.pickOrganizationFolder();
+  const pickOrganizationFolder = () => void window.skeudenn.library.pickOrganizationFolder();
 
   return (
     <>

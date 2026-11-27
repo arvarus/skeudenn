@@ -3,7 +3,7 @@ import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { libraryEntry } from '@/test/fixtures';
-import { renderWithTankobon, type FakeTankobon } from '@/test/tankobon';
+import { renderWithSkeudenn, type FakeSkeudenn } from '@/test/skeudenn';
 import type { MetadataCandidate } from '@/shared/metadata';
 import { MetadataDialog } from './metadata-dialog';
 
@@ -27,10 +27,10 @@ const candidate: MetadataCandidate = {
   credits: [],
 };
 
-function open(metadata: FakeTankobon['metadata']) {
+function open(metadata: FakeSkeudenn['metadata']) {
   const onClose = vi.fn();
   const onApplied = vi.fn();
-  renderWithTankobon(<MetadataDialog entry={libraryEntry('a', { title: 'Blacksad' })} onClose={onClose} onApplied={onApplied} />, {
+  renderWithSkeudenn(<MetadataDialog entry={libraryEntry('a', { title: 'Blacksad' })} onClose={onClose} onApplied={onApplied} />, {
     metadata: { cancel: vi.fn(async () => undefined), ...metadata },
     settings: { set: vi.fn(async () => undefined) as never },
   });

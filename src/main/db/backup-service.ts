@@ -1,5 +1,5 @@
 /**
- * Copies of the database, kept in a `.tankobon` directory next to it (see ADR 0024). Free of Electron:
+ * Copies of the database, kept in a `.skeudenn` directory next to it (see ADR 0024). Free of Electron:
  * every function takes the paths it works on, so the tests run on temporary directories.
  * @module
  */
@@ -13,8 +13,8 @@ import { errorText } from '../../shared/errors';
 import { configureConnection } from './schema';
 
 /** Directory holding the copies, beside the database file. */
-export const BACKUP_DIR_NAME = '.tankobon';
-const BACKUP_PREFIX = 'tankobon-';
+export const BACKUP_DIR_NAME = '.skeudenn';
+const BACKUP_PREFIX = 'skeudenn-';
 const BACKUP_EXTENSION = '.db';
 const PENDING_RESTORE_FILE = 'pending-restore.json';
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -26,7 +26,7 @@ export function backupDirectory(databaseDirectory: string): string {
 
 /** Whether `name` looks like a file written by {@link createBackup} (no path, only the generated pattern). */
 export function isBackupName(name: string): boolean {
-  return /^tankobon-\d{8}-\d{6}(-\d+)?\.db$/.test(name);
+  return /^skeudenn-\d{8}-\d{6}(-\d+)?\.db$/.test(name);
 }
 
 function pad(value: number): string {

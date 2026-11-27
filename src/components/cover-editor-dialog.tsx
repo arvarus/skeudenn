@@ -76,7 +76,7 @@ export function CoverEditorDialog({ entry, onClose }: { entry: LibraryEntry; onC
       const mine = ++request.current;
       setLoading(true);
       try {
-        const page = await window.tankobon.comic.readPage(id, index);
+        const page = await window.skeudenn.comic.readPage(id, index);
         await showBytes(page.data, mine);
       } catch {
         if (mine === request.current) setMessage(t('coverUnreadable'));
@@ -94,7 +94,7 @@ export function CoverEditorDialog({ entry, onClose }: { entry: LibraryEntry; onC
       return;
     }
     setLoading(true);
-    const result = await window.tankobon.comic.open(entry.id);
+    const result = await window.skeudenn.comic.open(entry.id);
     if (result.status === 'error') {
       setLoading(false);
       setMessage(result.message);
@@ -129,7 +129,7 @@ export function CoverEditorDialog({ entry, onClose }: { entry: LibraryEntry; onC
   // Closes the book's archive and the bitmap with the dialog.
   useEffect(
     () => () => {
-      if (archiveId.current) void window.tankobon.comic.close(archiveId.current);
+      if (archiveId.current) void window.skeudenn.comic.close(archiveId.current);
     },
     [],
   );
@@ -174,7 +174,7 @@ export function CoverEditorDialog({ entry, onClose }: { entry: LibraryEntry; onC
     setMessage(null);
     try {
       const image = await cropToCover(bitmap, coverSourceRect(bitmap.width, bitmap.height, zoom, pan.x, pan.y));
-      const result = await window.tankobon.library.setCover(entry.id, image);
+      const result = await window.skeudenn.library.setCover(entry.id, image);
       if (result.status === 'error') {
         setMessage(result.message);
         return;

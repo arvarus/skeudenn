@@ -109,7 +109,7 @@ export function moveItem<T>(items: readonly T[], from: number, to: number): T[] 
  * list of the sidebar. A custom type, so the sidebar tells a book from one of its own lists being
  * reordered, and from files dragged in from outside the app.
  */
-export const LIBRARY_ENTRY_DRAG_TYPE = 'application/x-tankobon-entry';
+export const LIBRARY_ENTRY_DRAG_TYPE = 'application/x-skeudenn-entry';
 
 /** What each dragged library book carries: its id, and its title for the confirmation message. */
 export interface DraggedEntry {

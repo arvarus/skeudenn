@@ -35,7 +35,7 @@ function entry(id: string): LibraryEntry {
 }
 
 function open(updateMetadataMany: () => Promise<number>, onClose = vi.fn()) {
-  Object.assign(window, { tankobon: { library: { updateMetadataMany } } });
+  Object.assign(window, { skeudenn: { library: { updateMetadataMany } } });
   render(
     <I18nextProvider i18n={i18n}>
       <BookBulkEditDialog entries={[entry('a'), entry('b')]} onClose={onClose} />

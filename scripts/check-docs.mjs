@@ -103,7 +103,7 @@ for (const file of docFiles()) {
     const candidate = value.trim();
     if (!FILE_LIKE.test(candidate) || candidate.includes('..') || candidate.includes('NNNN')) continue;
     // Outside the top-level source directories, only source-like extensions are checked: other
-    // names (main.cjs, db-location.json, tankobon.db…) are runtime files cited on purpose.
+    // names (main.cjs, db-location.json, skeudenn.db…) are runtime files cited on purpose.
     if (!TOP_LEVEL.test(candidate) && !CHECKED_EXTENSIONS.test(candidate)) continue;
     if (RUNTIME_PATHS.some((pattern) => pattern.test(candidate))) continue;
     if (candidate.startsWith('pdfjs-dist/') || candidate.startsWith('@')) continue; // npm package paths

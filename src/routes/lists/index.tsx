@@ -25,7 +25,7 @@ function ReadingListsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const create = async () => {
-    const result = await window.tankobon.readingLists.create(newName);
+    const result = await window.skeudenn.readingLists.create(newName);
     if (result.status === 'error') {
       setError(result.message);
       return;
@@ -41,7 +41,7 @@ function ReadingListsPage() {
       action: t('confirmDeleteAction'),
     });
     if (!confirmed) return;
-    await window.tankobon.readingLists.remove(list.id);
+    await window.skeudenn.readingLists.remove(list.id);
   };
 
   return (

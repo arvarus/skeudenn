@@ -13,12 +13,12 @@ export function useImageScan(): ImageScanProgress {
   useEffect(() => {
     // Subscribed first: a push arriving before the status reply is the newer of the two.
     let live = false;
-    const unsubscribe = window.tankobon.library.onImageScanProgress((next) => {
+    const unsubscribe = window.skeudenn.library.onImageScanProgress((next) => {
       live = true;
       setProgress(next);
     });
     // The scan may have started before this window loaded.
-    void window.tankobon.library.imageScanStatus().then((current) => {
+    void window.skeudenn.library.imageScanStatus().then((current) => {
       if (!live) setProgress(current);
     });
     return unsubscribe;

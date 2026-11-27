@@ -15,7 +15,7 @@ import type { OrganizationOutcome } from '@/shared/library';
 // out once, so both mounts await the same answer and only the one still mounted follows up on it.
 let taking: Promise<OrganizationOutcome | null> | null = null;
 function takeStartupOrganization(): Promise<OrganizationOutcome | null> {
-  taking ??= window.tankobon.library.takeStartupOrganization().finally(() => {
+  taking ??= window.skeudenn.library.takeStartupOrganization().finally(() => {
     taking = null;
   });
   return taking;
@@ -52,7 +52,7 @@ export function LibrarySyncStatus({ collapsed }: { collapsed: boolean }) {
       if (mounted && parts.length > 0) setOutcome({ message: parts.join(' · ') });
     };
     void follow();
-    const unsubscribe = window.tankobon.library.onStartupOrganization(() => void follow());
+    const unsubscribe = window.skeudenn.library.onStartupOrganization(() => void follow());
     return () => {
       mounted = false;
       unsubscribe();
@@ -69,7 +69,7 @@ export function LibrarySyncStatus({ collapsed }: { collapsed: boolean }) {
   const start = async () => {
     setOutcome(null);
     setStarting(true);
-    const result = await window.tankobon.library.resync();
+    const result = await window.skeudenn.library.resync();
     setStarting(false);
     setStopping(false);
     if (result.status === 'error') {
@@ -86,7 +86,7 @@ export function LibrarySyncStatus({ collapsed }: { collapsed: boolean }) {
 
   const stop = async () => {
     setStopping(true);
-    if (!(await window.tankobon.library.cancelResync())) setStopping(false);
+    if (!(await window.skeudenn.library.cancelResync())) setStopping(false);
   };
 
   const runningText = stopping

@@ -21,10 +21,10 @@ async function copyNodeModule(buildPath: string, name: string): Promise<void> {
 }
 
 // `npm run dev`: development mode (see docs/development.md). The Electron app inherits this
-// process's environment, so `TANKOBON_DEV` is how src/main.ts knows to open DevTools.
+// process's environment, so `SKEUDENN_DEV` is how src/main.ts knows to open DevTools.
 const devMode = process.env.npm_lifecycle_event === 'dev';
 if (devMode) {
-  process.env.TANKOBON_DEV = '1';
+  process.env.SKEUDENN_DEV = '1';
 }
 
 // Restarts the app whenever Vite rebuilds the main process, decoder process or backup worker bundle. The Vite plugin's own
@@ -66,7 +66,7 @@ const config: ForgeConfig = {
     // Packager names the Linux binary after `productName` ("Skeudenn"), but the deb and rpm makers
     // look for one named after `name`: without this, `make` fails on Linux with "could not find
     // the Electron app binary". Windows and macOS keep their product-named executables.
-    executableName: process.platform === 'linux' ? 'tankobon' : undefined,
+    executableName: process.platform === 'linux' ? 'skeudenn' : undefined,
     // macOS: the file types the app opens (Finder's "Open with" and double click).
     extendInfo: {
       CFBundleDocumentTypes: [

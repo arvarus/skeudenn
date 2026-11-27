@@ -34,7 +34,7 @@ function StatsPage() {
   // elsewhere); it is not part of the data store, since only this page shows it.
   useEffect(() => {
     let cancelled = false;
-    window.tankobon.stats
+    window.skeudenn.stats
       .get()
       .then((result) => {
         if (!cancelled) {

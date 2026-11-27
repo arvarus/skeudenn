@@ -15,7 +15,7 @@ import type { UsersState } from '@/shared/users';
 /** The slices of the store, each with its own subscribers: a progress update doesn't wake the settings' readers. */
 export type DataSlice = 'library' | 'readingLists' | 'settings' | 'achievements' | 'users';
 
-/** The part of `window.tankobon` the store reads from; a fake in tests. */
+/** The part of `window.skeudenn` the store reads from; a fake in tests. */
 export interface DataSource {
   /** The library. */
   library: {

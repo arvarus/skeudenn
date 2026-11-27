@@ -193,7 +193,7 @@ export function BookRating({ entry }: { entry: LibraryEntry }) {
   const { id, rating } = entry;
   const rate = (value: number) =>
     // A refused write is rolled back by the store; nothing more to show here.
-    void appData.patchEntry(id, { rating: value }, () => window.tankobon.library.updateRating(id, value)).catch(() => undefined);
+    void appData.patchEntry(id, { rating: value }, () => window.skeudenn.library.updateRating(id, value)).catch(() => undefined);
   return (
     <div
       role="group"
@@ -227,7 +227,7 @@ export function BookTags({ entry }: { entry: LibraryEntry }) {
   const toggle = (tag: string) => {
     const tags = toggleTag(entry.tags, tag);
     void appData
-      .patchEntry(entry.id, { tags }, () => window.tankobon.library.updateTags(entry.id, tags))
+      .patchEntry(entry.id, { tags }, () => window.skeudenn.library.updateTags(entry.id, tags))
       .catch(() => undefined);
   };
 

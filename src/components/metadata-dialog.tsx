@@ -104,10 +104,10 @@ export function MetadataDialog({
   const queryInput = useRef<HTMLInputElement>(null);
   const pageUrlInput = useRef<HTMLInputElement>(null);
   // Closing the dialog gives up what it is waiting for: the requests to the sites are aborted, not just ignored.
-  useEffect(() => () => void window.tankobon.metadata.cancel(), []);
+  useEffect(() => () => void window.skeudenn.metadata.cancel(), []);
   const stop = () => {
     dispatch({ type: 'reset' });
-    void window.tankobon.metadata.cancel();
+    void window.skeudenn.metadata.cancel();
   };
 
   const runSearch = async () => {
@@ -115,7 +115,7 @@ export function MetadataDialog({
     dispatch({ type: 'searchStarted', id });
     try {
       if (mode === 'site') {
-        const result = await window.tankobon.metadata.fromPage(pageUrl.trim());
+        const result = await window.skeudenn.metadata.fromPage(pageUrl.trim());
         dispatch({
           type: 'searchDone',
           id,
@@ -126,7 +126,7 @@ export function MetadataDialog({
         });
         return;
       }
-      const result = await window.tankobon.metadata.search({ ...query, sources });
+      const result = await window.skeudenn.metadata.search({ ...query, sources });
       dispatch({
         type: 'searchDone',
         id,
@@ -151,7 +151,7 @@ export function MetadataDialog({
     }
     setPicking(true);
     try {
-      const result = await window.tankobon.metadata.fromPage(candidate.sourceUrl);
+      const result = await window.skeudenn.metadata.fromPage(candidate.sourceUrl);
       dispatch({ type: 'picked', review: buildReview(entry, result.status === 'ok' ? result.candidate : candidate) });
     } catch {
       // The album page couldn't be read: the list line's own information is reviewed instead.
@@ -173,7 +173,7 @@ export function MetadataDialog({
     setApplyFailed(false);
     let updated: LibraryEntry | null;
     try {
-      updated = await window.tankobon.metadata.apply(entry.id, update, coverUrl);
+      updated = await window.skeudenn.metadata.apply(entry.id, update, coverUrl);
     } catch {
       // Nothing was saved: the review stays open, with what the user accepted, and says so.
       setApplying(false);

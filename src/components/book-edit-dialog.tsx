@@ -55,7 +55,7 @@ export function BookEditDialog({
       return;
     }
     setSaving(true);
-    const updated = await window.tankobon.library.updateMetadata(entry.id, update);
+    const updated = await window.skeudenn.library.updateMetadata(entry.id, update);
     setSaving(false);
     if (updated) onSaved(updated);
     onClose();

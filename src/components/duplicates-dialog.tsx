@@ -85,7 +85,7 @@ export function DuplicatesDialog({ entries, onClose }: { entries: readonly Libra
     }
     try {
       const result = await run.start(() =>
-        window.tankobon.library.removeMany(
+        window.skeudenn.library.removeMany(
           toRemove.map((entry) => entry.id),
           deleteFiles,
         ),

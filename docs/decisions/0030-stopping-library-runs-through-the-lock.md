@@ -5,7 +5,7 @@
 
 ## Context
 
-Paramètres › Organisation starts long runs over the library files: organizing the whole library, converting the CBR, checking and rewriting the Deflate64 CBZ, emptying `.deletedByTankobon`, cleaning the orphan folders, removing duplicates, resynchronizing, cleaning the books. They already share a `LibraryRunLock` so that only one of them touches the files at a time. Only two could be stopped, each its own way (`Resynchronizer.cancel()`, `LibraryCleaner.cancel()`), and the next step is one dialog with an "Arrêter" button for every action, which needs one way to stop whichever run is going.
+Paramètres › Organisation starts long runs over the library files: organizing the whole library, converting the CBR, checking and rewriting the Deflate64 CBZ, emptying `.deletedBySkeudenn`, cleaning the orphan folders, removing duplicates, resynchronizing, cleaning the books. They already share a `LibraryRunLock` so that only one of them touches the files at a time. Only two could be stopped, each its own way (`Resynchronizer.cancel()`, `LibraryCleaner.cancel()`), and the next step is one dialog with an "Arrêter" button for every action, which needs one way to stop whichever run is going.
 
 ## Decision
 
@@ -13,7 +13,7 @@ Paramètres › Organisation starts long runs over the library files: organizing
 - **Same semantics everywhere**, those of the resynchronization and the books' cleanup: a move, a rewrite or a conversion under way always finishes; what was done stays, counted, written to the database and announced as at the end of a full run; the lock is released in `finally`. The `ok` result gains `cancelled: boolean`; a check that yields a plan (`countDeflate64`, the cleanup's analysis) answers `{ status: 'cancelled' }` and keeps nothing, since a partial plan would silently leave books out.
 - **One channel**: `library:cancel-run` (`library.cancelRun()`) calls `lock.cancel()` and `LibraryCleaner.cancel()` (the cleanup's analysis only reads and doesn't take the lock). `library:cancel-resync` and `library:cancel-cleanup` keep working: the first goes through the lock, the cleaner's rewrite follows the lock's signal.
 - **Removing a selection takes the lock** (kind `remove`): `library:remove-many` trashes or parks files, which a walk could register again or the organizer try to move meanwhile. It moves to `createLibraryRemover()` (`library-removal.ts`, Electron-free), reports over `library:scan-progress` and gets an `error` member when the lock is taken.
-- **Emptying `.deletedByTankobon` goes item by item** with progress, so it can be stopped like the rest; the hourly automatic emptying keeps its behavior (no progress, skipped when the lock is taken).
+- **Emptying `.deletedBySkeudenn` goes item by item** with progress, so it can be stopped like the rest; the hourly automatic emptying keeps its behavior (no progress, skipped when the lock is taken).
 
 ## Consequences
 

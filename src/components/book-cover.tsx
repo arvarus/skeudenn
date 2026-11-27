@@ -42,7 +42,7 @@ export function BookCover({ entryId, title, className }: { entryId: string; titl
     let objectUrl: string | null = null;
     let cancelled = false;
     const cancelRequest = coverQueue.enqueue(async () => {
-      const bytes = await window.tankobon.library.thumbnail(entryId);
+      const bytes = await window.skeudenn.library.thumbnail(entryId);
       if (cancelled || !bytes) return;
       objectUrl = URL.createObjectURL(new Blob([bytes], { type: 'image/webp' }));
       setUrl(objectUrl);

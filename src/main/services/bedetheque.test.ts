@@ -129,7 +129,7 @@ describe('parseBedethequeAlbum', () => {
 describe('fetchBedethequeAlbum', () => {
   const http = (fetch: (input: string | URL | Request) => Promise<Response>): HttpOptions => ({
     fetch: fetch as typeof globalThis.fetch,
-    userAgent: 'Tankobon/test',
+    userAgent: 'Skeudenn/test',
     timeoutMs: 1000,
   });
 
@@ -413,7 +413,7 @@ describe('a one-shot series page', () => {
       if (url.startsWith('https://www.bedetheque.com/serie/index/s/')) return new Response(ONE_SHOT_PAGE);
       return new Response(albumPage());
     });
-    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Tankobon/test', timeoutMs: 1000 };
+    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Skeudenn/test', timeoutMs: 1000 };
     const found = await searchBedetheque({ text: 'Vitesse moderne', volume: null }, http);
     expect(calls.at(-1)).toBe('https://www.bedetheque.com/BD-Vitesse-moderne-19759.html');
     expect(found).toHaveLength(1);
@@ -510,7 +510,7 @@ describe('searchBedetheque', () => {
       if (url.startsWith('https://www.bedetheque.com/serie/index/s/')) return new Response(series, { status: 200 });
       return new Response(albumPage(), { status: 200 });
     });
-    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Tankobon/test', timeoutMs: 1000 };
+    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Skeudenn/test', timeoutMs: 1000 };
     return { calls, http };
   }
 
@@ -560,7 +560,7 @@ describe('searchBedetheque', () => {
       if (url.startsWith('https://www.bedetheque.com/serie/index/s/')) return new Response(SERIES_PAGE, { status: 200 });
       return new Response(albumPage(), { status: 200 });
     });
-    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Tankobon/test', timeoutMs: 1000 };
+    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Skeudenn/test', timeoutMs: 1000 };
     const found = await searchBedetheque({ text: 'Tutti Frutti', volume: '1' }, http);
     expect(calls.filter((url) => url.includes('/serie/index/s/'))).toEqual([
       'https://www.bedetheque.com/serie/index/s/9070',
@@ -584,7 +584,7 @@ describe('searchBedetheque', () => {
       if (url.pathname.startsWith('/serie/index/s/')) return new Response(SERIES_PAGE, { status: 200 });
       return new Response(albumPage(), { status: 200 });
     });
-    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Tankobon/test', timeoutMs: 1000 };
+    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Skeudenn/test', timeoutMs: 1000 };
     const found = await searchBedetheque({ text: 'À Bord De L’Étoile Matutine', volume: null }, http);
     expect(terms).toEqual(['À Bord De L’Étoile Matutine', "A Bord De L'Etoile Matutine"]);
     expect(found.length).toBeGreaterThan(0);
@@ -604,7 +604,7 @@ describe('searchBedetheque', () => {
       if (url.pathname.startsWith('/serie/index/s/')) return new Response(SERIES_PAGE, { status: 200 });
       return new Response(albumPage(), { status: 200 });
     });
-    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Tankobon/test', timeoutMs: 1000 };
+    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Skeudenn/test', timeoutMs: 1000 };
     const found = await searchBedetheque({ text: "À bord de l'Étoile Matutine", volume: null }, http);
     expect(terms.at(-1)).toBe('matutine');
     expect(found.length).toBeGreaterThan(0);
@@ -612,7 +612,7 @@ describe('searchBedetheque', () => {
 
   it('counts an empty answer as no series, not as an error', async () => {
     const fetch = vi.fn(async () => new Response('', { status: 200 }));
-    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Tankobon/test', timeoutMs: 1000 };
+    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Skeudenn/test', timeoutMs: 1000 };
     expect(await searchBedetheque({ text: 'À Gauche Toute !', volume: null }, http)).toEqual([]);
     expect(fetch).toHaveBeenCalledTimes(3);
   });
@@ -621,7 +621,7 @@ describe('searchBedetheque', () => {
     const fetch = vi.fn(async () => {
       throw new TypeError('network down');
     });
-    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Tankobon/test', timeoutMs: 1000 };
+    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Skeudenn/test', timeoutMs: 1000 };
     await expect(searchBedetheque({ text: 'À Gauche Toute !', volume: null }, http)).rejects.toThrow();
   });
 
@@ -642,7 +642,7 @@ describe('searchBedetheque', () => {
       if (url.pathname.startsWith('/serie/index/s/569')) return new Response(SERIES_PAGE, { status: 200 });
       return new Response(albumPage(), { status: 200 });
     });
-    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Tankobon/test', timeoutMs: 1000 };
+    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Skeudenn/test', timeoutMs: 1000 };
     const found = await searchBedetheque({ text: 'A.D Grand-Rivière', volume: null }, http);
     expect(terms).toEqual(['A.D Grand-Rivière', 'A.D Grand-Riviere', 'AD Grand-Riviere', 'Grand-Riviere']);
     expect(found.length).toBeGreaterThan(0);
@@ -665,7 +665,7 @@ describe('searchBedetheque', () => {
       expect(url.pathname).toContain('/serie/index/s/569');
       return new Response(SERIES_PAGE, { status: 200 });
     });
-    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Tankobon/test', timeoutMs: 1000 };
+    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Skeudenn/test', timeoutMs: 1000 };
     const found = await searchBedetheque({ text: 'Ajax (5e Série)', volume: null }, http);
     expect(terms).toEqual(['Ajax']);
     expect(found.length).toBeGreaterThan(0);
@@ -742,7 +742,7 @@ describe('searchBedetheque: a light touch on the site', () => {
   }
   const options = (fetch: ReturnType<typeof site>['fetch'], signal?: AbortSignal): HttpOptions => ({
     fetch: fetch as unknown as typeof globalThis.fetch,
-    userAgent: 'Tankobon/test',
+    userAgent: 'Skeudenn/test',
     timeoutMs: 1000,
     signal,
   });
@@ -866,7 +866,7 @@ describe('hostile or broken pages', () => {
     const fetch = vi.fn(async (input: string | URL | Request) =>
       String(input).startsWith('https://www.bdgest.com/') ? Response.json(SEARCH_BLACKSAD) : new Response(page),
     );
-    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Tankobon/test', timeoutMs: 5000 };
+    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Skeudenn/test', timeoutMs: 5000 };
     const started = performance.now();
     await searchBedetheque({ text: 'blacksad', volume: '1' }, http);
     expect(performance.now() - started).toBeLessThan(1000);
@@ -886,7 +886,7 @@ describe('the description of a page without albums', () => {
     const fetch = vi.fn(async (input: string | URL | Request) =>
       String(input).startsWith('https://www.bdgest.com/') ? Response.json(SEARCH_BLACKSAD) : new Response(page),
     );
-    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Tankobon/test', timeoutMs: 1000 };
+    const http: HttpOptions = { fetch: fetch as typeof globalThis.fetch, userAgent: 'Skeudenn/test', timeoutMs: 1000 };
     await searchBedetheque({ text: 'blacksad', volume: '1' }, http);
     expect(lines.join('\n')).toContain('title "Blacksad", markers [], 2 album-like links');
   });

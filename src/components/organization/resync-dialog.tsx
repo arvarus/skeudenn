@@ -22,14 +22,14 @@ interface Report {
 /** Resolves once the resynchronization in progress (started elsewhere) sends its final `done`, or is found over. */
 function resyncEnd(): Promise<void> {
   return new Promise((resolve) => {
-    const unsubscribe = window.tankobon.library.onScanProgress((progress) => {
+    const unsubscribe = window.skeudenn.library.onScanProgress((progress) => {
       if (progress.step && progress.phase === 'done') {
         unsubscribe();
         resolve();
       }
     });
     // It may have ended between the status that sent the dialog following it and this subscription.
-    void window.tankobon.library
+    void window.skeudenn.library
       .resyncStatus()
       .catch(() => null)
       .then((status) => {
@@ -65,7 +65,7 @@ export function ResyncDialog({ onClose }: ActionDialogProps) {
   useEffect(() => {
     if (checked.current) return;
     checked.current = true;
-    void window.tankobon.library
+    void window.skeudenn.library
       .resyncStatus()
       .catch(() => null)
       .then((status: ScanProgress | null) => {
@@ -80,7 +80,7 @@ export function ResyncDialog({ onClose }: ActionDialogProps) {
     setError(null);
     let result: ResyncResult;
     try {
-      result = await run.start(() => window.tankobon.library.resync());
+      result = await run.start(() => window.skeudenn.library.resync());
     } catch {
       setError(tCommon('run.failed'));
       return;

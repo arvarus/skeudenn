@@ -18,7 +18,7 @@ afterEach(async () => {
 
 /** Builds a directory tree from `relative path -> contents` entries and returns its root. */
 async function tree(files: string[]): Promise<string> {
-  const root = await mkdtemp(path.join(tmpdir(), 'tankobon-scan-'));
+  const root = await mkdtemp(path.join(tmpdir(), 'skeudenn-scan-'));
   roots.push(root);
   for (const file of files) {
     const fullPath = path.join(root, file);
@@ -45,8 +45,14 @@ describe('isSupportedComicFile', () => {
 });
 
 describe('collectComicFiles', () => {
-  it('does not walk the .deletedByTankobon folder', async () => {
-    const root = await tree(['a.cbz', '.deletedByTankobon/old.cbr', 'sub/.deletedByTankobon/old2.cbr']);
+  it('does not walk the .deletedBySkeudenn folder, nor the one of an earlier version', async () => {
+    const root = await tree([
+      'a.cbz',
+      '.deletedBySkeudenn/old.cbr',
+      'sub/.deletedBySkeudenn/old2.cbr',
+      '.deletedByTankobon/old3.cbr',
+      'sub/.tankobon/old4.cbz',
+    ]);
     expect(await collectComicFiles(root)).toEqual([path.join(root, 'a.cbz')]);
   });
 
@@ -93,7 +99,7 @@ describe('collectComicFiles', () => {
   });
 
   it('returns an empty list rather than throwing for a missing directory', async () => {
-    expect(await collectComicFiles(path.join(tmpdir(), 'tankobon-does-not-exist'))).toEqual([]);
+    expect(await collectComicFiles(path.join(tmpdir(), 'skeudenn-does-not-exist'))).toEqual([]);
   });
 });
 

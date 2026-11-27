@@ -30,7 +30,7 @@ afterEach(async () => {
 });
 
 async function folderWith(files: string[]): Promise<string> {
-  const root = await mkdtemp(path.join(tmpdir(), 'tankobon-organization-'));
+  const root = await mkdtemp(path.join(tmpdir(), 'skeudenn-organization-'));
   roots.push(root);
   for (const file of files) {
     await mkdir(path.dirname(path.join(root, file)), { recursive: true });

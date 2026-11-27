@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { renderWithTankobon } from '@/test/tankobon';
+import { renderWithSkeudenn } from '@/test/skeudenn';
 
 import { cleanup, fireEvent, screen } from '@testing-library/react';
 import type { MouseEvent, ReactNode } from 'react';
@@ -53,7 +53,7 @@ const entry = libraryEntry('asterix', {
 describe('author names under a book', () => {
   it('link to the page of the author, without opening the book', () => {
     const onOpen = vi.fn();
-    renderWithTankobon(<BookDetails entry={entry} view="full" onOpen={onOpen} />);
+    renderWithSkeudenn(<BookDetails entry={entry} view="full" onOpen={onOpen} />);
 
     fireEvent.click(screen.getByRole('link', { name: 'Albert Uderzo' }));
 
@@ -63,7 +63,7 @@ describe('author names under a book', () => {
 
   it('leave the rest of the row opening the book', () => {
     const onOpen = vi.fn();
-    renderWithTankobon(<BookDetails entry={entry} view="full" onOpen={onOpen} />);
+    renderWithSkeudenn(<BookDetails entry={entry} view="full" onOpen={onOpen} />);
 
     fireEvent.click(screen.getByText('Astérix le Gaulois'));
 
@@ -72,7 +72,7 @@ describe('author names under a book', () => {
   });
 
   it('are not shown in the compact mode, which has no credits line', () => {
-    renderWithTankobon(<BookDetails entry={entry} view="compact" onOpen={vi.fn()} />);
+    renderWithSkeudenn(<BookDetails entry={entry} view="compact" onOpen={vi.fn()} />);
     expect(screen.queryByRole('link')).toBeNull();
   });
 });

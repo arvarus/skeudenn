@@ -23,7 +23,7 @@ test.afterEach(async () => {
 /** The saved reading progress (0-based page) of a book, as the library page would show it. */
 function savedPage(page: Page, title: string): Promise<number | undefined> {
   return page.evaluate(async (wanted) => {
-    const entries = await window.tankobon.library.list();
+    const entries = await window.skeudenn.library.list();
     return entries.find((entry) => entry.title === wanted)?.currentPage;
   }, title);
 }
@@ -31,7 +31,7 @@ function savedPage(page: Page, title: string): Promise<number | undefined> {
 test('starts and exposes the preload bridge', async () => {
   const page = await start({ books: [{ title: 'Alpha', pageCount: 3 }] });
   await expect(page).toHaveTitle('Skeudenn');
-  expect(await page.evaluate(() => typeof window.tankobon)).toBe('object');
+  expect(await page.evaluate(() => typeof window.skeudenn)).toBe('object');
   await expect(page.getByRole('button', { name: 'Open Alpha' })).toBeVisible();
 });
 
@@ -144,7 +144,7 @@ test('a reading list has its own display mode', async () => {
   await expect(page.getByRole('button', { name: 'Open Alpha' })).toBeHidden();
   await expect(page.getByPlaceholder('+ tag')).toBeHidden();
   const views = await page.evaluate(async () => {
-    const settings = await window.tankobon.settings.getAll();
+    const settings = await window.skeudenn.settings.getAll();
     return [settings.readingListView, settings.libraryView];
   });
   expect(views).toEqual(['compact', 'full']);

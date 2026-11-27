@@ -46,7 +46,7 @@ describe('PdfArchive', () => {
   });
 
   it('opens a PDF and reports one page per page count', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'tankobon-pdf-'));
+    dir = await mkdtemp(join(tmpdir(), 'skeudenn-pdf-'));
     const filePath = join(dir, 'book.pdf');
     await writeFile(filePath, buildTestPdf(['Page One', 'Page Two', 'Page Three']), 'latin1');
 
@@ -60,7 +60,7 @@ describe('PdfArchive', () => {
   });
 
   it('renders a page to a PNG image', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'tankobon-pdf-'));
+    dir = await mkdtemp(join(tmpdir(), 'skeudenn-pdf-'));
     const filePath = join(dir, 'book.pdf');
     await writeFile(filePath, buildTestPdf(['Hello PDF']), 'latin1');
 
@@ -75,7 +75,7 @@ describe('PdfArchive', () => {
   });
 
   it('serves a page it already rendered from its cache', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'tankobon-pdf-'));
+    dir = await mkdtemp(join(tmpdir(), 'skeudenn-pdf-'));
     const filePath = join(dir, 'book.pdf');
     await writeFile(filePath, buildTestPdf(['One', 'Two', 'Three']), 'latin1');
 
@@ -92,7 +92,7 @@ describe('PdfArchive', () => {
   });
 
   it('rejects an out-of-range page index', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'tankobon-pdf-'));
+    dir = await mkdtemp(join(tmpdir(), 'skeudenn-pdf-'));
     const filePath = join(dir, 'book.pdf');
     await writeFile(filePath, buildTestPdf(['Only Page']), 'latin1');
 

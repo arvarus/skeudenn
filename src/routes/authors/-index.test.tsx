@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // The leading `-` keeps the router plugin from taking this file for a route.
-import { renderWithTankobon } from '@/test/tankobon';
+import { renderWithSkeudenn } from '@/test/skeudenn';
 
 import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import type { ReactNode } from 'react';
@@ -41,7 +41,7 @@ beforeAll(async () => {
 });
 
 const AuthorsPage = Route.options.component as () => ReactNode;
-const renderPage = () => renderWithTankobon(<AuthorsPage />, app.fake);
+const renderPage = () => renderWithSkeudenn(<AuthorsPage />, app.fake);
 
 describe('authors index', () => {
   it('lists everyone credited, under letter headings, with their books and roles', async () => {

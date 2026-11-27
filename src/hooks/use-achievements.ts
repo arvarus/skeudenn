@@ -36,7 +36,7 @@ export function useAchievementStats(): AchievementStats | null {
   // A folder can only be added together with a library change (the scan), so the library is the trigger.
   useEffect(() => {
     let cancelled = false;
-    void window.tankobon.library
+    void window.skeudenn.library
       .listFolders()
       .then((list) => {
         if (!cancelled) setFolders(list.length);
@@ -65,7 +65,7 @@ export function useAchievementTracker(): void {
     if (!stats || !earned) return;
     const known = new Set(earned.map((achievement) => achievement.id));
     const fresh = earnedFromStats(stats).filter((id) => !known.has(id));
-    if (fresh.length > 0) void window.tankobon.achievements.unlock(fresh).catch(() => undefined);
+    if (fresh.length > 0) void window.skeudenn.achievements.unlock(fresh).catch(() => undefined);
   }, [stats, earned]);
 }
 
@@ -78,7 +78,7 @@ export function useOpeningAchievements(bookId: string | null): void {
   useEffect(() => {
     if (!bookId || !enabled) return;
     const ids = eventAchievements({ at: new Date(), direction });
-    if (ids.length > 0) void window.tankobon.achievements.unlock(ids).catch(() => undefined);
+    if (ids.length > 0) void window.skeudenn.achievements.unlock(ids).catch(() => undefined);
     // Only a new book counts: a change of direction while reading isn't an opening.
   }, [bookId]);
 }

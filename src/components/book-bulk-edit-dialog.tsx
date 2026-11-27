@@ -60,7 +60,7 @@ export function BookBulkEditDialog({ entries, onClose }: { entries: readonly Lib
     setSaving(true);
     setSaveFailed(false);
     try {
-      await window.tankobon.library.updateMetadataMany(
+      await window.skeudenn.library.updateMetadataMany(
         entries.map((entry) => entry.id),
         bulkToUpdate(form),
       );

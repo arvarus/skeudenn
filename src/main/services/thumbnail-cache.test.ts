@@ -93,7 +93,7 @@ describe('ThumbnailCache', () => {
   let cover: ComicPage;
 
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'tankobon-thumbs-'));
+    dir = await mkdtemp(join(tmpdir(), 'skeudenn-thumbs-'));
     cover = { data: await png(600, 900), mimeType: 'image/png' };
   });
 

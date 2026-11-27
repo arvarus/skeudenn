@@ -1,7 +1,7 @@
 /**
  * Removing books from the library (a book's remove button, the library page's selection bar, the
  * duplicates dialog): each entry leaves the database, and its file goes to the OS trash or is parked in
- * `.deletedByTankobon`. Kept out of the IPC layer, which only passes it Electron's trash, so it runs
+ * `.deletedBySkeudenn`. Kept out of the IPC layer, which only passes it Electron's trash, so it runs
  * under Vitest.
  * @module
  */
@@ -28,14 +28,14 @@ export interface RemovalDecoder {
 export interface RemovalFiles {
   /** Moves a file to the OS trash (recoverable). */
   trash(filePath: string): Promise<void>;
-  /** Parks a comic in `.deletedByTankobon` (see `parkComic()`), so a resynchronization doesn't add it back; `parkComic()` by default. */
+  /** Parks a comic in `.deletedBySkeudenn` (see `parkComic()`), so a resynchronization doesn't add it back; `parkComic()` by default. */
   park?(comicPath: string, organizedRoot: string): Promise<void>;
 }
 
 /**
  * What became of one entry and its file (see {@link removeEntry}):
  * - `unknown`: no entry has that id, nothing was done;
- * - `trashed` / `parked`: the entry left the library and its file went to the trash or to `.deletedByTankobon`;
+ * - `trashed` / `parked`: the entry left the library and its file went to the trash or to `.deletedBySkeudenn`;
  * - `missing`: the entry left the library and its file was already gone, which is what the user wanted;
  * - `fileFailed`: the entry left the library but its file stayed where it was, `message` (translated) saying why.
  */

@@ -21,7 +21,7 @@ export function UpdateToast() {
   useEffect(() => {
     if (!enabled || checkedThisSession) return;
     checkedThisSession = true;
-    void window.tankobon.app.checkUpdate().then((result) => {
+    void window.skeudenn.app.checkUpdate().then((result) => {
       if (result.status === 'available') setVersion(result.version);
     });
   }, [enabled]);
@@ -37,7 +37,7 @@ export function UpdateToast() {
           size="sm"
           className="mt-2"
           onClick={() => {
-            void window.tankobon.app.openLink('releases');
+            void window.skeudenn.app.openLink('releases');
             setVersion(null);
           }}
         >

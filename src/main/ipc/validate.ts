@@ -1,5 +1,5 @@
 /**
- * Argument guards for the IPC handlers. The renderer is typed by `TankobonApi`, but nothing
+ * Argument guards for the IPC handlers. The renderer is typed by `SkeudennApi`, but nothing
  * enforces those types at run time: a compromised or buggy renderer can send anything over a
  * channel, so every handler checks what it receives before using it (see ADR 0009). A refused
  * call rejects with an {@link IpcArgumentError}; these are programming errors or hostile calls,

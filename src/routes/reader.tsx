@@ -66,7 +66,7 @@ function ReaderPage() {
   const persistProgress = useCallback(
     (index: number) => {
       if (!comic?.libraryId) return;
-      void window.tankobon.library.updateProgress(comic.libraryId, index);
+      void window.skeudenn.library.updateProgress(comic.libraryId, index);
     },
     [comic],
   );
@@ -94,7 +94,7 @@ function ReaderPage() {
       checkbox: tLibrary('deleteFile'),
     });
     if (!confirmed) return;
-    const result = await window.tankobon.library.remove(failedEntry.id, checked);
+    const result = await window.skeudenn.library.remove(failedEntry.id, checked);
     // The entry is gone either way; a file that stays in the trash-less case is reported, the page stays to show it.
     if (result.status === 'error') setRemoveError(result.message);
     else void navigate({ to: '/library' });

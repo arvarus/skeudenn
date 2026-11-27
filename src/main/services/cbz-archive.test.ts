@@ -54,7 +54,7 @@ describe('CbzArchive', () => {
   let file: string;
 
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'tankobon-cbz-'));
+    dir = await mkdtemp(join(tmpdir(), 'skeudenn-cbz-'));
     file = join(dir, 'book.cbz');
     await writeFile(
       file,

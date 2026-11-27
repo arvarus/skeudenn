@@ -26,7 +26,7 @@ describe('convertCbrToCbz', () => {
   let dir: string;
 
   beforeEach(async () => {
-    dir = await mkdtemp(join(tmpdir(), 'tankobon-convert-'));
+    dir = await mkdtemp(join(tmpdir(), 'skeudenn-convert-'));
   });
 
   afterEach(async () => {

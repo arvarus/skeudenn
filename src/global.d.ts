@@ -1,8 +1,8 @@
-import type { TankobonApi } from './preload';
+import type { SkeudennApi } from './preload';
 
 declare global {
   interface Window {
-    tankobon: TankobonApi;
+    skeudenn: SkeudennApi;
   }
 }
 

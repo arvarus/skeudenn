@@ -32,7 +32,7 @@ afterEach(async () => {
 });
 
 async function tree(files: string[]): Promise<string> {
-  const root = await mkdtemp(path.join(tmpdir(), 'tankobon-organize-'));
+  const root = await mkdtemp(path.join(tmpdir(), 'skeudenn-organize-'));
   roots.push(root);
   for (const file of files) {
     const fullPath = path.join(root, file);
@@ -44,7 +44,7 @@ async function tree(files: string[]): Promise<string> {
 
 /** Whether the temporary directory's file system ignores letter case (NTFS, APFS by default): `A` finds `a`. */
 const caseInsensitive = (() => {
-  const probe = mkdtempSync(path.join(tmpdir(), 'tankobon-case-'));
+  const probe = mkdtempSync(path.join(tmpdir(), 'skeudenn-case-'));
   try {
     writeFileSync(path.join(probe, 'a'), '');
     return existsSync(path.join(probe, 'A'));

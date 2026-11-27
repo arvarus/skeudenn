@@ -11,7 +11,7 @@ import type { CleanupAnalysisResult, CleanupResult } from '@/shared/library';
 type Analysis = Extract<CleanupAnalysisResult, { status: 'ok' }>;
 
 /** Stops the cleanup's own step (the analysis doesn't take the run lock, so `cancelRun()` could stop another run). */
-const cancelCleanup = () => window.tankobon.library.cancelCleanup();
+const cancelCleanup = () => window.skeudenn.library.cancelCleanup();
 
 /**
  * Cleans the books of the files that are not images, in the {@link RunDialog}: the analysis (`ids`, the
@@ -36,7 +36,7 @@ export function CleanupDialog({ ids, onClose }: { ids: string[]; onClose: () => 
   const analyze = async () => {
     setError(null);
     try {
-      const outcome = await run.start(() => window.tankobon.library.analyzeCleanup(ids));
+      const outcome = await run.start(() => window.skeudenn.library.analyzeCleanup(ids));
       if (outcome.status === 'error') setError(outcome.message);
       else if (outcome.status === 'cancelled') setAnalysisStopped(true);
       else setAnalysis(outcome);
@@ -67,7 +67,7 @@ export function CleanupDialog({ ids, onClose }: { ids: string[]; onClose: () => 
     if (!analysis) return;
     setError(null);
     try {
-      const outcome = await run.start(() => window.tankobon.library.applyCleanup(analysis.token, [...kept]));
+      const outcome = await run.start(() => window.skeudenn.library.applyCleanup(analysis.token, [...kept]));
       if (outcome.status === 'error') setError(outcome.message);
       else setResult(outcome);
     } catch {

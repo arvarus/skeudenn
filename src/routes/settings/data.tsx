@@ -47,7 +47,7 @@ function DataSettingsPage() {
   const lastBackupAt = settings?.lastBackupAt;
   useEffect(() => {
     let cancelled = false;
-    void window.tankobon.database.listBackups().then((list) => {
+    void window.skeudenn.database.listBackups().then((list) => {
       if (!cancelled) setBackups(list);
     });
     return () => {
@@ -58,11 +58,11 @@ function DataSettingsPage() {
   const backupNow = async () => {
     setBackupBusy(true);
     try {
-      const result = await window.tankobon.database.createBackup();
+      const result = await window.skeudenn.database.createBackup();
       setBackupStatus(
         result.status === 'error' ? { message: result.message, error: true } : { message: t('data.backupCreated') },
       );
-      setBackups(await window.tankobon.database.listBackups());
+      setBackups(await window.skeudenn.database.listBackups());
     } finally {
       setBackupBusy(false);
     }
@@ -70,25 +70,25 @@ function DataSettingsPage() {
 
   const restoreBackup = async () => {
     if (!restoring) return;
-    const result = await window.tankobon.database.restoreBackup(restoring.name);
+    const result = await window.skeudenn.database.restoreBackup(restoring.name);
     setRestoring(null);
     if (result.status === 'error') {
       setBackupStatus({ message: result.message, error: true });
       return;
     }
-    await window.tankobon.database.relaunch();
+    await window.skeudenn.database.relaunch();
   };
 
   const cancelRestore = async () => {
-    await window.tankobon.database.cancelRestore();
-    setBackups(await window.tankobon.database.listBackups());
+    await window.skeudenn.database.cancelRestore();
+    setBackups(await window.skeudenn.database.listBackups());
   };
 
   const pendingBackup = backups?.backups.find((backup) => backup.name === backups.pendingRestore);
 
   useEffect(() => {
     let cancelled = false;
-    void window.tankobon.database.getLocation().then((location) => {
+    void window.skeudenn.database.getLocation().then((location) => {
       if (!cancelled) setDbLocation(location);
     });
     return () => {
@@ -97,7 +97,7 @@ function DataSettingsPage() {
   }, []);
 
   const chooseDatabaseLocation = async () => {
-    const result = await window.tankobon.database.chooseLocation();
+    const result = await window.skeudenn.database.chooseLocation();
     if (result.status === 'cancelled') {
       return;
     }
@@ -111,7 +111,7 @@ function DataSettingsPage() {
   };
 
   const applyFileName = async (fileName: string | null) => {
-    const result = await window.tankobon.database.setFileName(fileName);
+    const result = await window.skeudenn.database.setFileName(fileName);
     if (result.status === 'error') {
       setDbError(result.message);
       return;
@@ -126,12 +126,12 @@ function DataSettingsPage() {
 
   const resetDatabaseLocation = async () => {
     setDbError(null);
-    setDbLocation(await window.tankobon.database.resetLocation());
+    setDbLocation(await window.skeudenn.database.resetLocation());
     setRestartNeeded(true);
   };
 
   const exportData = async () => {
-    const result = await window.tankobon.data.export();
+    const result = await window.skeudenn.data.export();
     if (result.status === 'cancelled') {
       setDataStatus(null);
       return;
@@ -144,7 +144,7 @@ function DataSettingsPage() {
   };
 
   const importData = async () => {
-    const result = await window.tankobon.data.import();
+    const result = await window.skeudenn.data.import();
     if (result.status === 'cancelled') {
       setDataStatus(null);
       return;
@@ -161,7 +161,7 @@ function DataSettingsPage() {
   const clearCache = async () => {
     setCacheBusy(true);
     try {
-      const result = await window.tankobon.data.clearCache();
+      const result = await window.skeudenn.data.clearCache();
       setCacheStatus(
         result.status === 'error' ? { message: result.message, error: true } : { message: t('data.cacheCleared') },
       );
@@ -178,7 +178,7 @@ function DataSettingsPage() {
   const clearLibrary = async () => {
     setClearing(true);
     try {
-      const result = await window.tankobon.data.clearLibrary();
+      const result = await window.skeudenn.data.clearLibrary();
       if (result.status === 'error') {
         setClearStatus({ message: result.message, error: true });
         return;
@@ -258,7 +258,7 @@ function DataSettingsPage() {
         {restartNeeded && (
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-sm text-muted-foreground">{t('data.restartNeeded')}</p>
-            <Button size="sm" onClick={() => void window.tankobon.database.relaunch()}>
+            <Button size="sm" onClick={() => void window.skeudenn.database.relaunch()}>
               {t('data.restartNow')}
             </Button>
           </div>

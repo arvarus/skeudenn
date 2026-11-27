@@ -264,7 +264,7 @@ async function isSameEntry(from: string, to: string): Promise<boolean> {
  * direct rename for a no-op. If the second step fails, the entry goes back to `from`.
  */
 async function renameCase(from: string, to: string): Promise<void> {
-  const temporary = path.join(path.dirname(from), `.tankobon-case-${randomBytes(6).toString('hex')}`);
+  const temporary = path.join(path.dirname(from), `.skeudenn-case-${randomBytes(6).toString('hex')}`);
   await rename(from, temporary);
   try {
     // Still there: `to` was another entry after all (a case-sensitive folder), never overwritten.

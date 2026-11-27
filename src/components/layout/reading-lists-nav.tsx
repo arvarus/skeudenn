@@ -56,12 +56,12 @@ export function ReadingListsNav({ collapsed }: { collapsed: boolean }) {
     if (!entries) return;
     if (entries.length === 1) {
       const [entry] = entries;
-      setFeedback(dropFeedback(list, entry, await window.tankobon.readingLists.addEntry(list.id, entry.id)));
+      setFeedback(dropFeedback(list, entry, await window.skeudenn.readingLists.addEntry(list.id, entry.id)));
       return;
     }
     // Several books: the library page's selection, added like from the "add to a list" dialog.
     const request = bulkAddRequest(list, entries.map((entry) => entry.id));
-    const result = request.ids.length > 0 ? await window.tankobon.readingLists.addEntries(list.id, request.ids) : null;
+    const result = request.ids.length > 0 ? await window.skeudenn.readingLists.addEntries(list.id, request.ids) : null;
     setFeedback(bulkAddFeedback(list, request, result));
   };
 
@@ -71,7 +71,7 @@ export function ReadingListsNav({ collapsed }: { collapsed: boolean }) {
     setOver(null);
     if (!order) return;
     // A refused (stale) order needs no message: reloading shows the lists as they are.
-    await window.tankobon.readingLists.reorderLists(order);
+    await window.skeudenn.readingLists.reorderLists(order);
   };
 
   return (

@@ -9,7 +9,7 @@ The app needs to remember the library (one entry per comic: path, page count, re
 
 ## Decision
 
-- All persistent data lives in a single SQLite file, `tankobon.db`, opened in the main process with Node's built-in `node:sqlite` (`DatabaseSync`, `src/main/db/database.ts`).
+- All persistent data lives in a single SQLite file, `skeudenn.db`, opened in the main process with Node's built-in `node:sqlite` (`DatabaseSync`, `src/main/db/database.ts`).
 - Nothing is stored in the cloud, nor in Chromium's `localStorage`/IndexedDB.
 - The schema is migrated in place at startup: `CREATE TABLE IF NOT EXISTS` for tables, `addColumnIfMissing()` for columns added later (`src/main/db/schema.ts`).
 - Settings are a key/value table (JSON-encoded values) merged over `DEFAULT_SETTINGS`, so adding a setting needs no migration.

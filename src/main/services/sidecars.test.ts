@@ -10,7 +10,7 @@ describe('trashSidecars', () => {
   afterEach(() => rm(dir, { recursive: true, force: true }));
 
   it('trashes the cover and the .nfo that exist, and only those', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'tankobon-sidecars-'));
+    dir = await mkdtemp(join(tmpdir(), 'skeudenn-sidecars-'));
     await writeFile(join(dir, 'Tome 1.cover.webp'), 'c');
     await writeFile(join(dir, 'Tome 1.nfo'), 'n');
     await writeFile(join(dir, 'Tome 2.nfo'), 'other book');
@@ -25,7 +25,7 @@ describe('trashSidecars', () => {
   });
 
   it('does nothing when there is no sidecar, and goes on when one cannot be trashed', async () => {
-    dir = await mkdtemp(join(tmpdir(), 'tankobon-sidecars-'));
+    dir = await mkdtemp(join(tmpdir(), 'skeudenn-sidecars-'));
     const trash = vi.fn(async () => undefined);
     await trashSidecars(join(dir, 'Tome 1.cbz'), trash);
     expect(trash).not.toHaveBeenCalled();

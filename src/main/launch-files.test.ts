@@ -8,11 +8,11 @@ const cwd = path.resolve('/work');
 describe('comicPathFromArgv', () => {
   it('returns the first supported comic, absolute', () => {
     const file = path.resolve('/books/Tintin T01.cbz');
-    expect(comicPathFromArgv(['/opt/tankobon', file], cwd)).toBe(file);
+    expect(comicPathFromArgv(['/opt/skeudenn', file], cwd)).toBe(file);
   });
 
   it('resolves a relative path against the working directory', () => {
-    expect(comicPathFromArgv(['tankobon', 'book.CBR'], cwd)).toBe(path.join(cwd, 'book.CBR'));
+    expect(comicPathFromArgv(['skeudenn', 'book.CBR'], cwd)).toBe(path.join(cwd, 'book.CBR'));
   });
 
   it('skips options and files that are not comics', () => {
@@ -20,7 +20,7 @@ describe('comicPathFromArgv', () => {
   });
 
   it('returns null when the command line names no comic', () => {
-    expect(comicPathFromArgv(['tankobon', '--flag', '.'], cwd)).toBeNull();
+    expect(comicPathFromArgv(['skeudenn', '--flag', '.'], cwd)).toBeNull();
     expect(comicPathFromArgv([], cwd)).toBeNull();
   });
 });

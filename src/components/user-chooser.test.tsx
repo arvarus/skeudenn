@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { renderWithTankobon } from '@/test/tankobon';
+import { renderWithSkeudenn } from '@/test/skeudenn';
 
 import { cleanup, fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -29,7 +29,7 @@ afterEach(cleanup);
 /** The chooser over a stand-in for the rest of the layout (the sidebar's link). */
 function open() {
   const switchUser = vi.fn(() => Promise.resolve({ status: 'ok' as const }));
-  renderWithTankobon(
+  renderWithSkeudenn(
     <>
       <nav>
         <a href="#library">Bibliothèque</a>

@@ -108,7 +108,7 @@ export function ContinuousPage({ comicId, index, onActive, onRetry, actualSize, 
     if (!shouldLoad) return;
     let cancelled = false;
     let objectUrl: string | null = null;
-    window.tankobon.comic
+    window.skeudenn.comic
       .readPage(comicId, index)
       .then(({ data, mimeType }) => {
         if (cancelled) return;

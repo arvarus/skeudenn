@@ -16,8 +16,8 @@ import {
   type BackupWorkerMessage,
 } from './backup-runner';
 
-const job: BackupJob = { databaseFile: '/data/tankobon.db', directory: '/data' };
-const info: BackupInfo = { name: 'tankobon-20260102-030405.db', createdAt: '2026-01-02T03:04:05.000Z', size: 10 };
+const job: BackupJob = { databaseFile: '/data/skeudenn.db', directory: '/data' };
+const info: BackupInfo = { name: 'skeudenn-20260102-030405.db', createdAt: '2026-01-02T03:04:05.000Z', size: 10 };
 
 /** A worker the test drives by hand. */
 function fakeWorker() {
@@ -104,8 +104,8 @@ describe('createBackupMaker', () => {
   afterEach(() => rmSync(root, { recursive: true, force: true }));
 
   function database() {
-    root = mkdtempSync(path.join(tmpdir(), 'tankobon-backup-maker-'));
-    const file = path.join(root, 'tankobon.db');
+    root = mkdtempSync(path.join(tmpdir(), 'skeudenn-backup-maker-'));
+    const file = path.join(root, 'skeudenn.db');
     const db = new DatabaseSync(file);
     db.exec("CREATE TABLE t (v TEXT); INSERT INTO t VALUES ('one')");
     return { db, file };
@@ -123,7 +123,7 @@ describe('createBackupMaker', () => {
     const { db } = database();
     const run = vi.fn(async () => Promise.reject(new BackupWorkerUnavailableError('no worker')));
     const backup = await createBackupMaker({ run }, db)(root);
-    expect(readdirSync(path.join(root, '.tankobon'))).toEqual([backup.name]);
+    expect(readdirSync(path.join(root, '.skeudenn'))).toEqual([backup.name]);
     db.close();
   });
 
@@ -135,13 +135,13 @@ describe('createBackupMaker', () => {
   });
 
   it('copies an in-memory database itself, since it has no file for a worker', async () => {
-    root = mkdtempSync(path.join(tmpdir(), 'tankobon-backup-maker-'));
+    root = mkdtempSync(path.join(tmpdir(), 'skeudenn-backup-maker-'));
     const db = new DatabaseSync(':memory:');
     db.exec('CREATE TABLE t (v TEXT)');
     const run = vi.fn();
     const backup = await createBackupMaker({ run }, db)(root);
     expect(run).not.toHaveBeenCalled();
-    expect(readdirSync(path.join(root, '.tankobon'))).toEqual([backup.name]);
+    expect(readdirSync(path.join(root, '.skeudenn'))).toEqual([backup.name]);
     db.close();
   });
 });

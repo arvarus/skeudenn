@@ -15,11 +15,11 @@ export function useLaunchFile(): void {
   const navigate = useNavigate();
   useEffect(() => {
     const open = () => {
-      void window.tankobon.app.takeLaunchFile().then((token) => {
+      void window.skeudenn.app.takeLaunchFile().then((token) => {
         if (token) void navigate({ to: '/reader', search: { book: token } });
       });
     };
     open();
-    return window.tankobon.app.onLaunchFile(open);
+    return window.skeudenn.app.onLaunchFile(open);
   }, [navigate]);
 }

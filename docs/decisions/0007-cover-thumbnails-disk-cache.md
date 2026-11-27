@@ -25,5 +25,5 @@ The library list shows a cover for each book: its first page. Reading it means o
 
 - A `BLOB` column in the `library` table: bloats the database (and a synced copy of it) with rebuildable data, and would have to be left out of the export by hand.
 - Full-size first pages, scaled down by the renderer: several megabytes per book to read and send over IPC, for an 80 px tall image.
-- A custom protocol (`tankobon-thumb://…`) for `<img src>`: one more privileged entry point and a CSP change, where the existing IPC + `blob:` path already works.
+- A custom protocol (`skeudenn-thumb://…`) for `<img src>`: one more privileged entry point and a CSP change, where the existing IPC + `blob:` path already works.
 - Electron's `nativeImage` for resizing: decodes only PNG and JPEG (not WebP or AVIF pages), and can't run under Vitest.

@@ -20,7 +20,7 @@ describe('db-location', () => {
   let userData: string;
 
   beforeEach(() => {
-    userData = mkdtempSync(path.join(tmpdir(), 'tankobon-test-'));
+    userData = mkdtempSync(path.join(tmpdir(), 'skeudenn-test-'));
   });
 
   afterEach(() => {
@@ -30,8 +30,8 @@ describe('db-location', () => {
   it('defaults to the user data directory when no pointer file exists', () => {
     expect(resolveDatabaseLocation(userData)).toEqual({
       directory: userData,
-      fileName: 'tankobon.db',
-      filePath: path.join(userData, 'tankobon.db'),
+      fileName: 'skeudenn.db',
+      filePath: path.join(userData, 'skeudenn.db'),
       isDefault: true,
       isDefaultFileName: true,
     });
@@ -42,8 +42,8 @@ describe('db-location', () => {
 
     expect(resolveDatabaseLocation(userData)).toEqual({
       directory: path.join(userData, 'elsewhere'),
-      fileName: 'tankobon.db',
-      filePath: path.join(userData, 'elsewhere', 'tankobon.db'),
+      fileName: 'skeudenn.db',
+      filePath: path.join(userData, 'elsewhere', 'skeudenn.db'),
       isDefault: false,
       isDefaultFileName: true,
     });
@@ -77,7 +77,7 @@ describe('db-location', () => {
     writeLocationPointer(userData, path.join(userData, 'elsewhere'));
     writeFileNamePointer(userData, 'a.db');
     writeFileNamePointer(userData, null);
-    expect(resolveDatabaseLocation(userData).filePath).toBe(path.join(userData, 'elsewhere', 'tankobon.db'));
+    expect(resolveDatabaseLocation(userData).filePath).toBe(path.join(userData, 'elsewhere', 'skeudenn.db'));
 
     writeLocationPointer(userData, null);
     expect(existsSync(path.join(userData, 'db-location.json'))).toBe(false);
@@ -85,7 +85,7 @@ describe('db-location', () => {
 
   it('ignores an unusable file name in the pointer file', () => {
     writeFileSync(path.join(userData, 'db-location.json'), '{"fileName":"../evil"}', 'utf-8');
-    expect(resolveDatabaseLocation(userData).fileName).toBe('tankobon.db');
+    expect(resolveDatabaseLocation(userData).fileName).toBe('skeudenn.db');
     writeFileSync(path.join(userData, 'db-location.json'), '{"fileName":"ok.db","directory":42}', 'utf-8');
     expect(resolveDatabaseLocation(userData)).toMatchObject({ fileName: 'ok.db', isDefault: true });
   });

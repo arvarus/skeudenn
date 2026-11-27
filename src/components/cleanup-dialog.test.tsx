@@ -4,14 +4,14 @@ import { StrictMode, type ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { ScanProgress } from '@/shared/library';
-import { renderWithTankobon, type FakeTankobon } from '@/test/tankobon';
+import { renderWithSkeudenn, type FakeSkeudenn } from '@/test/skeudenn';
 import { CleanupDialog } from './cleanup-dialog';
 
 afterEach(cleanup);
 
 /** Opens the dialog and starts its analysis. */
-function analyze(ui: ReactElement, fake: FakeTankobon) {
-  renderWithTankobon(ui, fake);
+function analyze(ui: ReactElement, fake: FakeSkeudenn) {
+  renderWithSkeudenn(ui, fake);
   fireEvent.click(screen.getByRole('button', { name: 'Analyser' }));
 }
 
@@ -27,7 +27,7 @@ describe('CleanupDialog', () => {
       failed: 0,
       failures: [],
     }));
-    renderWithTankobon(
+    renderWithSkeudenn(
       <StrictMode>
         <CleanupDialog ids={[]} onClose={vi.fn()} />
       </StrictMode>,

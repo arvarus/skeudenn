@@ -300,7 +300,7 @@ export type OrganizeResult =
 export type UnorganizedCountResult = { status: 'ok'; count: number; folder: string } | { status: 'error'; message: string };
 
 /** Name of the folder, at the root of the organized folder, where the CBR replaced by a CBZ are moved (see `library.convertCbr()`); a hidden folder, so a scan never walks it. */
-export const DELETED_BY_TANKOBON_FOLDER = '.deletedByTankobon';
+export const DELETED_BY_SKEUDENN_FOLDER = '.deletedBySkeudenn';
 
 /**
  * Whether a folder is hidden: its name starts with a dot (`.cache`, `.git`, `.Trash`, the parking folder…). The walks of
@@ -310,7 +310,7 @@ export function isHiddenFolderName(name: string): boolean {
   return name.startsWith('.');
 }
 
-/** Result of `library.countConvertible()`: the CBR of the organized `folder` that could become CBZ, and what its `.deletedByTankobon` folder holds. */
+/** Result of `library.countConvertible()`: the CBR of the organized `folder` that could become CBZ, and what its `.deletedBySkeudenn` folder holds. */
 export type ConvertCountResult =
   | { status: 'ok'; count: number; folder: string; deletedFiles: number; deletedBytes: number }
   | { status: 'error'; message: string };
@@ -340,7 +340,7 @@ export type ConvertDeflate64Result =
   | { status: 'error'; message: string };
 
 /**
- * Result of `library.emptyDeleted()`: items removed for good from `.deletedByTankobon`, the space freed and the items
+ * Result of `library.emptyDeleted()`: items removed for good from `.deletedBySkeudenn`, the space freed and the items
  * that could not be removed. `cancelled` when `library.cancelRun()` stopped it before every item was deleted: those left
  * stay in the folder.
  */
@@ -352,7 +352,7 @@ export type EmptyDeletedResult =
 export type OrphanFoldersCountResult = { status: 'ok'; count: number; folder: string } | { status: 'error'; message: string };
 
 /**
- * Result of `library.cleanFolders()`: orphan folders moved to `.deletedByTankobon`, and folders that could not be moved.
+ * Result of `library.cleanFolders()`: orphan folders moved to `.deletedBySkeudenn`, and folders that could not be moved.
  * `cancelled` when `library.cancelRun()` stopped it before every folder was handled: those left stay where they were.
  */
 export type CleanFoldersResult =
