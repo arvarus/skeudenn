@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented here. This file is maintained by [release-please](https://github.com/googleapis/release-please) from the [Conventional Commits](https://www.conventionalcommits.org/) merged into `master`: don't edit released entries by hand. New versions are inserted above the previous ones.
 
+## [1.0.0](https://github.com/arvarus/skeudenn/compare/v0.27.0...v1.0.0) (2026-11-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* no migration is made. The app starts empty: the library, users, settings and thumbnails stay in the old Tankobon folder of the application data, which is no longer read (to recover, copy tankobon.db to skeudenn.db in the new Skeudenn folder). The old install is not replaced: the Squirrel installer on Windows and the deb/rpm package on Linux get a new identity, so the old version has to be uninstalled by hand. The .deletedByTankobon and .tankobon folders left by the old version are ignored but no longer emptied, restored or pruned by the app: delete them by hand.
+
+### Features
+
+* rename every Tankobon identifier to Skeudenn ([#336](https://github.com/arvarus/skeudenn/issues/336)) ([cfafbc6](https://github.com/arvarus/skeudenn/commit/cfafbc604302a30bb15c4684be761b98db9257af))
+
+
+### Bug Fixes
+
+* **library:** stabilize the flaky several-folders add test ([#339](https://github.com/arvarus/skeudenn/issues/339)) ([b5a6cc9](https://github.com/arvarus/skeudenn/commit/b5a6cc98744839a2adbaabef17b6879ef82ab78f))
+* **reader:** attach the wheel and key listeners once so no turn is lost ([#337](https://github.com/arvarus/skeudenn/issues/337)) ([b36233c](https://github.com/arvarus/skeudenn/commit/b36233ce957ba50d7d7bf4735cf597fb6a17c11d))
+
 ## [0.27.0](https://github.com/arvarus/skeudenn/compare/v0.26.1...v0.27.0) (2026-11-26)
 
 
