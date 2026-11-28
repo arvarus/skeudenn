@@ -1,5 +1,5 @@
 import { Outlet, createRootRoute } from '@tanstack/react-router';
-import { useRef } from 'react';
+import { Fragment, useRef } from 'react';
 
 import { AchievementToasts } from '@/components/achievement-toasts';
 import { ImageScanBar } from '@/components/layout/image-scan-bar';
@@ -38,9 +38,14 @@ function RootLayout() {
         </main>
       </div>
       {!fullscreen && <ImageScanBar />}
-      {/* Remounted for each user, so the tracker never counts one user's library for another's achievements. */}
-      {achievementsEnabled && <AchievementTracker key={activeUserId} />}
-      {achievementsEnabled && <AchievementToasts key={activeUserId} />}
+      {/* Remounted for each user, so the tracker never counts one user's library for another's achievements.
+          One keyed fragment: giving both siblings the user's id as key made two children with the same key. */}
+      {achievementsEnabled && (
+        <Fragment key={activeUserId}>
+          <AchievementTracker />
+          <AchievementToasts />
+        </Fragment>
+      )}
       <UpdateToast />
       <UserChooser />
     </div>
