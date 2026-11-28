@@ -17,4 +17,6 @@ export default {
   roleFilter: 'Filter by role',
   allRoles: 'All',
   rolesOnBook: 'Role: {{roles}}',
+  searchGroup: 'Search this author on a reference site',
+  searchOn: 'Search “{{name}}” on {{site}}',
 };

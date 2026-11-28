@@ -3,6 +3,7 @@ import { ArrowLeft } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { AuthorSearchBar } from '@/components/author-search-bar';
 import { BookDetails, BookRating, BookTags, ViewModePicker } from '@/components/book-row';
 import { Button } from '@/components/ui/button';
 import { useLibrary } from '@/hooks/use-library';
@@ -60,6 +61,7 @@ function AuthorPage() {
             t('roles', { roles: profile.roles.map(creditRoleLabel).join(', ') }),
           ].join(' · ')}
         </p>
+        <AuthorSearchBar person={profile} />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">

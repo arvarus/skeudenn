@@ -19,6 +19,8 @@ const authors: Translation<typeof en> = {
   roleFilter: 'Filtrer par rôle',
   allRoles: 'Tous',
   rolesOnBook: 'Rôle : {{roles}}',
+  searchGroup: 'Rechercher cet auteur sur un site de référence',
+  searchOn: 'Rechercher « {{name}} » sur {{site}}',
 };
 
 export default authors;

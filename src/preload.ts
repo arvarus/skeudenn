@@ -8,6 +8,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 
 import type { AchievementId, UnlockedAchievement } from './shared/achievements';
 import type { AppInfo, AppLink, UpdateCheckResult } from './shared/app';
+import type { AuthorSearchProviderId } from './shared/author-search';
 import type { ComicPage, OpenComicResult } from './shared/comic';
 import type { DataChange } from './shared/data-changes';
 import type {
@@ -63,6 +64,8 @@ export interface AppApi {
   getSystemLanguages(): Promise<string[]>;
   /** Opens one of the project's pages (repository, documentation…) in the default browser. */
   openLink(link: AppLink): Promise<void>;
+  /** Opens, in the default browser, a search for an author on one of the reference sites (`AUTHOR_SEARCH_PROVIDERS`). The main process builds the address from the site's key and the name (a "Last, First" name is flipped, at most `MAX_AUTHOR_NAME_LENGTH` characters) and opens only an `https:` URL on that site's own host; an unknown site or an empty name rejects. */
+  openAuthorSearch(provider: AuthorSearchProviderId, name: string): Promise<void>;
   /** Asks GitHub whether a release newer than the running version is published; a network failure comes back as an `error` result, not a rejection. */
   checkUpdate(): Promise<UpdateCheckResult>;
   /** The token of the comic the operating system asked to open (double click in the file explorer, "Open with…", a second launch with a file), or `null`; it is handed out once and opens like a `comic.pickFile` token. */
@@ -345,6 +348,7 @@ const api: SkeudennApi = {
     getInfo: () => ipcRenderer.invoke('app:get-info'),
     getSystemLanguages: () => ipcRenderer.invoke('app:get-system-languages'),
     openLink: (link) => ipcRenderer.invoke('app:open-link', link),
+    openAuthorSearch: (provider, name) => ipcRenderer.invoke('app:open-author-search', provider, name),
     checkUpdate: () => ipcRenderer.invoke('app:check-update'),
     takeLaunchFile: () => ipcRenderer.invoke('app:take-launch-file'),
     onLaunchFile: (listener) => subscribe('app:launch-file', listener),

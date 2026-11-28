@@ -1,17 +1,19 @@
 import { app, net, shell } from 'electron';
 
 import { APP_LINKS, isAppLink, type AppInfo, type UpdateCheckResult } from '../../shared/app';
+import { MAX_AUTHOR_NAME_LENGTH, authorSearchUrl, isAuthorSearchProviderId } from '../../shared/author-search';
 import { checkForUpdate } from '../services/update-checker';
 import { broadcast } from './broadcast';
 import { handle } from './handle';
 import type { LaunchFiles } from './launch-files';
-import { IpcArgumentError, args } from './validate';
+import { IpcArgumentError, args, expectNonEmptyString } from './validate';
 
 // Channel names are shared with preload.ts: keep them in sync.
 export const APP_CHANNELS = {
   getInfo: 'app:get-info',
   getSystemLanguages: 'app:get-system-languages',
   openLink: 'app:open-link',
+  openAuthorSearch: 'app:open-author-search',
   checkUpdate: 'app:check-update',
   takeLaunchFile: 'app:take-launch-file',
   /** Main → renderer: a comic the OS asked to open is waiting (see `takeLaunchFile`). */
@@ -49,6 +51,24 @@ export function registerAppIpc(launchFiles: LaunchFiles): void {
     }),
     async (_event, link) => {
       await shell.openExternal(APP_LINKS[link]);
+    },
+  );
+
+  // The renderer names a provider of the fixed list and a name; the main process builds the
+  // address and only opens an `https:` URL on that provider's own host, never one the renderer made.
+  handle(
+    APP_CHANNELS.openAuthorSearch,
+    args(
+      (provider) => {
+        if (!isAuthorSearchProviderId(provider)) throw new IpcArgumentError('provider', 'one of the author search sites');
+        return provider;
+      },
+      (name) => expectNonEmptyString(name, 'name', MAX_AUTHOR_NAME_LENGTH),
+    ),
+    async (_event, provider, name) => {
+      const url = authorSearchUrl(provider, name);
+      if (url === null) throw new IpcArgumentError('name', 'a name to search');
+      await shell.openExternal(url);
     },
   );
 

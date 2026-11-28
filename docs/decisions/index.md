@@ -35,6 +35,7 @@ An ADR records one structural decision: the context, what was decided, and what 
 | [0028](./0028-separate-background-decoder-process.md) | A second decoder process for background work, the reader keeps its own | Proposed |
 | [0030](./0030-stopping-library-runs-through-the-lock.md) | Stopping every run over the library files through the run lock | Accepted |
 | [0031](./0031-full-rename-to-skeudenn.md) | Full rename to Skeudenn, without migration | Accepted |
+| [0032](./0032-author-search-links.md) | Author search links: the renderer names a site and a name, the main process builds the URL | Accepted |
 
 These first four ADRs were written after the fact, from the code and its comments, then checked by the maintainer.
 
